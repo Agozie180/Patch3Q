@@ -31,6 +31,16 @@ export function fromBase64Url(value: string): Uint8Array {
   return output;
 }
 
+export function fromBase64(value: string): Uint8Array {
+  if (!/^[A-Za-z0-9+/]*={0,2}$/u.test(value) || value.length % 4 !== 0) {
+    throw new Error("Invalid base64 value.");
+  }
+  const binary = atob(value);
+  const output = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) output[index] = binary.charCodeAt(index);
+  return output;
+}
+
 export function randomBytes(length: number): Uint8Array {
   return crypto.getRandomValues(new Uint8Array(length));
 }

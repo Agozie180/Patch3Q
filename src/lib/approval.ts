@@ -7,6 +7,7 @@ import {
   verifyMessage,
 } from "@qorechain/qoresign";
 import { fetchPqKeyStatus, verifyMessageWithChain } from "@qorechain/qoresign/network";
+import { encodeAbiParameters, hexToBytes, isAddress, keccak256, toBytes, zeroAddress } from "viem";
 
 import type {
   ApprovalAuthority,
@@ -21,33 +22,50 @@ import { fromBase64Url, randomBytes, sha256, toBase64Url, utf8 } from "./encodin
 import { PATCH3Q_REST_PROXY } from "./protocol.js";
 
 const SEVERITIES = new Set<Severity>(["critical", "high", "medium", "low", "informational"]);
+const EVM_CHAIN_ID = 9800 as const;
+const APPROVAL_TYPEHASH = keccak256(toBytes(
+  "Patch3QSeverityApproval(uint256 chainId,address registry,bytes32 caseIdHash,bytes32 envelopeHash,bytes32 contentCommitment,uint8 severity,uint256 payoutAmount,bytes32 rationaleHash)",
+));
+const SEVERITY_CODES: Record<Severity, number> = {
+  informational: 1,
+  low: 2,
+  medium: 3,
+  high: 4,
+  critical: 5,
+};
 
-function approvalStatementText(statement: SeverityApprovalStatement): string {
-  return JSON.stringify({
-    type: statement.type,
-    version: statement.version,
-    caseId: statement.caseId,
-    chainId: statement.chainId,
-    envelopeHash: statement.envelopeHash,
-    contentCommitment: statement.contentCommitment,
-    severity: statement.severity,
-    payout: {
-      denom: statement.payout.denom,
-      atomic: statement.payout.atomic,
-    },
-    rationale: statement.rationale,
-    approvedAt: statement.approvedAt,
-  });
-}
-
-function approvalHashInput(approval: Omit<SeverityApproval, "approvalHash">): Uint8Array {
-  return utf8(JSON.stringify({
-    type: approval.type,
-    version: approval.version,
-    statement: JSON.parse(approvalStatementText(approval.statement)) as SeverityApprovalStatement,
-    signer: approval.signer,
-    signature: approval.signature,
-  }));
+async function severityApprovalDigest(
+  bundle: Patch3QBundle,
+  registryAddress: `0x${string}`,
+  severity: Severity,
+  payoutAtomic: string,
+  rationaleHash: `0x${string}`,
+): Promise<`0x${string}`> {
+  const caseIdHash = await sha256(utf8(bundle.caseId));
+  return keccak256(encodeAbiParameters(
+    [
+      { type: "bytes32" },
+      { type: "uint256" },
+      { type: "address" },
+      { type: "bytes32" },
+      { type: "bytes32" },
+      { type: "bytes32" },
+      { type: "uint8" },
+      { type: "uint256" },
+      { type: "bytes32" },
+    ],
+    [
+      APPROVAL_TYPEHASH,
+      BigInt(EVM_CHAIN_ID),
+      registryAddress,
+      caseIdHash,
+      bundle.envelopeHash,
+      bundle.contentCommitment,
+      SEVERITY_CODES[severity],
+      BigInt(payoutAtomic),
+      rationaleHash,
+    ],
+  ));
 }
 
 function approvalKeysFromVault(vault: Patch3QApprovalVault) {
@@ -125,6 +143,7 @@ export async function resolveApprovalAuthority(address: string): Promise<Approva
 export async function createSeverityApproval(options: {
   bundle: Patch3QBundle;
   vault: Patch3QApprovalVault;
+  registryAddress: `0x${string}`;
   severity: Severity;
   payoutAtomic: string;
   rationale: string;
@@ -135,8 +154,11 @@ export async function createSeverityApproval(options: {
   if (!authority) throw new Error("This bundle does not bind an approval authority.");
   if (vault.caseId !== bundle.caseId) throw new Error("This approval vault belongs to a different case.");
   if (!SEVERITIES.has(options.severity)) throw new Error("Choose a supported severity.");
+  if (!isAddress(options.registryAddress) || options.registryAddress === zeroAddress) {
+    throw new Error("Configure the deployed Patch3Q registry before signing an approval.");
+  }
   if (!/^\d+$/u.test(options.payoutAtomic) || BigInt(options.payoutAtomic) <= 0n) {
-    throw new Error("Payout must be a positive integer in test-fUSD atomic units.");
+    throw new Error("Payout must be a positive integer in tUSDT atomic units.");
   }
   const rationale = options.rationale.trim();
   if (rationale.length < 12) throw new Error("Add a short severity rationale before approving payment.");
@@ -146,16 +168,27 @@ export async function createSeverityApproval(options: {
   if (authority.pqPublicKey && toBase64Url(pqKey.publicKey) !== authority.pqPublicKey) {
     throw new Error("The vault ML-DSA-87 key does not match the bundle authority.");
   }
+  const rationaleHash = keccak256(toBytes(rationale));
+  const approvalHash = await severityApprovalDigest(
+    bundle,
+    options.registryAddress,
+    options.severity,
+    options.payoutAtomic,
+    rationaleHash,
+  );
   const statement: SeverityApprovalStatement = {
     type: "patch3q.severity-approval-statement",
     version: 1,
     caseId: bundle.caseId,
     chainId: bundle.chainId,
+    evmChainId: EVM_CHAIN_ID,
+    registryAddress: options.registryAddress,
     envelopeHash: bundle.envelopeHash,
     contentCommitment: bundle.contentCommitment,
     severity: options.severity,
-    payout: { denom: "test-fUSD", atomic: options.payoutAtomic },
+    payout: { denom: "tUSDT", atomic: options.payoutAtomic },
     rationale,
+    rationaleHash,
     approvedAt: (options.now ?? new Date()).toISOString(),
   };
   const unsigned = {
@@ -166,12 +199,12 @@ export async function createSeverityApproval(options: {
     signature: signMessage({
       chainId: bundle.chainId,
       signer: signer.bech32,
-      data: approvalStatementText(statement),
+      data: hexToBytes(approvalHash),
       classicalKey,
       pqKey,
     }),
   };
-  return { ...unsigned, approvalHash: await sha256(approvalHashInput(unsigned)) };
+  return { ...unsigned, approvalHash };
 }
 
 export async function verifySeverityApproval(
@@ -185,17 +218,28 @@ export async function verifySeverityApproval(
       approval.statement.envelopeHash === bundle.envelopeHash &&
       approval.statement.contentCommitment === bundle.contentCommitment,
     authorityBinding: Boolean(authority && approval.signer === authority.signer),
+    registryBinding:
+      approval.statement.evmChainId === EVM_CHAIN_ID &&
+      isAddress(approval.statement.registryAddress) &&
+      approval.statement.registryAddress !== zeroAddress,
+    rationaleBinding: keccak256(toBytes(approval.statement.rationale)) === approval.statement.rationaleHash,
     approvalHash: false,
     hybridSignature: false,
   };
-  const unsigned = {
-    type: approval.type,
-    version: approval.version,
-    statement: approval.statement,
-    signer: approval.signer,
-    signature: approval.signature,
-  };
-  checks.approvalHash = (await sha256(approvalHashInput(unsigned))) === approval.approvalHash;
+  let expectedDigest = approval.approvalHash;
+  if (
+    checks.caseBinding && checks.evidenceBinding && checks.registryBinding && checks.rationaleBinding &&
+    SEVERITIES.has(approval.statement.severity) && /^\d+$/u.test(approval.statement.payout.atomic)
+  ) {
+    expectedDigest = await severityApprovalDigest(
+      bundle,
+      approval.statement.registryAddress,
+      approval.statement.severity,
+      approval.statement.payout.atomic,
+      approval.statement.rationaleHash,
+    );
+    checks.approvalHash = expectedDigest === approval.approvalHash;
+  }
 
   if (authority && checks.authorityBinding) {
     try {
@@ -204,7 +248,7 @@ export async function verifySeverityApproval(
           rest: PATCH3Q_REST_PROXY,
           chainId: bundle.chainId,
           signer: approval.signer,
-          data: approvalStatementText(approval.statement),
+          data: hexToBytes(expectedDigest),
           signature: approval.signature,
           requirePq: true,
         });
@@ -213,7 +257,7 @@ export async function verifySeverityApproval(
         verifyMessage({
           chainId: bundle.chainId,
           signer: approval.signer,
-          data: approvalStatementText(approval.statement),
+          data: hexToBytes(expectedDigest),
           signature: approval.signature,
           pqPublicKey: fromBase64Url(authority.pqPublicKey),
           requirePq: true,
@@ -272,14 +316,14 @@ export async function demonstrateClassicalOnlyForgeryRejection(
   const forgedSignature = signMessage({
     chainId: bundle.chainId,
     signer: signer.bech32,
-    data: approvalStatementText(approval.statement),
+    data: hexToBytes(approval.approvalHash),
     classicalKey,
   });
   try {
     verifyMessage({
       chainId: bundle.chainId,
       signer: signer.bech32,
-      data: approvalStatementText(approval.statement),
+      data: hexToBytes(approval.approvalHash),
       signature: forgedSignature,
       pqPublicKey: fromBase64Url(authority.pqPublicKey),
       requirePq: true,

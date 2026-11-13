@@ -1,5 +1,5 @@
 import react from "@vitejs/plugin-react";
-import { defineConfig } from "vite";
+import { defineConfig } from "vitest/config";
 
 // The public REST APIs send no CORS headers, so the browser reaches them
 // through the dev (and preview) server: /lcd-testnet and /lcd-mainnet are
@@ -17,6 +17,7 @@ const proxy = {
 
 export default defineConfig({
   plugins: [react()],
+  test: { exclude: ["contract-tests/**", "node_modules/**"] },
   server: { port: 5173, proxy },
   preview: { proxy },
 });

@@ -10,4 +10,4 @@ Only the latest commit on the default branch is supported during active developm
 
 ## Scope notes
 
-QoreSeal is pre-1.0, the contracts are unaudited, and `MockFUSD` is a permissionless test token. Patch3Q is not production-ready and must not custody real bounty funds without independent review.
+QoreSeal is pre-1.0, the contracts are unaudited, and `MockTUSDT` is a permissionless test token. Patch3Q is not production-ready and must not custody real bounty funds without independent review.

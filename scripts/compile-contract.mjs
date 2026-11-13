@@ -22,7 +22,7 @@ if (errors.length > 0) {
 }
 const artifactDirectory = path.join(root, "artifacts");
 fs.mkdirSync(artifactDirectory, { recursive: true });
-for (const contractName of ["Patch3QRegistry", "MockFUSD"]) {
+for (const contractName of ["Patch3QRegistry", "MockTUSDT"]) {
   const contract = output.contracts["Patch3QRegistry.sol"][contractName];
   fs.writeFileSync(
     path.join(artifactDirectory, contractName + ".json"),
@@ -40,4 +40,4 @@ for (const contractName of ["Patch3QRegistry", "MockFUSD"]) {
     ),
   );
 }
-process.stdout.write("Compiled Patch3QRegistry and MockFUSD with " + solc.version() + "\n");
+process.stdout.write("Compiled Patch3QRegistry and MockTUSDT with " + solc.version() + "\n");

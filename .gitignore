@@ -1,5 +1,7 @@
 node_modules/
 dist/
+hardhat-artifacts/
+hardhat-cache/
 .env
 .env.local
 *.vault.json

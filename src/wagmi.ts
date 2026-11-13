@@ -1,6 +1,6 @@
 import { connectorsForWallets } from "@rainbow-me/rainbowkit";
 import { injectedWallet } from "@rainbow-me/rainbowkit/wallets";
-import { qorechain, qorechainTestnet } from "@qorechain/evm";
+import { qorechainTestnet } from "@qorechain/evm";
 import { qorexWallet } from "@qorechain/qorex-rainbowkit";
 import { createConfig, http } from "wagmi";
 
@@ -22,11 +22,10 @@ const connectors = connectorsForWallets(
 
 // The testnet is listed first, so a fresh connection lands there.
 export const config = createConfig({
-  chains: [qorechainTestnet, qorechain],
+  chains: [qorechainTestnet],
   connectors,
   transports: {
     [qorechainTestnet.id]: http(),
-    [qorechain.id]: http(),
   },
 });
 

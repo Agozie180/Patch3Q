@@ -1,10 +1,10 @@
 import { ConnectButton } from "@rainbow-me/rainbowkit";
-import { useMemo, useState } from "react";
-import { isAddress, zeroAddress } from "viem";
-import { useAccount, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
+import { useEffect, useMemo, useState } from "react";
+import { isAddress, sha256 as viemSha256, toBytes, zeroAddress, zeroHash } from "viem";
+import { useAccount, useReadContract, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
 
 import { escrowTokenAbi, patch3qRegistryAbi, patch3qRegistryAddress } from "./contract.js";
-import { fileToAttachment, fromBase64Url } from "./lib/encoding.js";
+import { bytesToHex, fileToAttachment, fromBase64, fromBase64Url } from "./lib/encoding.js";
 import {
   approvalToJson,
   approvalVaultToJson,
@@ -534,6 +534,7 @@ const SEVERITY_CODES: Record<Severity, number> = {
   high: 4,
   critical: 5,
 };
+const CASE_STATUSES = ["Submitted", "Acknowledged", "Triaged", "Resolved", "Disclosed", "Cancelled"] as const;
 
 function ApprovalWorkspace({
   bundle,
@@ -566,12 +567,17 @@ function ApprovalWorkspace({
   async function issueApproval() {
     if (!bundle) return;
     setError("");
+    if (!registryReady || !patch3qRegistryAddress) {
+      setError("Deploy Patch3QRegistry and configure its address before signing the replay-protected approval.");
+      return;
+    }
     setBusy(true);
     try {
       const vault = parseApprovalVault(vaultText);
       const nextApproval = await createSeverityApproval({
         bundle,
         vault,
+        registryAddress: patch3qRegistryAddress,
         severity,
         payoutAtomic,
         rationale,
@@ -620,6 +626,11 @@ function ApprovalWorkspace({
       setError("The approval must pass every hybrid-signature and evidence-binding check first.");
       return;
     }
+    const pqSignature = approval.signature.pq?.signature;
+    if (!pqSignature) {
+      setError("The approval has no ML-DSA-87 signature to verify on-chain.");
+      return;
+    }
     try {
       await approvalWrite.writeContractAsync({
         address: patch3qRegistryAddress,
@@ -629,7 +640,8 @@ function ApprovalWorkspace({
           await hashText(bundle.caseId),
           SEVERITY_CODES[approval.statement.severity],
           BigInt(approval.statement.payout.atomic),
-          approval.approvalHash,
+          approval.statement.rationaleHash,
+          bytesToHex(fromBase64(pqSignature)),
         ],
       });
     } catch (caught) {
@@ -678,7 +690,7 @@ function ApprovalWorkspace({
                 <option value="informational">Informational</option>
               </select>
             </Field>
-            <Field label="Payout atomic units" hint="test-fUSD uses 6 decimals; 2500000000 = 2,500 fUSD.">
+            <Field label="Payout atomic units" hint="tUSDT uses 6 decimals; 2500000000 = 2,500 tUSDT.">
               <input inputMode="numeric" value={payoutAtomic} onChange={(event) => setPayoutAtomic(event.target.value)} />
             </Field>
             <Field label="Severity rationale" wide>
@@ -750,9 +762,8 @@ function ApprovalWorkspace({
 }
 
 function AnchorWorkspace({ bundle }: { bundle?: Patch3QBundle }) {
-  const { isConnected } = useAccount();
+  const { address, isConnected } = useAccount();
   const [programAddress, setProgramAddress] = useState("");
-  const [tokenAddress, setTokenAddress] = useState("");
   const [bountyAtomic, setBountyAtomic] = useState("2500000000");
   const [redactedReport, setRedactedReport] = useState("");
   const [localError, setLocalError] = useState("");
@@ -760,13 +771,55 @@ function AnchorWorkspace({ bundle }: { bundle?: Patch3QBundle }) {
   const tokenWrite = useWriteContract();
   const fundWrite = useWriteContract();
   const discloseWrite = useWriteContract();
+  const lifecycleWrite = useWriteContract();
   const receipt = useWaitForTransactionReceipt({ hash: write.data });
   const tokenReceipt = useWaitForTransactionReceipt({ hash: tokenWrite.data });
   const fundReceipt = useWaitForTransactionReceipt({ hash: fundWrite.data });
   const discloseReceipt = useWaitForTransactionReceipt({ hash: discloseWrite.data });
+  const lifecycleReceipt = useWaitForTransactionReceipt({ hash: lifecycleWrite.data });
   const registryReady = Boolean(
     patch3qRegistryAddress && isAddress(patch3qRegistryAddress) && patch3qRegistryAddress !== zeroAddress,
   );
+  const caseIdHash = useMemo(
+    () => bundle ? viemSha256(toBytes(bundle.caseId)) : undefined,
+    [bundle],
+  );
+  const bountyTokenRead = useReadContract({
+    address: patch3qRegistryAddress ?? zeroAddress,
+    abi: patch3qRegistryAbi,
+    functionName: "bountyToken",
+    query: { enabled: registryReady },
+  });
+  const caseRead = useReadContract({
+    address: patch3qRegistryAddress ?? zeroAddress,
+    abi: patch3qRegistryAbi,
+    functionName: "caseState",
+    args: [caseIdHash ?? zeroHash],
+    query: { enabled: registryReady && Boolean(caseIdHash), retry: false },
+  });
+  const deadlineRead = useReadContract({
+    address: patch3qRegistryAddress ?? zeroAddress,
+    abi: patch3qRegistryAbi,
+    functionName: "deadlineState",
+    args: [caseIdHash ?? zeroHash],
+    query: { enabled: registryReady && Boolean(caseIdHash), retry: false },
+  });
+  const tokenAddress = bountyTokenRead.data;
+  const caseState = caseRead.data;
+  const currentStatus = caseState ? Number(caseState[0]) : undefined;
+  const connectedIsProgram = Boolean(
+    address && caseState && address.toLowerCase() === caseState[8].toLowerCase(),
+  );
+
+  useEffect(() => {
+    if (
+      receipt.isSuccess || fundReceipt.isSuccess || discloseReceipt.isSuccess ||
+      lifecycleReceipt.isSuccess
+    ) {
+      void caseRead.refetch();
+      void deadlineRead.refetch();
+    }
+  }, [receipt.isSuccess, fundReceipt.isSuccess, discloseReceipt.isSuccess, lifecycleReceipt.isSuccess]);
 
   async function anchor() {
     if (!bundle) return;
@@ -786,9 +839,6 @@ function AnchorWorkspace({ bundle }: { bundle?: Patch3QBundle }) {
     try {
       const caseIdHash = await hashText(bundle.caseId);
       const programRef = await hashText(programAddress.toLowerCase());
-      const approvalAuthorityHash = await hashText(
-        bundle.approvalAuthority.signer + "|" + (bundle.approvalAuthority.pqPublicKey ?? bundle.approvalAuthority.keyFingerprint),
-      );
       await write.writeContractAsync({
         address: patch3qRegistryAddress,
         abi: patch3qRegistryAbi,
@@ -799,7 +849,6 @@ function AnchorWorkspace({ bundle }: { bundle?: Patch3QBundle }) {
           caseIdHash,
           bundle.envelopeHash,
           bundle.contentCommitment,
-          approvalAuthorityHash,
           programRef,
           BigInt(Math.floor(Date.parse(bundle.publicMetadata.acknowledgeBy) / 1000)),
           BigInt(Math.floor(Date.parse(bundle.publicMetadata.triageBy) / 1000)),
@@ -811,13 +860,33 @@ function AnchorWorkspace({ bundle }: { bundle?: Patch3QBundle }) {
     }
   }
 
+  async function advanceLifecycle(
+    functionName: "acknowledgeCase" | "triageCase" | "resolveCase" | "recordDeadlineBreaches",
+  ) {
+    setLocalError("");
+    if (!registryReady || !patch3qRegistryAddress || !caseIdHash) {
+      setLocalError("Anchor the case and configure the registry first.");
+      return;
+    }
+    try {
+      await lifecycleWrite.writeContractAsync({
+        address: patch3qRegistryAddress,
+        abi: patch3qRegistryAbi,
+        functionName,
+        args: [caseIdHash],
+      });
+    } catch (caught) {
+      setLocalError(caught instanceof Error ? caught.message : "Could not advance the case lifecycle.");
+    }
+  }
+
   function escrowInputs(): { token: `0x${string}`; amount: bigint } | undefined {
-    if (!isAddress(tokenAddress)) {
-      setLocalError("Enter the test-fUSD ERC-20 contract address.");
+    if (!tokenAddress || !isAddress(tokenAddress)) {
+      setLocalError("The registry does not expose a valid trusted bounty token.");
       return;
     }
     if (!/^\d+$/u.test(bountyAtomic) || BigInt(bountyAtomic) <= 0n) {
-      setLocalError("Enter a positive bounty in test-fUSD atomic units.");
+      setLocalError("Enter a positive bounty in tUSDT atomic units.");
       return;
     }
     return { token: tokenAddress, amount: BigInt(bountyAtomic) };
@@ -856,7 +925,7 @@ function AnchorWorkspace({ bundle }: { bundle?: Patch3QBundle }) {
         address: patch3qRegistryAddress,
         abi: patch3qRegistryAbi,
         functionName: "fundBounty",
-        args: [await hashText(bundle.caseId), input.token, input.amount],
+        args: [await hashText(bundle.caseId), input.amount],
       });
     } catch (caught) {
       setLocalError(caught instanceof Error ? caught.message : "Could not fund the bounty escrow.");
@@ -939,14 +1008,87 @@ function AnchorWorkspace({ bundle }: { bundle?: Patch3QBundle }) {
 
       <div className="section-heading divided">
         <StepMark number="02" active />
-        <div><h3>Fund the bounty escrow</h3><p>The program wallet approves and deposits test-fUSD after the case is anchored.</p></div>
+        <div><h3>Advance the accountable lifecycle</h3><p>Program actions and SLA breaches are read directly from the registry.</p></div>
+      </div>
+      <div className="anchor-panel">
+        <div className="config-row">
+          <span>On-chain status</span>
+          <code>{currentStatus === undefined ? "Not anchored or unavailable" : CASE_STATUSES[currentStatus]}</code>
+          <span className={currentStatus === undefined ? "pill amber" : "pill positive"}>
+            {currentStatus === undefined ? "No state" : "Verified read"}
+          </span>
+        </div>
+        <div className="config-row">
+          <span>Acknowledgement SLA</span>
+          <code>{caseState ? formatDate(new Date(Number(caseState[4]) * 1000).toISOString()) : "Unavailable"}</code>
+          <span className={deadlineRead.data?.[0] ? "pill amber" : "pill positive"}>
+            {deadlineRead.data?.[0] ? "Breached" : "Within SLA"}
+          </span>
+        </div>
+        <div className="config-row">
+          <span>Triage SLA</span>
+          <code>{caseState ? formatDate(new Date(Number(caseState[5]) * 1000).toISOString()) : "Unavailable"}</code>
+          <span className={deadlineRead.data?.[1] ? "pill amber" : "pill positive"}>
+            {deadlineRead.data?.[1] ? "Breached" : "Within SLA"}
+          </span>
+        </div>
+        <div className="anchor-note">
+          {connectedIsProgram
+            ? "The connected wallet is the bound program authority for this case."
+            : "Connect the bound program wallet to acknowledge, triage, or resolve this case."}
+        </div>
+        <div className="action-stack">
+          <button
+            className="secondary-button"
+            type="button"
+            disabled={!connectedIsProgram || currentStatus !== 0 || lifecycleWrite.isPending}
+            onClick={() => void advanceLifecycle("acknowledgeCase")}
+          >
+            Acknowledge case
+          </button>
+          <button
+            className="secondary-button"
+            type="button"
+            disabled={!connectedIsProgram || currentStatus !== 1 || lifecycleWrite.isPending}
+            onClick={() => void advanceLifecycle("triageCase")}
+          >
+            Record triage
+          </button>
+          <button
+            className="primary-button"
+            type="button"
+            disabled={!connectedIsProgram || currentStatus !== 2 || lifecycleWrite.isPending}
+            onClick={() => void advanceLifecycle("resolveCase")}
+          >
+            Mark fix resolved
+          </button>
+          <button
+            className="text-button quiet"
+            type="button"
+            disabled={currentStatus === undefined || lifecycleWrite.isPending}
+            onClick={() => void advanceLifecycle("recordDeadlineBreaches")}
+          >
+            Record any expired SLA →
+          </button>
+        </div>
+        {lifecycleWrite.data && (
+          <div className="transaction-status">
+            <StatusDot good={lifecycleReceipt.isSuccess} />
+            <div><strong>{lifecycleReceipt.isSuccess ? "Lifecycle updated" : "Lifecycle transaction submitted"}</strong><code>{lifecycleWrite.data}</code></div>
+          </div>
+        )}
+      </div>
+
+      <div className="section-heading divided">
+        <StepMark number="03" active />
+        <div><h3>Fund the bounty escrow</h3><p>The program wallet approves and deposits the registry-bound tUSDT after the case is anchored.</p></div>
       </div>
       <div className="anchor-panel">
         <div className="form-grid">
-          <Field label="test-fUSD token address" wide>
-            <input value={tokenAddress} onChange={(event) => setTokenAddress(event.target.value)} placeholder="0x…" />
+          <Field label="Registry-bound bounty token" hint="Immutable after registry deployment." wide>
+            <input readOnly value={tokenAddress ?? "Registry not configured"} />
           </Field>
-          <Field label="Bounty atomic units" hint="6 decimals: 2500000000 = 2,500 fUSD." wide>
+          <Field label="Bounty atomic units" hint="6 decimals: 2500000000 = 2,500 tUSDT." wide>
             <input inputMode="numeric" value={bountyAtomic} onChange={(event) => setBountyAtomic(event.target.value)} />
           </Field>
         </div>
@@ -955,7 +1097,7 @@ function AnchorWorkspace({ bundle }: { bundle?: Patch3QBundle }) {
         </div>
         <div className="action-stack">
           <button className="secondary-button" type="button" disabled={!bundle || !isConnected || tokenWrite.isPending} onClick={() => void approveEscrowToken()}>
-            {tokenWrite.isPending ? "Confirm token approval…" : "1. Approve test-fUSD"}
+            {tokenWrite.isPending ? "Confirm token approval…" : "1. Approve tUSDT"}
           </button>
           <button className="primary-button" type="button" disabled={!bundle || !isConnected || fundWrite.isPending} onClick={() => void fundEscrow()}>
             {fundWrite.isPending ? "Confirm escrow deposit…" : "2. Fund case escrow"}
@@ -970,7 +1112,7 @@ function AnchorWorkspace({ bundle }: { bundle?: Patch3QBundle }) {
       </div>
 
       <div className="section-heading divided">
-        <StepMark number="03" active />
+        <StepMark number="04" active />
         <div><h3>Publish after the fix</h3><p>Commit a redacted report after resolution and embargo; exploit material remains encrypted.</p></div>
       </div>
       <div className="anchor-panel">

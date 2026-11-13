@@ -2,26 +2,46 @@
 pragma solidity ^0.8.24;
 
 interface IERC20Like {
+    function balanceOf(address account) external view returns (uint256);
     function transfer(address to, uint256 amount) external returns (bool);
     function transferFrom(address from, address to, uint256 amount) external returns (bool);
 }
 
+interface IQorePQCVerify {
+    function pqcVerify(bytes calldata pubkey, bytes calldata signature, bytes calldata message)
+        external view returns (bool valid);
+}
+
+interface IQorePQCKeyStatus {
+    function pqcKeyStatus(address account)
+        external view returns (bool registered, uint8 algorithmId, bytes memory pubkey);
+}
+
 /// @title Patch3QRegistry
-/// @notice Public receipts, deadlines, and bounty escrow for encrypted vulnerability disclosures.
-/// @dev Report plaintext, exploit material, salts, and decryption keys must never be submitted here.
+/// @notice Public receipts, enforceable deadline evidence, PQ-approved bounty escrow, and disclosure commitments.
+/// @dev Report plaintext, exploit material, salts, decryption keys, and unredacted reports must never be submitted here.
 contract Patch3QRegistry {
     enum Status { Submitted, Acknowledged, Triaged, Resolved, Disclosed, Cancelled }
     enum Severity { Unset, Informational, Low, Medium, High, Critical }
+
+    uint8 public constant ML_DSA_87_ALGORITHM_ID = 1;
+    uint8 public constant ACKNOWLEDGEMENT_BREACH = 1;
+    uint8 public constant TRIAGE_BREACH = 2;
+    address public constant PQC_VERIFY_PRECOMPILE = 0x0000000000000000000000000000000000000a01;
+    address public constant PQC_KEY_STATUS_PRECOMPILE = 0x0000000000000000000000000000000000000a02;
+    bytes public constant QORESIGN_MESSAGE_PREFIX = "qorechain-msg-v1|qorechain-diana|";
+    bytes32 public constant APPROVAL_TYPEHASH = keccak256(
+        "Patch3QSeverityApproval(uint256 chainId,address registry,bytes32 caseIdHash,bytes32 envelopeHash,bytes32 contentCommitment,uint8 severity,uint256 payoutAmount,bytes32 rationaleHash)"
+    );
 
     struct CaseReceipt {
         bool exists;
         address reporter;
         address program;
         address auditor;
-        address bountyToken;
         bytes32 envelopeHash;
         bytes32 contentCommitment;
-        bytes32 approvalAuthorityHash;
+        bytes32 auditorPqKeyHash;
         bytes32 programRef;
         bytes32 approvalHash;
         bytes32 redactedReportHash;
@@ -38,9 +58,11 @@ contract Patch3QRegistry {
         uint64 embargoUntil;
         Severity severity;
         Status status;
+        uint8 slaBreaches;
     }
 
     mapping(bytes32 caseIdHash => CaseReceipt receipt) public cases;
+    address public immutable bountyToken;
     bool private entered;
 
     error CaseAlreadyExists();
@@ -49,16 +71,22 @@ contract Patch3QRegistry {
     error InvalidAmount();
     error InvalidDeadline();
     error InvalidHash();
+    error InvalidPqSignature();
     error InvalidStatus();
     error InvalidToken();
     error NotAuditor();
     error NotProgram();
     error NotReporter();
     error NotParticipant();
+    error RolesMustBeDistinct();
     error ApprovalAlreadyRecorded();
+    error AuditorPqKeyChanged();
+    error AuditorPqKeyMissing();
     error EmbargoActive();
     error NothingToRefund();
+    error PqcPrecompileUnavailable();
     error Reentrancy();
+    error TokenBalanceMismatch();
     error TokenTransferFailed();
 
     event CaseSubmitted(
@@ -68,21 +96,35 @@ contract Patch3QRegistry {
         address auditor,
         bytes32 envelopeHash,
         bytes32 contentCommitment,
-        bytes32 approvalAuthorityHash,
+        bytes32 auditorPqKeyHash,
         bytes32 programRef,
         uint64 acknowledgeBy,
         uint64 triageBy,
         uint64 embargoUntil
     );
+    event DeadlineBreached(bytes32 indexed caseIdHash, uint8 indexed breach, uint64 deadline, uint64 recordedAt);
     event CaseAcknowledged(bytes32 indexed caseIdHash, uint64 timestamp, bool withinSla);
     event CaseTriaged(bytes32 indexed caseIdHash, uint64 timestamp, bool withinSla);
     event CaseResolved(bytes32 indexed caseIdHash, uint64 timestamp);
     event BountyFunded(bytes32 indexed caseIdHash, address indexed token, uint256 amount, uint256 escrowedTotal);
-    event SeverityApproved(bytes32 indexed caseIdHash, Severity severity, uint256 payoutAmount, bytes32 approvalHash, uint64 timestamp);
+    event SeverityApproved(
+        bytes32 indexed caseIdHash,
+        Severity severity,
+        uint256 payoutAmount,
+        bytes32 approvalHash,
+        bytes32 rationaleHash,
+        uint64 timestamp
+    );
     event BountyReleased(bytes32 indexed caseIdHash, address indexed reporter, address indexed token, uint256 amount);
     event EscrowRefunded(bytes32 indexed caseIdHash, address indexed program, address indexed token, uint256 amount);
     event CaseDisclosed(bytes32 indexed caseIdHash, bytes32 redactedReportHash, uint64 timestamp);
     event CaseCancelled(bytes32 indexed caseIdHash, uint64 timestamp);
+
+    constructor(address trustedBountyToken) {
+        if (trustedBountyToken == address(0)) revert InvalidAddress();
+        if (trustedBountyToken.code.length == 0) revert InvalidToken();
+        bountyToken = trustedBountyToken;
+    }
 
     modifier existing(bytes32 caseIdHash) {
         if (!cases[caseIdHash].exists) revert CaseNotFound();
@@ -112,21 +154,24 @@ contract Patch3QRegistry {
         bytes32 caseIdHash,
         bytes32 envelopeHash,
         bytes32 contentCommitment,
-        bytes32 approvalAuthorityHash,
         bytes32 programRef,
         uint64 acknowledgeBy,
         uint64 triageBy,
         uint64 embargoUntil
     ) external {
         if (program == address(0) || auditor == address(0)) revert InvalidAddress();
+        if (program == auditor || program == msg.sender || auditor == msg.sender) revert RolesMustBeDistinct();
         if (cases[caseIdHash].exists) revert CaseAlreadyExists();
-        if (
-            caseIdHash == bytes32(0) || envelopeHash == bytes32(0) ||
-            contentCommitment == bytes32(0) || approvalAuthorityHash == bytes32(0)
-        ) revert InvalidHash();
-        if (acknowledgeBy <= block.timestamp || triageBy < acknowledgeBy || embargoUntil <= block.timestamp) {
-            revert InvalidDeadline();
+        if (caseIdHash == bytes32(0) || envelopeHash == bytes32(0) || contentCommitment == bytes32(0)) {
+            revert InvalidHash();
         }
+        if (
+            acknowledgeBy <= block.timestamp || triageBy <= acknowledgeBy ||
+            embargoUntil < triageBy
+        ) revert InvalidDeadline();
+
+        bytes memory auditorPqKey = _registeredPqKey(auditor);
+        bytes32 auditorPqKeyHash = keccak256(auditorPqKey);
 
         CaseReceipt storage receipt = cases[caseIdHash];
         receipt.exists = true;
@@ -135,7 +180,7 @@ contract Patch3QRegistry {
         receipt.auditor = auditor;
         receipt.envelopeHash = envelopeHash;
         receipt.contentCommitment = contentCommitment;
-        receipt.approvalAuthorityHash = approvalAuthorityHash;
+        receipt.auditorPqKeyHash = auditorPqKeyHash;
         receipt.programRef = programRef;
         receipt.submittedAt = uint64(block.timestamp);
         receipt.acknowledgeBy = acknowledgeBy;
@@ -145,13 +190,61 @@ contract Patch3QRegistry {
 
         emit CaseSubmitted(
             caseIdHash, msg.sender, program, auditor, envelopeHash, contentCommitment,
-            approvalAuthorityHash, programRef, acknowledgeBy, triageBy, embargoUntil
+            auditorPqKeyHash, programRef, acknowledgeBy, triageBy, embargoUntil
+        );
+    }
+
+    function recordDeadlineBreaches(bytes32 caseIdHash) external existing(caseIdHash) {
+        _recordDeadlineBreaches(caseIdHash, cases[caseIdHash]);
+    }
+
+    function deadlineState(bytes32 caseIdHash) external view existing(caseIdHash)
+        returns (bool acknowledgementMissed, bool triageMissed)
+    {
+        CaseReceipt storage receipt = cases[caseIdHash];
+        acknowledgementMissed =
+            (receipt.slaBreaches & ACKNOWLEDGEMENT_BREACH) != 0 ||
+            (receipt.acknowledgedAt == 0 && block.timestamp > receipt.acknowledgeBy);
+        triageMissed =
+            (receipt.slaBreaches & TRIAGE_BREACH) != 0 ||
+            (receipt.triagedAt == 0 && block.timestamp > receipt.triageBy);
+    }
+
+    function caseState(bytes32 caseIdHash) external view existing(caseIdHash) returns (
+        Status status,
+        Severity severity,
+        uint8 slaBreaches,
+        uint256 escrowedAmount,
+        uint64 acknowledgeBy,
+        uint64 triageBy,
+        uint64 embargoUntil,
+        address reporter,
+        address program,
+        address auditor,
+        bytes32 approvalHash,
+        bytes32 redactedReportHash
+    ) {
+        CaseReceipt storage receipt = cases[caseIdHash];
+        return (
+            receipt.status,
+            receipt.severity,
+            receipt.slaBreaches,
+            receipt.escrowedAmount,
+            receipt.acknowledgeBy,
+            receipt.triageBy,
+            receipt.embargoUntil,
+            receipt.reporter,
+            receipt.program,
+            receipt.auditor,
+            receipt.approvalHash,
+            receipt.redactedReportHash
         );
     }
 
     function acknowledgeCase(bytes32 caseIdHash) external existing(caseIdHash) onlyProgram(caseIdHash) {
         CaseReceipt storage receipt = cases[caseIdHash];
         if (receipt.status != Status.Submitted) revert InvalidStatus();
+        _recordDeadlineBreaches(caseIdHash, receipt);
         receipt.acknowledgedAt = uint64(block.timestamp);
         receipt.status = Status.Acknowledged;
         emit CaseAcknowledged(caseIdHash, uint64(block.timestamp), block.timestamp <= receipt.acknowledgeBy);
@@ -160,6 +253,7 @@ contract Patch3QRegistry {
     function triageCase(bytes32 caseIdHash) external existing(caseIdHash) onlyProgram(caseIdHash) {
         CaseReceipt storage receipt = cases[caseIdHash];
         if (receipt.status != Status.Acknowledged) revert InvalidStatus();
+        _recordDeadlineBreaches(caseIdHash, receipt);
         receipt.triagedAt = uint64(block.timestamp);
         receipt.status = Status.Triaged;
         emit CaseTriaged(caseIdHash, uint64(block.timestamp), block.timestamp <= receipt.triageBy);
@@ -168,53 +262,83 @@ contract Patch3QRegistry {
     function resolveCase(bytes32 caseIdHash) external existing(caseIdHash) onlyProgram(caseIdHash) {
         CaseReceipt storage receipt = cases[caseIdHash];
         if (receipt.status != Status.Triaged) revert InvalidStatus();
+        _recordDeadlineBreaches(caseIdHash, receipt);
         receipt.resolvedAt = uint64(block.timestamp);
         receipt.status = Status.Resolved;
         emit CaseResolved(caseIdHash, uint64(block.timestamp));
     }
 
-    function fundBounty(bytes32 caseIdHash, address token, uint256 amount)
+    function fundBounty(bytes32 caseIdHash, uint256 amount)
         external existing(caseIdHash) onlyProgram(caseIdHash) nonReentrant
     {
         CaseReceipt storage receipt = cases[caseIdHash];
         if (receipt.status == Status.Cancelled || receipt.status == Status.Disclosed) revert InvalidStatus();
-        if (token == address(0)) revert InvalidAddress();
+        if (receipt.approvalHash != bytes32(0)) revert ApprovalAlreadyRecorded();
         if (amount == 0) revert InvalidAmount();
-        if (receipt.bountyToken == address(0)) receipt.bountyToken = token;
-        else if (receipt.bountyToken != token) revert InvalidToken();
 
-        _safeTransferFrom(token, msg.sender, address(this), amount);
+        uint256 balanceBefore = IERC20Like(bountyToken).balanceOf(address(this));
+        _safeTransferFrom(bountyToken, msg.sender, address(this), amount);
+        uint256 balanceAfter = IERC20Like(bountyToken).balanceOf(address(this));
+        if (balanceAfter < balanceBefore || balanceAfter - balanceBefore != amount) revert TokenBalanceMismatch();
+
         receipt.escrowedAmount += amount;
-        emit BountyFunded(caseIdHash, token, amount, receipt.escrowedAmount);
+        emit BountyFunded(caseIdHash, bountyToken, amount, receipt.escrowedAmount);
     }
 
-    /// @notice Records a hybrid-signed approval commitment and atomically releases its approved payout.
-    /// @dev Clients verify approvalHash with QoreSign. QoreChain's EVM authorization window prevents
-    ///      an ECDSA key alone from submitting this auditor-only call.
-    function approveSeverity(bytes32 caseIdHash, Severity severity, uint256 payoutAmount, bytes32 approvalHash)
-        external existing(caseIdHash) onlyAuditor(caseIdHash) nonReentrant
-    {
+    function approvalDigest(
+        bytes32 caseIdHash,
+        Severity severity,
+        uint256 payoutAmount,
+        bytes32 rationaleHash
+    ) public view existing(caseIdHash) returns (bytes32) {
         CaseReceipt storage receipt = cases[caseIdHash];
-        if (
-            receipt.status != Status.Acknowledged &&
-            receipt.status != Status.Triaged &&
-            receipt.status != Status.Resolved
-        ) revert InvalidStatus();
+        return keccak256(abi.encode(
+            APPROVAL_TYPEHASH,
+            block.chainid,
+            address(this),
+            caseIdHash,
+            receipt.envelopeHash,
+            receipt.contentCommitment,
+            uint8(severity),
+            payoutAmount,
+            rationaleHash
+        ));
+    }
+
+    /// @notice Verifies the exact ML-DSA-87 approval on-chain and atomically releases the approved payout.
+    /// @dev The transaction sender supplies the classical account authorization; the QorePQC precompile verifies
+    ///      the independently bound post-quantum signature over the evidence, payout, registry, and chain.
+    function approveSeverity(
+        bytes32 caseIdHash,
+        Severity severity,
+        uint256 payoutAmount,
+        bytes32 rationaleHash,
+        bytes calldata pqSignature
+    ) external existing(caseIdHash) onlyAuditor(caseIdHash) nonReentrant {
+        CaseReceipt storage receipt = cases[caseIdHash];
+        if (receipt.status != Status.Triaged && receipt.status != Status.Resolved) revert InvalidStatus();
         if (receipt.approvalHash != bytes32(0)) revert ApprovalAlreadyRecorded();
         if (severity == Severity.Unset || payoutAmount == 0 || payoutAmount > receipt.escrowedAmount) {
             revert InvalidAmount();
         }
-        if (approvalHash == bytes32(0)) revert InvalidHash();
+        if (rationaleHash == bytes32(0) || pqSignature.length == 0) revert InvalidHash();
 
-        receipt.approvalHash = approvalHash;
+        bytes memory auditorPqKey = _registeredPqKey(receipt.auditor);
+        if (keccak256(auditorPqKey) != receipt.auditorPqKeyHash) revert AuditorPqKeyChanged();
+
+        bytes32 digest = approvalDigest(caseIdHash, severity, payoutAmount, rationaleHash);
+        bytes memory message = bytes.concat(QORESIGN_MESSAGE_PREFIX, abi.encodePacked(digest));
+        if (!_verifyPq(auditorPqKey, pqSignature, message)) revert InvalidPqSignature();
+
+        receipt.approvalHash = digest;
         receipt.severity = severity;
         receipt.payoutAmount = payoutAmount;
         receipt.approvedAt = uint64(block.timestamp);
         receipt.escrowedAmount -= payoutAmount;
-        _safeTransfer(receipt.bountyToken, receipt.reporter, payoutAmount);
+        _safeTransfer(bountyToken, receipt.reporter, payoutAmount);
 
-        emit SeverityApproved(caseIdHash, severity, payoutAmount, approvalHash, uint64(block.timestamp));
-        emit BountyReleased(caseIdHash, receipt.reporter, receipt.bountyToken, payoutAmount);
+        emit SeverityApproved(caseIdHash, severity, payoutAmount, digest, rationaleHash, uint64(block.timestamp));
+        emit BountyReleased(caseIdHash, receipt.reporter, bountyToken, payoutAmount);
     }
 
     function discloseCase(bytes32 caseIdHash, bytes32 redactedReportHash) external existing(caseIdHash) {
@@ -233,6 +357,7 @@ contract Patch3QRegistry {
         CaseReceipt storage receipt = cases[caseIdHash];
         if (msg.sender != receipt.reporter) revert NotReporter();
         if (receipt.status != Status.Submitted) revert InvalidStatus();
+        _recordDeadlineBreaches(caseIdHash, receipt);
         receipt.status = Status.Cancelled;
         emit CaseCancelled(caseIdHash, uint64(block.timestamp));
     }
@@ -245,25 +370,71 @@ contract Patch3QRegistry {
         uint256 amount = receipt.escrowedAmount;
         if (amount == 0) revert NothingToRefund();
         receipt.escrowedAmount = 0;
-        _safeTransfer(receipt.bountyToken, receipt.program, amount);
-        emit EscrowRefunded(caseIdHash, receipt.program, receipt.bountyToken, amount);
+        _safeTransfer(bountyToken, receipt.program, amount);
+        emit EscrowRefunded(caseIdHash, receipt.program, bountyToken, amount);
+    }
+
+    function _recordDeadlineBreaches(bytes32 caseIdHash, CaseReceipt storage receipt) private {
+        uint64 recordedAt = uint64(block.timestamp);
+        if (
+            receipt.acknowledgedAt == 0 && block.timestamp > receipt.acknowledgeBy &&
+            (receipt.slaBreaches & ACKNOWLEDGEMENT_BREACH) == 0
+        ) {
+            receipt.slaBreaches |= ACKNOWLEDGEMENT_BREACH;
+            emit DeadlineBreached(caseIdHash, ACKNOWLEDGEMENT_BREACH, receipt.acknowledgeBy, recordedAt);
+        }
+        if (
+            receipt.triagedAt == 0 && block.timestamp > receipt.triageBy &&
+            (receipt.slaBreaches & TRIAGE_BREACH) == 0
+        ) {
+            receipt.slaBreaches |= TRIAGE_BREACH;
+            emit DeadlineBreached(caseIdHash, TRIAGE_BREACH, receipt.triageBy, recordedAt);
+        }
+    }
+
+    function _registeredPqKey(address account) internal view virtual returns (bytes memory pubkey) {
+        (bool success, bytes memory data) = PQC_KEY_STATUS_PRECOMPILE.staticcall(
+            abi.encodeCall(IQorePQCKeyStatus.pqcKeyStatus, (account))
+        );
+        if (!success || data.length == 0) revert PqcPrecompileUnavailable();
+        (bool registered, uint8 algorithmId, bytes memory registeredKey) = abi.decode(data, (bool, uint8, bytes));
+        if (!registered || algorithmId != ML_DSA_87_ALGORITHM_ID || registeredKey.length == 0) {
+            revert AuditorPqKeyMissing();
+        }
+        return registeredKey;
+    }
+
+    function _verifyPq(bytes memory pubkey, bytes calldata signature, bytes memory message)
+        internal view virtual returns (bool)
+    {
+        (bool success, bytes memory data) = PQC_VERIFY_PRECOMPILE.staticcall(
+            abi.encodeCall(IQorePQCVerify.pqcVerify, (pubkey, signature, message))
+        );
+        if (!success || data.length < 32) revert PqcPrecompileUnavailable();
+        return abi.decode(data, (bool));
     }
 
     function _safeTransfer(address token, address to, uint256 amount) private {
+        if (token.code.length == 0) revert InvalidToken();
         (bool success, bytes memory data) = token.call(abi.encodeCall(IERC20Like.transfer, (to, amount)));
-        if (!success || (data.length != 0 && !abi.decode(data, (bool)))) revert TokenTransferFailed();
+        if (!success || (data.length != 0 && (data.length < 32 || !abi.decode(data, (bool))))) {
+            revert TokenTransferFailed();
+        }
     }
 
     function _safeTransferFrom(address token, address from, address to, uint256 amount) private {
+        if (token.code.length == 0) revert InvalidToken();
         (bool success, bytes memory data) = token.call(abi.encodeCall(IERC20Like.transferFrom, (from, to, amount)));
-        if (!success || (data.length != 0 && !abi.decode(data, (bool)))) revert TokenTransferFailed();
+        if (!success || (data.length != 0 && (data.length < 32 || !abi.decode(data, (bool))))) {
+            revert TokenTransferFailed();
+        }
     }
 }
 
 /// @notice Permissionless test token for demos only. Never use as a production stablecoin.
-contract MockFUSD {
-    string public constant name = "Patch3Q test fUSD";
-    string public constant symbol = "fUSD";
+contract MockTUSDT {
+    string public constant name = "Patch3Q test USDT";
+    string public constant symbol = "tUSDT";
     uint8 public constant decimals = 6;
     uint256 public totalSupply;
 

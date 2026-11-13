@@ -100,14 +100,17 @@ export interface SeverityApprovalStatement {
   version: 1;
   caseId: string;
   chainId: "qorechain-diana";
+  evmChainId: 9800;
+  registryAddress: `0x${string}`;
   envelopeHash: `0x${string}`;
   contentCommitment: `0x${string}`;
   severity: Severity;
   payout: {
-    denom: "test-fUSD";
+    denom: "tUSDT";
     atomic: string;
   };
   rationale: string;
+  rationaleHash: `0x${string}`;
   approvedAt: string;
 }
 
@@ -143,6 +146,8 @@ export interface ApprovalChecks {
   caseBinding: boolean;
   evidenceBinding: boolean;
   authorityBinding: boolean;
+  registryBinding: boolean;
+  rationaleBinding: boolean;
   approvalHash: boolean;
   hybridSignature: boolean;
 }

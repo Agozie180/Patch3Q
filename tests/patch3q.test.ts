@@ -29,6 +29,7 @@ const report: ReportDraft = {
   remediation: "Reject duplicate signer identifiers before accumulating signature weight.",
   embargoUntil: "2030-01-01",
 };
+const registryAddress = "0x1111111111111111111111111111111111111111" as const;
 
 describe("Patch3Q disclosure bundles", () => {
   let sealed: SealResult;
@@ -45,6 +46,15 @@ describe("Patch3Q disclosure bundles", () => {
     expect(maintainer.verified).toBe(true);
     expect(auditor.verified).toBe(true);
     expect(auditor.payload.report.title).toBe(report.title);
+  });
+
+  it("exports only ciphertext and public metadata, never report or PoC plaintext", () => {
+    const leakedStorage = bundleToJson(sealed.bundle);
+    expect(leakedStorage).not.toContain(report.title);
+    expect(leakedStorage).not.toContain(report.summary);
+    expect(leakedStorage).not.toContain(report.reproduction);
+    expect(leakedStorage).not.toContain(report.remediation);
+    expect(leakedStorage).not.toContain(report.reporterAlias);
   });
 
   it("rejects a key that is not a recipient", async () => {
@@ -110,6 +120,7 @@ describe("Patch3Q disclosure bundles", () => {
     const approval = await createSeverityApproval({
       bundle: sealed.bundle,
       vault: sealed.approvalVault!,
+      registryAddress,
       severity: "critical",
       payoutAtomic: "2500000000",
       rationale: "The duplicate signer bypass permits unauthorized quorum and direct loss.",
@@ -124,6 +135,7 @@ describe("Patch3Q disclosure bundles", () => {
     const approval = await createSeverityApproval({
       bundle: sealed.bundle,
       vault: sealed.approvalVault!,
+      registryAddress,
       severity: "high",
       payoutAtomic: "500000000",
       rationale: "The bug crosses the intended authorization boundary and needs urgent repair.",
@@ -145,6 +157,7 @@ describe("Patch3Q disclosure bundles", () => {
     const approval = await createSeverityApproval({
       bundle: sealed.bundle,
       vault: sealed.approvalVault!,
+      registryAddress,
       severity: "critical",
       payoutAtomic: "2500000000",
       rationale: "This approval is bound to both the encrypted evidence and the auditor keys.",
