@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.env
+.env.local
+*.vault.json
+*.approval-key.json
+*.patch3q.json
+coverage/
+*.log
