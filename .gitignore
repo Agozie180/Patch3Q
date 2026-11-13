@@ -4,6 +4,7 @@ hardhat-artifacts/
 hardhat-cache/
 .env
 .env.local
+.env.deploy
 *.vault.json
 *.approval-key.json
 *.patch3q.json

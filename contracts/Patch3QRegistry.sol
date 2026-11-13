@@ -21,7 +21,9 @@ interface IQorePQCKeyStatus {
 /// @notice Public receipts, enforceable deadline evidence, PQ-approved bounty escrow, and disclosure commitments.
 /// @dev Report plaintext, exploit material, salts, decryption keys, and unredacted reports must never be submitted here.
 contract Patch3QRegistry {
-    enum Status { Submitted, Acknowledged, Triaged, Resolved, Disclosed, Cancelled }
+    // Escalated is appended so the numeric values of the original lifecycle
+    // states remain stable for already-deployed frontends and indexers.
+    enum Status { Submitted, Acknowledged, Triaged, Resolved, Disclosed, Cancelled, Escalated }
     enum Severity { Unset, Informational, Low, Medium, High, Critical }
 
     uint8 public constant ML_DSA_87_ALGORITHM_ID = 1;
@@ -70,6 +72,7 @@ contract Patch3QRegistry {
     error InvalidAddress();
     error InvalidAmount();
     error InvalidDeadline();
+    error DeadlineNotMissed();
     error InvalidHash();
     error InvalidPqSignature();
     error InvalidStatus();
@@ -103,6 +106,7 @@ contract Patch3QRegistry {
         uint64 embargoUntil
     );
     event DeadlineBreached(bytes32 indexed caseIdHash, uint8 indexed breach, uint64 deadline, uint64 recordedAt);
+    event CaseEscalated(bytes32 indexed caseIdHash, uint8 indexed breach, uint64 timestamp);
     event CaseAcknowledged(bytes32 indexed caseIdHash, uint64 timestamp, bool withinSla);
     event CaseTriaged(bytes32 indexed caseIdHash, uint64 timestamp, bool withinSla);
     event CaseResolved(bytes32 indexed caseIdHash, uint64 timestamp);
@@ -198,6 +202,31 @@ contract Patch3QRegistry {
         _recordDeadlineBreaches(caseIdHash, cases[caseIdHash]);
     }
 
+    /// @notice Applies the deterministic consequence for a program that misses an acknowledgement or triage SLA.
+    /// @dev Blockchains do not execute on wall-clock time by themselves. Any account or keeper may call this after
+    ///      the deadline; the case then enters Escalated and the independent auditor may adjudicate funded escrow.
+    function escalateMissedDeadline(bytes32 caseIdHash) external existing(caseIdHash) {
+        CaseReceipt storage receipt = cases[caseIdHash];
+        uint8 breach;
+        if (
+            receipt.status == Status.Submitted && receipt.acknowledgedAt == 0 &&
+            block.timestamp > receipt.acknowledgeBy
+        ) {
+            breach = ACKNOWLEDGEMENT_BREACH;
+        } else if (
+            receipt.status == Status.Acknowledged && receipt.triagedAt == 0 &&
+            block.timestamp > receipt.triageBy
+        ) {
+            breach = TRIAGE_BREACH;
+        } else {
+            revert DeadlineNotMissed();
+        }
+
+        _recordDeadlineBreaches(caseIdHash, receipt);
+        receipt.status = Status.Escalated;
+        emit CaseEscalated(caseIdHash, breach, uint64(block.timestamp));
+    }
+
     function deadlineState(bytes32 caseIdHash) external view existing(caseIdHash)
         returns (bool acknowledgementMissed, bool triageMissed)
     {
@@ -243,7 +272,10 @@ contract Patch3QRegistry {
 
     function acknowledgeCase(bytes32 caseIdHash) external existing(caseIdHash) onlyProgram(caseIdHash) {
         CaseReceipt storage receipt = cases[caseIdHash];
-        if (receipt.status != Status.Submitted) revert InvalidStatus();
+        if (
+            (receipt.status != Status.Submitted && receipt.status != Status.Escalated) ||
+            receipt.acknowledgedAt != 0
+        ) revert InvalidStatus();
         _recordDeadlineBreaches(caseIdHash, receipt);
         receipt.acknowledgedAt = uint64(block.timestamp);
         receipt.status = Status.Acknowledged;
@@ -252,7 +284,10 @@ contract Patch3QRegistry {
 
     function triageCase(bytes32 caseIdHash) external existing(caseIdHash) onlyProgram(caseIdHash) {
         CaseReceipt storage receipt = cases[caseIdHash];
-        if (receipt.status != Status.Acknowledged) revert InvalidStatus();
+        if (
+            (receipt.status != Status.Acknowledged && receipt.status != Status.Escalated) ||
+            receipt.acknowledgedAt == 0 || receipt.triagedAt != 0
+        ) revert InvalidStatus();
         _recordDeadlineBreaches(caseIdHash, receipt);
         receipt.triagedAt = uint64(block.timestamp);
         receipt.status = Status.Triaged;
@@ -316,7 +351,10 @@ contract Patch3QRegistry {
         bytes calldata pqSignature
     ) external existing(caseIdHash) onlyAuditor(caseIdHash) nonReentrant {
         CaseReceipt storage receipt = cases[caseIdHash];
-        if (receipt.status != Status.Triaged && receipt.status != Status.Resolved) revert InvalidStatus();
+        if (
+            receipt.status != Status.Triaged && receipt.status != Status.Resolved &&
+            receipt.status != Status.Escalated
+        ) revert InvalidStatus();
         if (receipt.approvalHash != bytes32(0)) revert ApprovalAlreadyRecorded();
         if (severity == Severity.Unset || payoutAmount == 0 || payoutAmount > receipt.escrowedAmount) {
             revert InvalidAmount();
@@ -356,7 +394,10 @@ contract Patch3QRegistry {
     function cancelCase(bytes32 caseIdHash) external existing(caseIdHash) {
         CaseReceipt storage receipt = cases[caseIdHash];
         if (msg.sender != receipt.reporter) revert NotReporter();
-        if (receipt.status != Status.Submitted) revert InvalidStatus();
+        if (
+            (receipt.status != Status.Submitted && receipt.status != Status.Escalated) ||
+            receipt.acknowledgedAt != 0
+        ) revert InvalidStatus();
         _recordDeadlineBreaches(caseIdHash, receipt);
         receipt.status = Status.Cancelled;
         emit CaseCancelled(caseIdHash, uint64(block.timestamp));

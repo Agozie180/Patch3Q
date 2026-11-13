@@ -107,7 +107,7 @@ export async function createDemoApprovalAuthority(caseId: string): Promise<{
       role: "auditor",
       signer: signer.bech32,
       evmAddress: signer.hex as `0x${string}`,
-      keyFingerprint: (await sha256(pqKey.publicKey)).slice(0, 18),
+      keyFingerprint: await sha256(pqKey.publicKey),
       pqPublicKey: toBase64Url(pqKey.publicKey),
       source: "embedded-demo",
     },
@@ -134,7 +134,7 @@ export async function resolveApprovalAuthority(address: string): Promise<Approva
     role: "auditor",
     signer: signer.bech32,
     evmAddress: signer.hex as `0x${string}`,
-    keyFingerprint: (await sha256(status.publicKey)).slice(0, 18),
+    keyFingerprint: await sha256(status.publicKey),
     pqPublicKey: toBase64Url(status.publicKey),
     source: "qorechain-registry",
   };
@@ -189,7 +189,6 @@ export async function createSeverityApproval(options: {
     payout: { denom: "tUSDT", atomic: options.payoutAtomic },
     rationale,
     rationaleHash,
-    approvedAt: (options.now ?? new Date()).toISOString(),
   };
   const unsigned = {
     type: "patch3q.severity-approval" as const,
@@ -210,25 +209,33 @@ export async function createSeverityApproval(options: {
 export async function verifySeverityApproval(
   bundle: Patch3QBundle,
   approval: SeverityApproval,
+  expectedRegistryAddress?: `0x${string}`,
 ): Promise<ApprovalVerificationResult> {
   const authority = bundle.approvalAuthority;
   const checks = {
+    statementShape:
+      approval.statement.type === "patch3q.severity-approval-statement" &&
+      approval.statement.version === 1 && approval.statement.payout.denom === "tUSDT" &&
+      /^\d+$/u.test(approval.statement.payout.atomic) && BigInt(approval.statement.payout.atomic) > 0n,
     caseBinding: approval.statement.caseId === bundle.caseId && approval.statement.chainId === bundle.chainId,
     evidenceBinding:
       approval.statement.envelopeHash === bundle.envelopeHash &&
       approval.statement.contentCommitment === bundle.contentCommitment,
     authorityBinding: Boolean(authority && approval.signer === authority.signer),
+    authorityKeyBinding: false,
     registryBinding:
       approval.statement.evmChainId === EVM_CHAIN_ID &&
       isAddress(approval.statement.registryAddress) &&
-      approval.statement.registryAddress !== zeroAddress,
+      approval.statement.registryAddress !== zeroAddress &&
+      (!expectedRegistryAddress ||
+        approval.statement.registryAddress.toLowerCase() === expectedRegistryAddress.toLowerCase()),
     rationaleBinding: keccak256(toBytes(approval.statement.rationale)) === approval.statement.rationaleHash,
     approvalHash: false,
     hybridSignature: false,
   };
   let expectedDigest = approval.approvalHash;
   if (
-    checks.caseBinding && checks.evidenceBinding && checks.registryBinding && checks.rationaleBinding &&
+    checks.statementShape && checks.caseBinding && checks.evidenceBinding && checks.registryBinding && checks.rationaleBinding &&
     SEVERITIES.has(approval.statement.severity) && /^\d+$/u.test(approval.statement.payout.atomic)
   ) {
     expectedDigest = await severityApprovalDigest(
@@ -244,6 +251,12 @@ export async function verifySeverityApproval(
   if (authority && checks.authorityBinding) {
     try {
       if (authority.source === "qorechain-registry") {
+        const current = await fetchPqKeyStatus({ rest: PATCH3Q_REST_PROXY, address: authority.signer });
+        checks.authorityKeyBinding = Boolean(
+          current.registered && current.publicKey &&
+          (await sha256(current.publicKey)) === authority.keyFingerprint,
+        );
+        if (!checks.authorityKeyBinding) throw new Error("The auditor PQ key no longer matches the case binding.");
         await verifyMessageWithChain({
           rest: PATCH3Q_REST_PROXY,
           chainId: bundle.chainId,
@@ -254,6 +267,9 @@ export async function verifySeverityApproval(
         });
       } else {
         if (!authority.pqPublicKey) throw new Error("Demo authority is missing its ML-DSA-87 public key.");
+        checks.authorityKeyBinding =
+          (await sha256(fromBase64Url(authority.pqPublicKey))) === authority.keyFingerprint;
+        if (!checks.authorityKeyBinding) throw new Error("The embedded auditor PQ key fingerprint is inconsistent.");
         verifyMessage({
           chainId: bundle.chainId,
           signer: approval.signer,

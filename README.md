@@ -2,7 +2,7 @@
 
 Patch3Q is a post-quantum vulnerability-disclosure and bug-bounty escrow dApp for QoreChain. Researchers encrypt a report and proof of concept locally, give the maintainer and an independent auditor separate recovery paths, and publish only commitments and deadlines on-chain.
 
-## What works
+## Implemented and locally verifiable
 
 - Local multi-recipient sealing with QoreSeal and ML-KEM-1024.
 - Hybrid ML-KEM-1024 + X25519 demo envelopes and QoreChain-registered ML-KEM testnet recipients.
@@ -13,9 +13,16 @@ Patch3Q is a post-quantum vulnerability-disclosure and bug-bounty escrow dApp fo
 - A runnable proof that a classical-only approval is rejected, plus a live Diana precompile self-test.
 - QoreChain receipt lifecycle: submitted, acknowledged, triaged, resolved, and disclosed.
 - Immutable trusted-token escrow, exact balance accounting, and atomic payout after PQ verification.
-- Permissionless on-chain recording of missed acknowledgement and triage deadlines.
+- Permissionless enforcement of missed acknowledgement and triage deadlines. Enforcement moves the case to
+  `Escalated` and lets the independent auditor adjudicate any pre-funded escrow.
 - Redacted disclosure commitments after resolution and embargo.
 - No application backend and no plaintext upload path.
+
+## Not yet proven on testnet
+
+This repository does **not** currently contain a Diana deployment address, deployment transaction, end-to-end case
+transaction hashes, QCAI audit output, or demo-video URL. Those items are required before claiming a testnet-complete
+submission. See [the competition audit](docs/competition-audit.md) and [evidence checklist](docs/testnet-evidence.md).
 
 ## Security flow
 
@@ -23,7 +30,8 @@ Patch3Q is a post-quantum vulnerability-disclosure and bug-bounty escrow dApp fo
 2. Patch3Q adds a random 32-byte salt, hashes the confidential payload, and encrypts one envelope for both recipients.
 3. Public deadlines and the bound auditor authority are authenticated as QoreSeal AAD.
 4. The researcher anchors the case ID hash, envelope hash, content commitment, auditor commitment, and deadlines.
-5. The program acknowledges, triages, and funds the bounty escrow.
+5. The program acknowledges, triages, and funds the bounty escrow. If it misses a deadline, anyone can move the case
+   to `Escalated`; this is permissionless enforcement, not autonomous timer execution.
 6. The auditor signs a replay-protected digest binding the chain, registry, case evidence, severity, rationale, and payout.
 7. The registry verifies the ML-DSA-87 signature through QoreChain's PQC precompile before releasing funds.
 8. After the fix and embargo, a redacted report is saved off-chain and only its hash is committed on-chain.
@@ -67,21 +75,26 @@ To verify the live Diana ML-DSA precompile independently:
 pnpm verify:precompile
 ```
 
+The audited lockfile has no moderate, high, or critical production advisories under
+`pnpm audit --prod --audit-level moderate`. One low-severity `deepmerge` advisory remains in RainbowKit's styling
+dependency and has no published patched version.
+
 ## Testnet setup
 
-1. Deploy `MockTUSDT` for a hackathon-only token, or use the designated tUSDT contract.
-2. Deploy `Patch3QRegistry`, passing the designated tUSDT contract address to its constructor. The registry will never accept a different token.
-3. Copy `.env.example` to `.env` and set:
+1. Export `PATCH3Q_DEPLOYER_PRIVATE_KEY` for a funded Diana EVM account with an active authorization window. Optionally export `PATCH3Q_TUSDT_ADDRESS`; otherwise the script deploys `MockTUSDT`.
+2. Run `pnpm deploy:testnet`. It prints the token address, registry address, and deployment transaction hashes. Copy them into the evidence files; never commit the private key.
+3. `Patch3QRegistry` is permanently bound to the constructor token and will never accept a different token.
+4. Copy `.env.example` to `.env` and set:
 
 ```env
 VITE_PATCH3Q_REGISTRY_ADDRESS=0xYourRegistry
 ```
 
-4. Start the app and choose **QoreChain testnet** when sealing.
-5. Enter both the maintainer and auditor QoreChain addresses. Both need registered ML-KEM keys; the auditor also needs a registered ML-DSA-87 key.
-6. Anchor the case with the reporter wallet.
-7. Connect the program wallet, acknowledge, triage, approve the registry-bound token, and fund escrow.
-8. Connect the auditor wallet, import or create the signed approval, and release the bounty.
+5. Start the app and choose **QoreChain testnet** when sealing.
+6. Enter both the maintainer and auditor QoreChain addresses. Both need registered ML-KEM keys; the auditor also needs a registered ML-DSA-87 key.
+7. Anchor the case with the reporter wallet.
+8. Connect the program wallet, acknowledge, triage, approve the registry-bound token, and fund escrow.
+9. Connect the auditor wallet, import an approval signed by the registered testnet auditor key, and release the bounty. In-browser approval-vault creation is intentionally limited to local demo mode.
 
 EVM writes require an injected signing wallet with a live QoreChain EVM authorization window. QoreX can currently be used for connection and reads.
 
@@ -96,6 +109,6 @@ Token transfers use checks-effects-interactions, a reentrancy guard, contract-co
 
 ## Threat model and current limits
 
-Patch3Q protects report confidentiality at rest, provides first-report and deadline evidence, detects ciphertext/AAD changes, and requires the PQ approval layer. It does not hide timing, envelope size, public accounts, token amounts, or transaction activity. Browser compromise before sealing, recipient-key theft, unsafe vault sharing, and malicious redaction remain out of scope.
+Patch3Q protects report confidentiality at rest, provides first-report and deadline evidence, detects ciphertext/AAD changes, and requires the PQ approval layer. It does not hide timing, envelope size, public accounts, recipient authority, token amounts, or transaction activity. Browser compromise before sealing, recipient-key theft, unsafe vault sharing, and malicious redaction remain out of scope.
 
 The demo stores encrypted bundles and redacted reports wherever the user chooses; production needs an availability layer for ciphertext without turning that layer into a plaintext custodian. QoreSeal is pre-1.0 and should receive external cryptographic review before production use.

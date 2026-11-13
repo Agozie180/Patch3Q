@@ -57,7 +57,7 @@ export interface BundleRecipient {
 
 export interface Patch3QBundle {
   type: "patch3q.bundle";
-  version: 1;
+  version: 2;
   caseId: string;
   chainId: "qorechain-diana";
   purpose: "patch3q:vulnerability-report:v1";
@@ -111,7 +111,6 @@ export interface SeverityApprovalStatement {
   };
   rationale: string;
   rationaleHash: `0x${string}`;
-  approvedAt: string;
 }
 
 export interface SeverityApproval {
@@ -132,6 +131,7 @@ export interface SealResult {
 export interface IntegrityChecks {
   envelopeHash: boolean;
   contentCommitment: boolean;
+  attachmentHash: boolean;
   authenticatedMetadata: boolean;
   caseBinding: boolean;
 }
@@ -143,9 +143,11 @@ export interface OpenResult {
 }
 
 export interface ApprovalChecks {
+  statementShape: boolean;
   caseBinding: boolean;
   evidenceBinding: boolean;
   authorityBinding: boolean;
+  authorityKeyBinding: boolean;
   registryBinding: boolean;
   rationaleBinding: boolean;
   approvalHash: boolean;

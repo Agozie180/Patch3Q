@@ -13,6 +13,7 @@
     "test:contract": "hardhat test nodejs",
     "test:watch": "vitest",
     "compile:contract": "node scripts/compile-contract.mjs",
+    "deploy:testnet": "pnpm compile:contract && node scripts/deploy-testnet.mjs",
     "verify:precompile": "node scripts/verify-pqc-precompile.mjs",
     "check": "pnpm typecheck && pnpm test && pnpm test:contract && pnpm compile:contract && pnpm build"
   },
@@ -43,6 +44,11 @@
   },
   "pnpm": {
     "overrides": {
+      "@coinbase/cdp-sdk>zod": "4.6.7",
+      "@metamask/sdk>uuid": "11.1.1",
+      "@metamask/sdk-communication-layer>uuid": "11.1.1",
+      "@metamask/utils>uuid": "11.1.1",
+      "@reown/appkit-wallet>zod": "4.6.7",
       "decode-uri-component": "0.5.1",
       "ws": "8.21.0"
     }

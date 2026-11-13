@@ -28,12 +28,15 @@ export { MAX_ATTACHMENT_BYTES, PATCH3Q_CHAIN_ID, PATCH3Q_PURPOSE, PATCH3Q_REST_P
 
 interface AuthenticatedMetadata {
   type: "patch3q.aad";
-  version: 1;
+  version: 2;
   caseId: string;
   chainId: typeof PATCH3Q_CHAIN_ID;
   purpose: typeof PATCH3Q_PURPOSE;
   createdAt: string;
   mode: Patch3QBundle["mode"];
+  sealMode: Patch3QBundle["sealMode"];
+  anonymous: Patch3QBundle["anonymous"];
+  recipients: Patch3QBundle["recipients"];
   publicMetadata: PublicMetadata;
   approvalAuthority?: Patch3QBundle["approvalAuthority"];
 }
@@ -51,26 +54,29 @@ function addHours(date: Date, hours: number): string {
   return new Date(date.getTime() + hours * 60 * 60 * 1000).toISOString();
 }
 
-function buildAuthenticatedMetadata(bundle: Pick<Patch3QBundle, "caseId" | "chainId" | "purpose" | "createdAt" | "mode" | "publicMetadata" | "approvalAuthority">): AuthenticatedMetadata {
+function buildAuthenticatedMetadata(bundle: Pick<Patch3QBundle, "caseId" | "chainId" | "purpose" | "createdAt" | "mode" | "sealMode" | "anonymous" | "recipients" | "publicMetadata" | "approvalAuthority">): AuthenticatedMetadata {
   return {
     type: "patch3q.aad",
-    version: 1,
+    version: 2,
     caseId: bundle.caseId,
     chainId: bundle.chainId,
     purpose: bundle.purpose,
     createdAt: bundle.createdAt,
     mode: bundle.mode,
+    sealMode: bundle.sealMode,
+    anonymous: bundle.anonymous,
+    recipients: bundle.recipients,
     publicMetadata: bundle.publicMetadata,
     approvalAuthority: bundle.approvalAuthority,
   };
 }
 
-function authenticatedMetadataBytes(bundle: Pick<Patch3QBundle, "caseId" | "chainId" | "purpose" | "createdAt" | "mode" | "publicMetadata" | "approvalAuthority">): Uint8Array {
+function authenticatedMetadataBytes(bundle: Pick<Patch3QBundle, "caseId" | "chainId" | "purpose" | "createdAt" | "mode" | "sealMode" | "anonymous" | "recipients" | "publicMetadata" | "approvalAuthority">): Uint8Array {
   return utf8(JSON.stringify(buildAuthenticatedMetadata(bundle)));
 }
 
 async function keyFingerprint(keys: SealKeyPair): Promise<string> {
-  return (await sha256(keys.mlkemPublicKey)).slice(0, 18);
+  return sha256(keys.mlkemPublicKey);
 }
 
 function makeVault(caseId: string, role: Patch3QKeyVault["role"], label: string, keys: SealKeyPair): Patch3QKeyVault {
@@ -110,12 +116,42 @@ export async function sealReport(options: SealReportOptions): Promise<SealResult
     triageBy: addHours(now, 24 * 7),
     embargoUntil: new Date(options.report.embargoUntil).toISOString(),
   };
+  let vaults: Patch3QKeyVault[] = [];
+  let recipients: Patch3QBundle["recipients"];
+  let demoKeys: { maintainer: SealKeyPair; auditor: SealKeyPair } | undefined;
+  let testnetAddresses: Array<{ role: "maintainer" | "auditor"; label: string; address: string }> | undefined;
+  if (options.mode === "demo") {
+    const maintainer = generateSealKeys();
+    const auditor = generateSealKeys();
+    demoKeys = { maintainer, auditor };
+    vaults = [
+      makeVault(caseId, "maintainer", "Program security team", maintainer),
+      makeVault(caseId, "auditor", "Independent disclosure auditor", auditor),
+    ];
+    recipients = [
+      { role: "maintainer", label: "Program security team", keyFingerprint: await keyFingerprint(maintainer) },
+      { role: "auditor", label: "Independent disclosure auditor", keyFingerprint: await keyFingerprint(auditor) },
+    ];
+  } else {
+    testnetAddresses = [
+      { role: "maintainer" as const, label: "Program security team", address: options.maintainerAddress?.trim() ?? "" },
+      { role: "auditor" as const, label: "Independent disclosure auditor", address: options.auditorAddress?.trim() ?? "" },
+    ];
+    if (testnetAddresses.some(({ address }) => !address)) {
+      throw new Error("Enter both maintainer and auditor QoreChain testnet addresses.");
+    }
+    recipients = testnetAddresses;
+  }
+  const sealMode = options.mode === "demo" ? "hybrid" as const : "mlkem" as const;
   const metadataBase = {
     caseId,
     chainId: PATCH3Q_CHAIN_ID,
     purpose: PATCH3Q_PURPOSE,
     createdAt,
     mode: options.mode,
+    sealMode,
+    anonymous: true,
+    recipients,
     publicMetadata,
     approvalAuthority,
   } as const;
@@ -133,58 +169,39 @@ export async function sealReport(options: SealReportOptions): Promise<SealResult
   const contentCommitment = await sha256(plaintext);
 
   let envelope: Uint8Array;
-  let vaults: Patch3QKeyVault[] = [];
-  let recipients: Patch3QBundle["recipients"];
   if (options.mode === "demo") {
-    const maintainerKeys = generateSealKeys();
-    const auditorKeys = generateSealKeys();
+    if (!demoKeys) throw new Error("Demo recipient keys were not initialized.");
     envelope = seal({
       chainId: PATCH3Q_CHAIN_ID,
       purpose: PATCH3Q_PURPOSE,
-      recipients: [recipientOf(maintainerKeys), recipientOf(auditorKeys)],
+      recipients: [recipientOf(demoKeys.maintainer), recipientOf(demoKeys.auditor)],
       plaintext,
       aad: aadBytes,
       mode: "hybrid",
       anonymous: true,
     });
-    vaults = [
-      makeVault(caseId, "maintainer", "Program security team", maintainerKeys),
-      makeVault(caseId, "auditor", "Independent disclosure auditor", auditorKeys),
-    ];
-    recipients = [
-      { role: "maintainer", label: "Program security team", keyFingerprint: await keyFingerprint(maintainerKeys) },
-      { role: "auditor", label: "Independent disclosure auditor", keyFingerprint: await keyFingerprint(auditorKeys) },
-    ];
   } else {
-    const addresses = [
-      { role: "maintainer" as const, label: "Program security team", address: options.maintainerAddress?.trim() },
-      { role: "auditor" as const, label: "Independent disclosure auditor", address: options.auditorAddress?.trim() },
-    ].filter((recipient): recipient is { role: "maintainer" | "auditor"; label: string; address: string } => Boolean(recipient.address));
-    if (addresses.length !== 2) throw new Error("Enter both maintainer and auditor QoreChain testnet addresses.");
+    if (!testnetAddresses) throw new Error("Testnet recipients were not initialized.");
     envelope = await sealToAddresses({
       rest: PATCH3Q_REST_PROXY,
       chainId: PATCH3Q_CHAIN_ID,
       purpose: PATCH3Q_PURPOSE,
-      recipients: addresses.map(({ address }) => ({ address })),
+      recipients: testnetAddresses.map(({ address }) => ({ address })),
       plaintext,
       aad: aadBytes,
       mode: "mlkem",
       anonymous: true,
     });
-    recipients = addresses;
   }
 
   const bundle: Patch3QBundle = {
     type: "patch3q.bundle",
-    version: 1,
+    version: 2,
     ...metadataBase,
     aad: toBase64Url(aadBytes),
     envelope: envelopeToText(envelope),
     envelopeHash: await sha256(envelope),
     contentCommitment,
-    sealMode: options.mode === "demo" ? "hybrid" : "mlkem",
-    anonymous: true,
-    recipients,
   };
   return { bundle, vaults, approvalVault };
 }
@@ -193,7 +210,7 @@ export function parseBundle(value: string): Patch3QBundle {
   const parsed: unknown = JSON.parse(value);
   if (!parsed || typeof parsed !== "object") throw new Error("Bundle must be a JSON object.");
   const candidate = parsed as Partial<Patch3QBundle>;
-  if (candidate.type !== "patch3q.bundle" || candidate.version !== 1) throw new Error("Unsupported Patch3Q bundle.");
+  if (candidate.type !== "patch3q.bundle" || candidate.version !== 2) throw new Error("Unsupported Patch3Q bundle.");
   if (!candidate.caseId || !candidate.envelope || !candidate.aad || !candidate.envelopeHash || !candidate.contentCommitment) {
     throw new Error("Patch3Q bundle is missing required fields.");
   }
@@ -229,9 +246,17 @@ export async function openBundle(bundle: Patch3QBundle, vault: Patch3QKeyVault):
   });
   const payload = JSON.parse(fromUtf8(plaintext)) as ConfidentialReport;
   if (payload.type !== "patch3q.report" || payload.version !== 1) throw new Error("Decrypted payload is not a Patch3Q report.");
+  let attachmentHash = true;
+  if (payload.attachment) {
+    const attachmentBytes = fromBase64Url(payload.attachment.data);
+    attachmentHash =
+      attachmentBytes.byteLength === payload.attachment.size &&
+      (await sha256(attachmentBytes)) === payload.attachment.sha256;
+  }
   const checks = {
     envelopeHash: (await sha256(envelope)) === bundle.envelopeHash,
     contentCommitment: (await sha256(plaintext)) === bundle.contentCommitment,
+    attachmentHash,
     authenticatedMetadata: equalBytes(suppliedAad, expectedAad),
     caseBinding: payload.caseId === bundle.caseId && payload.createdAt === bundle.createdAt,
   };

@@ -1,0 +1,23 @@
+{
+  "network": "qorechain-diana",
+  "evmChainId": 9800,
+  "status": "not-deployed",
+  "registryAddress": null,
+  "bountyTokenAddress": null,
+  "transactions": {
+    "deployment": null,
+    "caseSubmitted": null,
+    "acknowledgement": null,
+    "triage": null,
+    "escrowFunding": null,
+    "deadlineEscalation": null,
+    "severityApprovalAndRelease": null,
+    "redactedDisclosure": null
+  },
+  "externalEvidence": {
+    "qcaiAuditUrl": null,
+    "demoVideoUrl": null,
+    "buildInPublicUrl": null
+  },
+  "note": "Null values are deliberate. Do not change status to verified until every value is independently replayable."
+}

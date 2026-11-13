@@ -3,7 +3,7 @@ import { defineConfig } from "vitest/config";
 
 // The public REST APIs send no CORS headers, so the browser reaches them
 // through the dev (and preview) server: /lcd-testnet and /lcd-mainnet are
-// forwarded to each network's REST endpoint (see REST_PROXY in src/App.tsx).
+// forwarded to each network's REST endpoint (see PATCH3Q_REST_PROXY in src/lib/protocol.ts).
 // In production, serve the app behind a proxy that does the same.
 const rest = (target: string) => ({
   target,

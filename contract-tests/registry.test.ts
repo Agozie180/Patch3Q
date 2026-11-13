@@ -94,6 +94,60 @@ describe("Patch3QRegistry foundation", () => {
     assert.equal(Number(state[0]), 1);
   });
 
+  it("turns a missed acknowledgement into a permissionless escalation consequence", async () => {
+    const { acknowledgeBy } = await submitCase();
+    const testClient = await viem.getTestClient();
+    await testClient.setNextBlockTimestamp({ timestamp: acknowledgeBy + 1n });
+    await testClient.mine({ blocks: 1 });
+
+    await registry.write.escalateMissedDeadline([caseIdHash], { account: outsider.account });
+    const state = await registry.read.caseState([caseIdHash]);
+    assert.equal(Number(state[0]), 6);
+    assert.equal(Number(state[2]) & 1, 1);
+  });
+
+  it("cannot escalate while the active deadline is still open", async () => {
+    await submitCase();
+    await viem.assertions.revertWithCustomError(
+      registry.write.escalateMissedDeadline([caseIdHash], { account: outsider.account }),
+      registry,
+      "DeadlineNotMissed",
+    );
+  });
+
+  it("escalates a missed triage after a timely acknowledgement", async () => {
+    const { triageBy } = await submitCase();
+    await registry.write.acknowledgeCase([caseIdHash], { account: program.account });
+    const testClient = await viem.getTestClient();
+    await testClient.setNextBlockTimestamp({ timestamp: triageBy + 1n });
+    await testClient.mine({ blocks: 1 });
+    await registry.write.escalateMissedDeadline([caseIdHash], { account: outsider.account });
+    const state = await registry.read.caseState([caseIdHash]);
+    assert.equal(Number(state[0]), 6);
+    assert.equal(Number(state[2]) & 2, 2);
+  });
+
+  it("lets the independent auditor adjudicate funded escrow after escalation", async () => {
+    const { acknowledgeBy } = await submitCase();
+    const payout = 1_000_000_000n;
+    await token.write.mint([program.account.address, payout]);
+    await token.write.approve([registry.address, payout], { account: program.account });
+    await registry.write.fundBounty([caseIdHash, payout], { account: program.account });
+    const testClient = await viem.getTestClient();
+    await testClient.setNextBlockTimestamp({ timestamp: acknowledgeBy + 1n });
+    await testClient.mine({ blocks: 1 });
+    await registry.write.escalateMissedDeadline([caseIdHash], { account: outsider.account });
+
+    await registry.write.approveSeverity([
+      caseIdHash,
+      5,
+      payout,
+      rationaleHash,
+      "0x1234",
+    ], { account: auditor.account });
+    assert.equal(await token.read.balanceOf([reporter.account.address]), payout);
+  });
+
   it("rejects payout when the post-quantum signature fails", async () => {
     const amount = await triageAndFund();
     await registry.write.setPqSignatureValid([false]);

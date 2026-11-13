@@ -69,6 +69,25 @@ describe("Patch3Q disclosure bundles", () => {
     await expect(openBundle(tampered, sealed.vaults[0])).rejects.toThrow();
   });
 
+  it("does not accept an attachment whose declared hash is false", async () => {
+    const data = new TextEncoder().encode("synthetic proof of concept");
+    const withDishonestAttachment = await sealReport({
+      report,
+      mode: "demo",
+      attachment: {
+        name: "poc.txt",
+        mediaType: "text/plain",
+        size: data.byteLength,
+        sha256: ("0x" + "00".repeat(32)) as `0x${string}`,
+        data: toBase64Url(data),
+      },
+    });
+    const result = await openBundle(withDishonestAttachment.bundle, withDishonestAttachment.vaults[0]);
+    expect(result.verified).toBe(false);
+    expect(result.checks.contentCommitment).toBe(true);
+    expect(result.checks.attachmentHash).toBe(false);
+  });
+
   it("rejects the wrong cryptographic purpose", async () => {
     const wrongPurpose = {
       ...sealed.bundle,
@@ -89,7 +108,7 @@ describe("Patch3Q disclosure bundles", () => {
     const vault = parseVault(vaultToJson(sealed.vaults[1]));
     const result = await openBundle(bundle, vault);
     expect(result.verified).toBe(true);
-    expect(Object.values(result.checks)).toEqual([true, true, true, true]);
+    expect(Object.values(result.checks)).toEqual([true, true, true, true, true]);
   });
 
   it("detects changed public deadlines even when ciphertext still decrypts", async () => {
@@ -99,6 +118,17 @@ describe("Patch3Q disclosure bundles", () => {
         ...sealed.bundle.publicMetadata,
         triageBy: "2031-01-01T00:00:00.000Z",
       },
+    };
+    const result = await openBundle(changed, sealed.vaults[0]);
+    expect(result.verified).toBe(false);
+    expect(result.checks.authenticatedMetadata).toBe(false);
+  });
+
+  it("detects altered public recipient metadata", async () => {
+    const changed = {
+      ...sealed.bundle,
+      recipients: sealed.bundle.recipients.map((recipient, index) =>
+        index === 0 ? { ...recipient, label: "Attacker-controlled mailbox" } : recipient),
     };
     const result = await openBundle(changed, sealed.vaults[0]);
     expect(result.verified).toBe(false);
@@ -151,6 +181,42 @@ describe("Patch3Q disclosure bundles", () => {
     expect(result.verified).toBe(false);
     expect(result.checks.hybridSignature).toBe(false);
     expect(result.checks.approvalHash).toBe(false);
+  });
+
+  it("does not verify an approval for a different registry", async () => {
+    const approval = await createSeverityApproval({
+      bundle: sealed.bundle,
+      vault: sealed.approvalVault!,
+      registryAddress,
+      severity: "high",
+      payoutAtomic: "500000000",
+      rationale: "The impact crosses an authorization boundary and requires prompt remediation.",
+    });
+    const otherRegistry = "0x2222222222222222222222222222222222222222" as const;
+    const result = await verifySeverityApproval(sealed.bundle, approval, otherRegistry);
+    expect(result.verified).toBe(false);
+    expect(result.checks.registryBinding).toBe(false);
+  });
+
+  it("does not verify an approval when the bound PQ-key fingerprint is altered", async () => {
+    const approval = await createSeverityApproval({
+      bundle: sealed.bundle,
+      vault: sealed.approvalVault!,
+      registryAddress,
+      severity: "high",
+      payoutAtomic: "500000000",
+      rationale: "The impact crosses an authorization boundary and requires prompt remediation.",
+    });
+    const changedBundle = {
+      ...sealed.bundle,
+      approvalAuthority: {
+        ...sealed.bundle.approvalAuthority!,
+        keyFingerprint: "0x" + "00".repeat(32),
+      },
+    };
+    const result = await verifySeverityApproval(changedBundle, approval, registryAddress);
+    expect(result.verified).toBe(false);
+    expect(result.checks.authorityKeyBinding).toBe(false);
   });
 
   it("demonstrates that the classical key alone cannot forge approval", async () => {

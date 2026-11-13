@@ -192,7 +192,7 @@ function SealWorkspace({
           <span>✓</span>
         </div>
         <p className="eyebrow success-text">Sealed locally</p>
-        <h2 id="receipt-title">Your disclosure is quantum-safe.</h2>
+        <h2 id="receipt-title">Your disclosure is sealed with post-quantum encryption.</h2>
         <p className="lead compact">
           One ciphertext, two independent paths to recovery. No report plaintext left this browser.
         </p>
@@ -212,7 +212,7 @@ function SealWorkspace({
             </div>
             <div>
               <span>Recipients</span>
-              <strong>{result.bundle.recipients.length} anonymous slots</strong>
+              <strong>{result.bundle.recipients.length} recipient slots</strong>
             </div>
             <div>
               <span>Acknowledge by</span>
@@ -387,7 +387,7 @@ function SealWorkspace({
         {error && <div className="error-callout" role="alert">{error}</div>}
         <button className="seal-button" type="submit" disabled={busy || attachmentBusy}>
           <span className="seal-lock">{busy ? "◌" : "◇"}</span>
-          <span><strong>{busy ? "Sealing with post-quantum keys…" : "Seal report"}</strong><small>ML-KEM-1024 · anonymous recipient hints · salted commitment</small></span>
+          <span><strong>{busy ? "Sealing with post-quantum keys…" : "Seal report"}</strong><small>ML-KEM-1024 · local encryption · salted commitment</small></span>
           <span className="arrow">→</span>
         </button>
       </form>
@@ -534,7 +534,7 @@ const SEVERITY_CODES: Record<Severity, number> = {
   high: 4,
   critical: 5,
 };
-const CASE_STATUSES = ["Submitted", "Acknowledged", "Triaged", "Resolved", "Disclosed", "Cancelled"] as const;
+const CASE_STATUSES = ["Submitted", "Acknowledged", "Triaged", "Resolved", "Disclosed", "Cancelled", "Escalated"] as const;
 
 function ApprovalWorkspace({
   bundle,
@@ -582,7 +582,7 @@ function ApprovalWorkspace({
         payoutAtomic,
         rationale,
       });
-      const checked = await verifySeverityApproval(bundle, nextApproval);
+      const checked = await verifySeverityApproval(bundle, nextApproval, patch3qRegistryAddress);
       const rejected = bundle.approvalAuthority?.source === "embedded-demo"
         ? await demonstrateClassicalOnlyForgeryRejection(bundle, nextApproval, vault)
         : undefined;
@@ -600,10 +600,14 @@ function ApprovalWorkspace({
   async function loadApproval(text: string) {
     if (!bundle) return;
     setError("");
+    if (!registryReady || !patch3qRegistryAddress) {
+      setError("Configure the deployed registry before verifying which deployment an approval targets.");
+      return;
+    }
     setBusy(true);
     try {
       const imported = parseSeverityApproval(text);
-      const checked = await verifySeverityApproval(bundle, imported);
+      const checked = await verifySeverityApproval(bundle, imported, patch3qRegistryAddress);
       setApproval(imported);
       setVerification(checked);
       setClassicalForgeryRejected(undefined);
@@ -654,8 +658,8 @@ function ApprovalWorkspace({
       <div className="workspace-heading">
         <div>
           <p className="eyebrow">Independent auditor workspace</p>
-          <h2 id="approval-title">Approve severity with two signatures</h2>
-          <p>Bind severity and payout to the exact ciphertext, then prove ECDSA alone is insufficient.</p>
+          <h2 id="approval-title">Approve severity with a hybrid signature</h2>
+          <p>One auditor signs with secp256k1 and ML-DSA-87; the contract requires the PQ component.</p>
         </div>
         <ConnectButton />
       </div>
@@ -743,8 +747,8 @@ function ApprovalWorkspace({
                 <button className="secondary-button" type="button" onClick={() => downloadText(bundle.caseId + ".approval.json", approvalToJson(approval))}>
                   ↓ Download signed approval
                 </button>
-                <button className="primary-button" type="button" disabled={!isConnected || approvalWrite.isPending || !verification.verified} onClick={() => void releaseEscrow()}>
-                  {approvalWrite.isPending ? "Confirm auditor transaction…" : isConnected ? "Anchor approval & release escrow" : "Connect auditor wallet to release"}
+                <button className="primary-button" type="button" disabled={bundle.mode !== "testnet" || !isConnected || approvalWrite.isPending || !verification.verified} onClick={() => void releaseEscrow()}>
+                  {bundle.mode !== "testnet" ? "Demo approvals are local proof only" : approvalWrite.isPending ? "Confirm auditor transaction…" : isConnected ? "Anchor approval & release escrow" : "Connect auditor wallet to release"}
                 </button>
               </div>
               {approvalWrite.data && (
@@ -795,20 +799,24 @@ function AnchorWorkspace({ bundle }: { bundle?: Patch3QBundle }) {
     abi: patch3qRegistryAbi,
     functionName: "caseState",
     args: [caseIdHash ?? zeroHash],
-    query: { enabled: registryReady && Boolean(caseIdHash), retry: false },
+    query: { enabled: registryReady && bundle?.mode === "testnet" && Boolean(caseIdHash), retry: false },
   });
   const deadlineRead = useReadContract({
     address: patch3qRegistryAddress ?? zeroAddress,
     abi: patch3qRegistryAbi,
     functionName: "deadlineState",
     args: [caseIdHash ?? zeroHash],
-    query: { enabled: registryReady && Boolean(caseIdHash), retry: false },
+    query: { enabled: registryReady && bundle?.mode === "testnet" && Boolean(caseIdHash), retry: false },
   });
   const tokenAddress = bountyTokenRead.data;
   const caseState = caseRead.data;
   const currentStatus = caseState ? Number(caseState[0]) : undefined;
   const connectedIsProgram = Boolean(
     address && caseState && address.toLowerCase() === caseState[8].toLowerCase(),
+  );
+  const connectedIsParticipant = Boolean(
+    address && caseState &&
+    (address.toLowerCase() === caseState[7].toLowerCase() || address.toLowerCase() === caseState[8].toLowerCase()),
   );
 
   useEffect(() => {
@@ -824,6 +832,10 @@ function AnchorWorkspace({ bundle }: { bundle?: Patch3QBundle }) {
   async function anchor() {
     if (!bundle) return;
     setLocalError("");
+    if (bundle.mode !== "testnet") {
+      setLocalError("Demo-vault bundles use unregistered local keys and cannot be anchored. Seal in QoreChain testnet mode.");
+      return;
+    }
     if (!registryReady || !patch3qRegistryAddress) {
       setLocalError("Deploy Patch3QRegistry and set VITE_PATCH3Q_REGISTRY_ADDRESS first.");
       return;
@@ -861,7 +873,7 @@ function AnchorWorkspace({ bundle }: { bundle?: Patch3QBundle }) {
   }
 
   async function advanceLifecycle(
-    functionName: "acknowledgeCase" | "triageCase" | "resolveCase" | "recordDeadlineBreaches",
+    functionName: "acknowledgeCase" | "triageCase" | "resolveCase" | "recordDeadlineBreaches" | "escalateMissedDeadline",
   ) {
     setLocalError("");
     if (!registryReady || !patch3qRegistryAddress || !caseIdHash) {
@@ -1001,8 +1013,8 @@ function AnchorWorkspace({ bundle }: { bundle?: Patch3QBundle }) {
             <div><strong>{receipt.isSuccess ? "Receipt anchored" : "Transaction submitted"}</strong><code>{write.data}</code></div>
           </div>
         )}
-        <button className="primary-button" type="button" disabled={!bundle || !isConnected || write.isPending} onClick={() => void anchor()}>
-          {write.isPending ? "Confirm in wallet…" : isConnected ? "Anchor receipt on QoreChain" : "Connect a signing wallet to anchor"}
+        <button className="primary-button" type="button" disabled={!bundle || bundle.mode !== "testnet" || !isConnected || write.isPending} onClick={() => void anchor()}>
+          {bundle?.mode === "demo" ? "Seal in testnet mode to anchor" : write.isPending ? "Confirm in wallet…" : isConnected ? "Anchor receipt on QoreChain" : "Connect a signing wallet to anchor"}
         </button>
       </div>
 
@@ -1063,6 +1075,17 @@ function AnchorWorkspace({ bundle }: { bundle?: Patch3QBundle }) {
             Mark fix resolved
           </button>
           <button
+            className="secondary-button"
+            type="button"
+            disabled={
+              currentStatus === undefined || currentStatus > 1 ||
+              !(deadlineRead.data?.[0] || deadlineRead.data?.[1]) || lifecycleWrite.isPending
+            }
+            onClick={() => void advanceLifecycle("escalateMissedDeadline")}
+          >
+            Escalate missed deadline
+          </button>
+          <button
             className="text-button quiet"
             type="button"
             disabled={currentStatus === undefined || lifecycleWrite.isPending}
@@ -1096,10 +1119,10 @@ function AnchorWorkspace({ bundle }: { bundle?: Patch3QBundle }) {
           Connect the program wallet. First approve the exact amount, then deposit it into the case escrow.
         </div>
         <div className="action-stack">
-          <button className="secondary-button" type="button" disabled={!bundle || !isConnected || tokenWrite.isPending} onClick={() => void approveEscrowToken()}>
+          <button className="secondary-button" type="button" disabled={!bundle || !connectedIsProgram || tokenWrite.isPending} onClick={() => void approveEscrowToken()}>
             {tokenWrite.isPending ? "Confirm token approval…" : "1. Approve tUSDT"}
           </button>
-          <button className="primary-button" type="button" disabled={!bundle || !isConnected || fundWrite.isPending} onClick={() => void fundEscrow()}>
+          <button className="primary-button" type="button" disabled={!bundle || !connectedIsProgram || fundWrite.isPending} onClick={() => void fundEscrow()}>
             {fundWrite.isPending ? "Confirm escrow deposit…" : "2. Fund case escrow"}
           </button>
         </div>
@@ -1123,7 +1146,7 @@ function AnchorWorkspace({ bundle }: { bundle?: Patch3QBundle }) {
           <button className="secondary-button" type="button" disabled={!redactedReport.trim()} onClick={() => downloadText((bundle?.caseId ?? "patch3q") + ".redacted.md", redactedReport, "text/markdown")}>
             ↓ Save redacted report
           </button>
-          <button className="primary-button" type="button" disabled={!bundle || !isConnected || discloseWrite.isPending} onClick={() => void publishRedactedReport()}>
+          <button className="primary-button" type="button" disabled={!bundle || !connectedIsParticipant || currentStatus !== 3 || discloseWrite.isPending} onClick={() => void publishRedactedReport()}>
             {discloseWrite.isPending ? "Confirm disclosure…" : "Publish redacted commitment"}
           </button>
         </div>
@@ -1183,8 +1206,8 @@ export function App() {
             <div className="hero-kicker"><span>Q</span> Built for the post-quantum disclosure era</div>
             <h1>Report the flaw.<br /><em>Not the secret.</em></h1>
             <p>
-              Patch3Q gives security researchers a cryptographic receipt without putting an exploit, identity,
-              or proof-of-concept on a server.
+              QoreChain’s public bounty currently routes reports to security@qore.network. Patch3Q replaces
+              mailbox custody with local encryption, independent recovery, and an on-chain receipt.
             </p>
             <div className="hero-proof">
               <div><strong>ML-KEM-1024</strong><span>FIPS 203 encryption</span></div>
@@ -1240,6 +1263,16 @@ export function App() {
             <article><span>03</span><div className="how-icon">#</div><h3>Commit evidence</h3><p>A salted content commitment proves later disclosure matches the original report.</p></article>
             <article><span>04</span><div className="how-icon">Q</div><h3>Track the SLA</h3><p>QoreChain records acknowledgement, triage, resolution, and embargo milestones.</p></article>
           </div>
+        </section>
+
+        <section className="threat-strip">
+          <div><p className="eyebrow">The ghosted-researcher test</p><h2>A deadline has a consequence.</h2></div>
+          <div className="threat-list">
+            <span><StatusDot good /> Anyone can enforce an expired SLA</span>
+            <span><StatusDot good /> The case enters Escalated on-chain</span>
+            <span><StatusDot good /> The auditor can adjudicate pre-funded escrow</span>
+          </div>
+          <p>QoreChain cannot wake itself up on a timer: a researcher, auditor, or keeper submits the enforcement transaction after the deadline.</p>
         </section>
 
         <section className="threat-strip" id="threat-model">
