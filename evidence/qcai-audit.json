@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-11-14T19:32:49.749Z",
+  "generatedAt": "2026-11-14T23:54:39.131Z",
   "network": "qorechain-diana",
   "chainId": 9800,
   "rpcUrl": "https://evm-testnet.qore.host",
-  "blockNumber": "10091116",
+  "blockNumber": "10102147",
   "status": "precompile-unavailable-on-public-diana-rpc",
   "precompiles": {
     "aiRiskScore": "0x0000000000000000000000000000000000000B01",
@@ -14,8 +14,8 @@
   "contract": {
     "artifact": "artifacts/Patch3QRegistry.json",
     "compiler": "0.8.30+commit.73712a01.Emscripten.clang",
-    "creationBytecodeHash": "0xc030621bf5d1470b56f96b0b36755bd08e28b07a660a1ed55feca9e1b2141d8a",
-    "deployedBytecodeHash": "0xaa3ecb9d80a4910050b28239d893fe8970b5a45eb97b980c8543bfbb8557bebc"
+    "creationBytecodeHash": "0x735e8de2a4e448cfb3f125443e1decbfd291bc03f67c1ea5e121069bb283d9ad",
+    "deployedBytecodeHash": "0xb4c07ec746fa30149542bb3f5dbc704e184a27f3dd73fa82e9ab990b7ae00f11"
   },
   "methodology": {
     "risk": "Live eth_call to QCAI aiRiskScore(bytes) for compiled creation bytecode and representative Patch3Q calldata.",
@@ -25,15 +25,15 @@
     {
       "name": "deploy-registry",
       "functionName": "constructor(address)",
-      "calldataHash": "0x25cff22c3f4aa2fae4a69e7bc3783148a589f85f608085417c124d7e96f7caaf",
-      "calldataBytes": 8309,
+      "calldataHash": "0x3102951a26299e1c878b27ae4847f0f1dc6413a23bab75fe56be546ea5007a0c",
+      "calldataBytes": 10212,
       "status": "unavailable",
       "error": "Cannot decode zero data (\"0x\") with ABI parameters.\n\nVersion: viem@2.53.1"
     },
     {
       "name": "submit-sealed-case",
       "functionName": "submitCase",
-      "calldataHash": "0xaaac1b90c64f57b1d904f75fab22282fb748f20b07db77e8c8dec7430fefd480",
+      "calldataHash": "0xacfe72823950a53884546847c980ec215766c6c510296a66ba998beaa63a1aaf",
       "calldataBytes": 292,
       "status": "unavailable",
       "error": "Cannot decode zero data (\"0x\") with ABI parameters.\n\nVersion: viem@2.53.1"

@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-11-14T19:27:51.915Z",
+  "generatedAt": "2026-11-14T23:53:01.995Z",
   "targetUrl": "http://127.0.0.1:4173/",
-  "chromePath": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+  "chromePath": "/usr/bin/google-chrome",
   "viewport": {
     "width": 1440,
     "height": 1400
