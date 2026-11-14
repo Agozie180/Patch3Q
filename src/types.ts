@@ -23,6 +23,11 @@ export interface ReportAttachment {
   data: string;
 }
 
+export interface SealedPayout {
+  recipient: `0x${string}`;
+  salt: `0x${string}`;
+}
+
 export interface ConfidentialReport {
   type: "patch3q.report";
   version: 1;
@@ -31,6 +36,22 @@ export interface ConfidentialReport {
   salt: string;
   report: ReportDraft;
   attachment?: ReportAttachment;
+  /** Anonymous cases only: the payout address, readable solely by the recipients. */
+  payout?: SealedPayout;
+  /** Filler that rounds the plaintext up to a fixed size bucket. */
+  padding?: string;
+}
+
+export type ReporterMode = "account" | "anonymous";
+
+export interface PrivacyProfile {
+  reporterMode: ReporterMode;
+  /** keccak256 of the per-case ML-DSA-87 public key, anchored instead of a reporter account. */
+  reporterPqKeyHash?: `0x${string}`;
+  /** Commitment to the sealed payout address; opened only when the bounty is released. */
+  payoutCommitment?: `0x${string}`;
+  /** Every plaintext is padded to one of a few fixed sizes so ciphertext length reveals little. */
+  sizeBucket: number;
 }
 
 export interface PublicMetadata {
@@ -45,7 +66,7 @@ export interface ApprovalAuthority {
   evmAddress: `0x${string}`;
   keyFingerprint: string;
   pqPublicKey?: string;
-  source: "embedded-demo" | "qorechain-registry";
+  source: "embedded-demo" | "per-case" | "qorechain-registry";
 }
 
 export interface BundleRecipient {
@@ -57,7 +78,7 @@ export interface BundleRecipient {
 
 export interface Patch3QBundle {
   type: "patch3q.bundle";
-  version: 4;
+  version: 5;
   caseId: string;
   chainId: "qorechain-diana";
   purpose: "patch3q:vulnerability-report:v1";
@@ -71,6 +92,7 @@ export interface Patch3QBundle {
   anonymous: boolean;
   recipients: BundleRecipient[];
   publicMetadata: PublicMetadata;
+  privacy: PrivacyProfile;
   approvalAuthorities?: {
     reporter: ApprovalAuthority;
     program: ApprovalAuthority;
@@ -101,7 +123,7 @@ export interface Patch3QApprovalVault {
 
 export interface SeverityApprovalStatement {
   type: "patch3q.severity-approval-statement";
-  version: 1;
+  version: 2;
   caseId: string;
   chainId: "qorechain-diana";
   evmChainId: 9800;
@@ -112,14 +134,19 @@ export interface SeverityApprovalStatement {
   payout: {
     denom: "tUSDT";
     atomic: string;
+    /** Anonymous cases: the sealed payout address and the salt that opens its on-chain commitment. */
+    recipient?: `0x${string}`;
+    commitmentSalt?: `0x${string}`;
   };
   rationale: string;
+  /** Random salt so a short rationale cannot be guessed from its public hash. */
+  rationaleSalt: `0x${string}`;
   rationaleHash: `0x${string}`;
 }
 
 export interface SeverityApproval {
   type: "patch3q.severity-approval";
-  version: 3;
+  version: 4;
   statement: SeverityApprovalStatement;
   participantRole: "reporter" | "program";
   signers: {
@@ -137,6 +164,8 @@ export interface SealResult {
   bundle: Patch3QBundle;
   vaults: Patch3QKeyVault[];
   approvalVaults?: Patch3QApprovalVault[];
+  /** The reporter's own copy of the sealed payout instruction. */
+  payout?: SealedPayout;
 }
 
 export interface IntegrityChecks {
@@ -145,6 +174,8 @@ export interface IntegrityChecks {
   attachmentHash: boolean;
   authenticatedMetadata: boolean;
   caseBinding: boolean;
+  payoutBinding: boolean;
+  sizeBucket: boolean;
 }
 
 export interface OpenResult {
@@ -164,6 +195,7 @@ export interface ApprovalChecks {
   auditorKeyBinding: boolean;
   registryBinding: boolean;
   rationaleBinding: boolean;
+  payoutBinding: boolean;
   approvalHash: boolean;
   participantHybridSignature: boolean;
   auditorHybridSignature: boolean;

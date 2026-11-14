@@ -7,24 +7,29 @@ import {
   verifyMessage,
 } from "@qorechain/qoresign";
 import { fetchPqKeyStatus, verifyMessageWithChain } from "@qorechain/qoresign/network";
-import { encodeAbiParameters, hexToBytes, isAddress, keccak256, toBytes, zeroAddress } from "viem";
+import { encodeAbiParameters, getAddress, hexToBytes, isAddress, keccak256, toBytes, zeroAddress } from "viem";
 
 import type {
   ApprovalAuthority,
   ApprovalVerificationResult,
   Patch3QApprovalVault,
   Patch3QBundle,
+  SealedPayout,
   Severity,
   SeverityApproval,
   SeverityApprovalStatement,
 } from "../types.js";
-import { fromBase64Url, randomBytes, sha256, toBase64Url, utf8 } from "./encoding.js";
+import { bytesToHex, fromBase64Url, randomBytes, sha256, toBase64Url, utf8 } from "./encoding.js";
+import { payoutCommitment, saltedRationaleHash } from "./privacy.js";
 import { PATCH3Q_REST_PROXY } from "./protocol.js";
 
 const SEVERITIES = new Set<Severity>(["critical", "high", "medium", "low", "informational"]);
 const EVM_CHAIN_ID = 9800 as const;
 const APPROVAL_TYPEHASH = keccak256(toBytes(
   "Patch3QSeverityApproval(uint256 chainId,address registry,bytes32 caseIdHash,bytes32 envelopeHash,bytes32 contentCommitment,uint8 severity,uint256 payoutAmount,bytes32 rationaleHash)",
+));
+const ANONYMOUS_APPROVAL_TYPEHASH = keccak256(toBytes(
+  "Patch3QAnonymousSeverityApproval(uint256 chainId,address registry,bytes32 caseIdHash,bytes32 envelopeHash,bytes32 contentCommitment,uint8 severity,uint256 payoutAmount,bytes32 rationaleHash,address payoutRecipient)",
 ));
 const SEVERITY_CODES: Record<Severity, number> = {
   informational: 1,
@@ -40,8 +45,22 @@ async function severityApprovalDigest(
   severity: Severity,
   payoutAtomic: string,
   rationaleHash: `0x${string}`,
+  payoutRecipient?: `0x${string}`,
 ): Promise<`0x${string}`> {
   const caseIdHash = await sha256(utf8(bundle.caseId));
+  if (bundle.privacy.reporterMode === "anonymous") {
+    if (!payoutRecipient) throw new Error("An anonymous case approval must name its sealed payout address.");
+    return keccak256(encodeAbiParameters(
+      [
+        { type: "bytes32" }, { type: "uint256" }, { type: "address" }, { type: "bytes32" }, { type: "bytes32" },
+        { type: "bytes32" }, { type: "uint8" }, { type: "uint256" }, { type: "bytes32" }, { type: "address" },
+      ],
+      [
+        ANONYMOUS_APPROVAL_TYPEHASH, BigInt(EVM_CHAIN_ID), registryAddress, caseIdHash, bundle.envelopeHash,
+        bundle.contentCommitment, SEVERITY_CODES[severity], BigInt(payoutAtomic), rationaleHash, payoutRecipient,
+      ],
+    ));
+  }
   return keccak256(encodeAbiParameters(
     [
       { type: "bytes32" },
@@ -96,6 +115,7 @@ function freshClassicalPrivateKey(): Uint8Array {
 export async function createDemoApprovalAuthority(
   caseId: string,
   role: ApprovalAuthority["role"],
+  source: "embedded-demo" | "per-case" = "embedded-demo",
 ): Promise<{
   authority: ApprovalAuthority;
   vault: Patch3QApprovalVault;
@@ -112,7 +132,7 @@ export async function createDemoApprovalAuthority(
       evmAddress: signer.hex as `0x${string}`,
       keyFingerprint: await sha256(pqKey.publicKey),
       pqPublicKey: toBase64Url(pqKey.publicKey),
-      source: "embedded-demo",
+      source,
     },
     vault: {
       type: "patch3q.approval-key",
@@ -122,7 +142,9 @@ export async function createDemoApprovalAuthority(
       signer: signer.bech32,
       classicalPrivateKey: toBase64Url(classicalPrivateKey),
       pqSeed: toBase64Url(pqSeed),
-      warning: "DEMO SECRET — this key can issue bounty approvals for the case. Never publish it.",
+      warning: source === "per-case"
+        ? "REPORTER SECRET — this per-case key co-signs your bounty if the program misses a deadline. Keep it offline."
+        : "DEMO SECRET — this key can issue bounty approvals for the case. Never publish it.",
     },
   };
 }
@@ -130,9 +152,10 @@ export async function createDemoApprovalAuthority(
 export async function resolveApprovalAuthority(
   address: string,
   role: ApprovalAuthority["role"],
+  rest: string = PATCH3Q_REST_PROXY,
 ): Promise<ApprovalAuthority> {
   const signer = parseAddress(address.trim());
-  const status = await fetchPqKeyStatus({ rest: PATCH3Q_REST_PROXY, address: signer.bech32 });
+  const status = await fetchPqKeyStatus({ rest, address: signer.bech32 });
   if (!status.registered || !status.publicKey) {
     throw new Error(`The ${role} has no registered ML-DSA-87 key on QoreChain testnet.`);
   }
@@ -154,6 +177,8 @@ export async function createSeverityApproval(options: {
   severity: Severity;
   payoutAtomic: string;
   rationale: string;
+  /** Required for anonymous cases: the payout instruction decrypted from the sealed report. */
+  payout?: SealedPayout;
   now?: Date;
 }): Promise<SeverityApproval> {
   const { bundle, vaults } = options;
@@ -186,17 +211,30 @@ export async function createSeverityApproval(options: {
       throw new Error(`The ${role} ML-DSA-87 key does not match the bundle authority.`);
     }
   }
-  const rationaleHash = keccak256(toBytes(rationale));
+  const anonymous = bundle.privacy.reporterMode === "anonymous";
+  let payout: SealedPayout | undefined;
+  if (anonymous) {
+    if (!options.payout || !isAddress(options.payout.recipient, { strict: false })) {
+      throw new Error("Decrypt the report first: an anonymous case pays only its sealed payout address.");
+    }
+    payout = { recipient: getAddress(options.payout.recipient.toLowerCase()), salt: options.payout.salt };
+    if (payoutCommitment(await sha256(utf8(bundle.caseId)), payout) !== bundle.privacy.payoutCommitment) {
+      throw new Error("This payout instruction does not open the reporter's sealed commitment.");
+    }
+  }
+  const rationaleSalt = bytesToHex(randomBytes(32));
+  const rationaleHash = saltedRationaleHash(rationaleSalt, rationale);
   const approvalHash = await severityApprovalDigest(
     bundle,
     options.registryAddress,
     options.severity,
     options.payoutAtomic,
     rationaleHash,
+    payout?.recipient,
   );
   const statement: SeverityApprovalStatement = {
     type: "patch3q.severity-approval-statement",
-    version: 1,
+    version: 2,
     caseId: bundle.caseId,
     chainId: bundle.chainId,
     evmChainId: EVM_CHAIN_ID,
@@ -204,13 +242,18 @@ export async function createSeverityApproval(options: {
     envelopeHash: bundle.envelopeHash,
     contentCommitment: bundle.contentCommitment,
     severity: options.severity,
-    payout: { denom: "tUSDT", atomic: options.payoutAtomic },
+    payout: {
+      denom: "tUSDT",
+      atomic: options.payoutAtomic,
+      ...(payout ? { recipient: payout.recipient, commitmentSalt: payout.salt } : {}),
+    },
     rationale,
+    rationaleSalt,
     rationaleHash,
   };
   const unsigned = {
     type: "patch3q.severity-approval" as const,
-    version: 3 as const,
+    version: 4 as const,
     statement,
     participantRole: options.participantRole,
     signers: {
@@ -242,12 +285,22 @@ export async function verifySeverityApproval(
   approval: SeverityApproval,
   expectedRegistryAddress?: `0x${string}`,
   expectedParticipantRole?: "reporter" | "program",
+  rest: string = PATCH3Q_REST_PROXY,
 ): Promise<ApprovalVerificationResult> {
   const authorities = bundle.approvalAuthorities;
+  const statementPayout = approval.statement.payout;
+  const anonymous = bundle.privacy.reporterMode === "anonymous";
+  let payoutBinding = !anonymous && !statementPayout.recipient && !statementPayout.commitmentSalt;
+  if (anonymous && statementPayout.recipient && statementPayout.commitmentSalt && isAddress(statementPayout.recipient, { strict: false })) {
+    payoutBinding = payoutCommitment(await sha256(utf8(bundle.caseId)), {
+      recipient: statementPayout.recipient,
+      salt: statementPayout.commitmentSalt,
+    }) === bundle.privacy.payoutCommitment;
+  }
   const checks = {
     statementShape:
       approval.statement.type === "patch3q.severity-approval-statement" &&
-      approval.statement.version === 1 && approval.statement.payout.denom === "tUSDT" &&
+      approval.statement.version === 2 && approval.statement.payout.denom === "tUSDT" &&
       /^\d+$/u.test(approval.statement.payout.atomic) && BigInt(approval.statement.payout.atomic) > 0n,
     caseBinding: approval.statement.caseId === bundle.caseId && approval.statement.chainId === bundle.chainId,
     evidenceBinding:
@@ -270,15 +323,19 @@ export async function verifySeverityApproval(
       approval.statement.registryAddress !== zeroAddress &&
       (!expectedRegistryAddress ||
         approval.statement.registryAddress.toLowerCase() === expectedRegistryAddress.toLowerCase()),
-    rationaleBinding: keccak256(toBytes(approval.statement.rationale)) === approval.statement.rationaleHash,
+    rationaleBinding:
+      /^0x[0-9a-f]{64}$/u.test(approval.statement.rationaleSalt ?? "") &&
+      saltedRationaleHash(approval.statement.rationaleSalt, approval.statement.rationale) ===
+        approval.statement.rationaleHash,
+    payoutBinding,
     approvalHash: false,
     participantHybridSignature: false,
     auditorHybridSignature: false,
   };
   let expectedDigest = approval.approvalHash;
   if (
-    checks.statementShape && checks.caseBinding && checks.evidenceBinding && checks.registryBinding && checks.rationaleBinding &&
-    SEVERITIES.has(approval.statement.severity) && /^\d+$/u.test(approval.statement.payout.atomic)
+    checks.statementShape && checks.caseBinding && checks.evidenceBinding && checks.registryBinding &&
+    checks.rationaleBinding && checks.payoutBinding && SEVERITIES.has(approval.statement.severity) && /^\d+$/u.test(approval.statement.payout.atomic)
   ) {
     expectedDigest = await severityApprovalDigest(
       bundle,
@@ -286,6 +343,7 @@ export async function verifySeverityApproval(
       approval.statement.severity,
       approval.statement.payout.atomic,
       approval.statement.rationaleHash,
+      statementPayout.recipient,
     );
     checks.approvalHash = expectedDigest === approval.approvalHash;
   }
@@ -301,14 +359,14 @@ export async function verifySeverityApproval(
     if (!authority || signer !== authority.signer) return { keyBinding: false, hybridSignature: false };
     try {
       if (authority.source === "qorechain-registry") {
-        const current = await fetchPqKeyStatus({ rest: PATCH3Q_REST_PROXY, address: authority.signer });
+        const current = await fetchPqKeyStatus({ rest, address: authority.signer });
         const keyBinding = Boolean(
           current.registered && current.publicKey &&
           (await sha256(current.publicKey)) === authority.keyFingerprint,
         );
         if (!keyBinding) return { keyBinding: false, hybridSignature: false };
         await verifyMessageWithChain({
-          rest: PATCH3Q_REST_PROXY,
+          rest,
           chainId: bundle.chainId,
           signer,
           data: hexToBytes(expectedDigest),
@@ -370,7 +428,7 @@ export function parseSeverityApproval(value: string): SeverityApproval {
   const candidate = parsed as Partial<SeverityApproval>;
   if (
     candidate.type !== "patch3q.severity-approval" ||
-    candidate.version !== 3 ||
+    candidate.version !== 4 ||
     !candidate.statement ||
     (candidate.participantRole !== "reporter" && candidate.participantRole !== "program") ||
     !candidate.signers?.participant ||

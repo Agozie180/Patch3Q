@@ -15,6 +15,7 @@ import {
   sealReport,
   vaultToJson,
 } from "../src/lib/patch3q.js";
+import { SIZE_BUCKETS } from "../src/lib/privacy.js";
 import type { Patch3QApprovalVault, Patch3QBundle, ReportDraft, SealResult } from "../src/types.js";
 
 const report: ReportDraft = {
@@ -126,8 +127,8 @@ describe("Patch3Q disclosure bundles", () => {
     const vault = parseVault(vaultToJson(sealed.vaults[1]));
     const result = await openBundle(bundle, vault);
     expect(result.verified).toBe(true);
-    expect(Object.values(result.checks)).toEqual([true, true, true, true, true]);
-    expect(bundle.version).toBe(4);
+    expect(Object.values(result.checks).every(Boolean)).toBe(true);
+    expect(bundle.version).toBe(5);
     expect(bundle.approvalAuthorities?.reporter.role).toBe("reporter");
     expect(bundle.approvalAuthorities?.program.role).toBe("program");
     expect(bundle.approvalAuthorities?.auditor.role).toBe("auditor");
@@ -336,5 +337,111 @@ describe("Patch3Q disclosure bundles", () => {
     const vaults = approvalVaults();
     await expect(demonstrateClassicalOnlyForgeryRejection(sealed.bundle, approval, vaults.participant)).resolves.toBe(true);
     await expect(demonstrateClassicalOnlyForgeryRejection(sealed.bundle, approval, vaults.auditor)).resolves.toBe(true);
+  });
+
+  describe("anonymous reporter privacy", () => {
+    const payoutAddress = "0x9a6d2c1b4E8F3a7D5c0B1e2F3A4b5C6d7E8f9A0B";
+    let anonymous: SealResult;
+
+    beforeAll(async () => {
+      anonymous = await sealReport({ report, mode: "demo", reporterMode: "anonymous", payoutAddress });
+    }, 60_000);
+
+    function anonymousVaults(participantRole: "reporter" | "program") {
+      const participant = anonymous.approvalVaults?.find((vault) => vault.role === participantRole);
+      const auditor = anonymous.approvalVaults?.find((vault) => vault.role === "auditor");
+      if (!participant || !auditor) throw new Error("Anonymous demo seal did not return approval vaults.");
+      return { participant, auditor };
+    }
+
+    it("seals the payout address inside the ciphertext and anchors only its commitment", async () => {
+      const exported = bundleToJson(anonymous.bundle).toLowerCase();
+      expect(exported).not.toContain(payoutAddress.slice(2).toLowerCase());
+      expect(anonymous.bundle.privacy.reporterMode).toBe("anonymous");
+      expect(anonymous.bundle.privacy.payoutCommitment).toMatch(/^0x[0-9a-f]{64}$/u);
+      expect(anonymous.bundle.privacy.reporterPqKeyHash).toMatch(/^0x[0-9a-f]{64}$/u);
+      expect(anonymous.bundle.approvalAuthorities?.reporter.source).toBe("per-case");
+      const opened = await openBundle(anonymous.bundle, anonymous.vaults[1]);
+      expect(opened.verified).toBe(true);
+      expect(opened.checks.payoutBinding).toBe(true);
+      expect(opened.payload.payout?.recipient.toLowerCase()).toBe(payoutAddress.toLowerCase());
+    });
+
+    it("pads every report to a fixed size bucket so length does not leak the PoC", async () => {
+      const small = await openBundle(sealed.bundle, sealed.vaults[0]);
+      expect(small.checks.sizeBucket).toBe(true);
+      expect(sealed.bundle.privacy.sizeBucket).toBe(SIZE_BUCKETS[0]);
+      const withPoc = await sealReport({
+        report,
+        mode: "demo",
+        attachment: {
+          name: "poc.bin",
+          mediaType: "application/octet-stream",
+          size: 20_000,
+          sha256: ("0x" + "11".repeat(32)) as `0x${string}`,
+          data: toBase64Url(new Uint8Array(20_000)),
+        },
+      });
+      expect(withPoc.bundle.privacy.sizeBucket).toBe(SIZE_BUCKETS[1]);
+      expect(envelopeFromText(withPoc.bundle.envelope).length).toBeGreaterThan(SIZE_BUCKETS[1]);
+    });
+
+    it("detects a swapped payout commitment in the public metadata", async () => {
+      const changed = {
+        ...anonymous.bundle,
+        privacy: { ...anonymous.bundle.privacy, payoutCommitment: ("0x" + "ab".repeat(32)) as `0x${string}` },
+      };
+      const result = await openBundle(changed, anonymous.vaults[0]);
+      expect(result.verified).toBe(false);
+      expect(result.checks.payoutBinding).toBe(false);
+    });
+
+    it("lets the per-case reporter key co-sign an escalated payout to the sealed address", async () => {
+      const opened = await openBundle(anonymous.bundle, anonymous.vaults[1]);
+      const approval = await createSeverityApproval({
+        bundle: anonymous.bundle,
+        participantRole: "reporter",
+        vaults: anonymousVaults("reporter"),
+        registryAddress,
+        severity: "critical",
+        payoutAtomic: "2500000000",
+        rationale: "Ghosted case: reporter and auditor approve the escrow consequence.",
+        payout: opened.payload.payout,
+      });
+      expect(approval.statement.payout.recipient?.toLowerCase()).toBe(payoutAddress.toLowerCase());
+      const result = await verifySeverityApproval(anonymous.bundle, approval, registryAddress, "reporter");
+      expect(result.verified).toBe(true);
+    });
+
+    it("refuses an approval that redirects the bounty away from the sealed address", async () => {
+      await expect(createSeverityApproval({
+        bundle: anonymous.bundle,
+        participantRole: "program",
+        vaults: anonymousVaults("program"),
+        registryAddress,
+        severity: "critical",
+        payoutAtomic: "2500000000",
+        rationale: "A program attempting to pay itself instead of the reporter.",
+        payout: { recipient: registryAddress, salt: ("0x" + "00".repeat(32)) as `0x${string}` },
+      })).rejects.toThrow("sealed commitment");
+    });
+
+    it("salts the rationale so a short decision cannot be guessed from its hash", async () => {
+      const opened = await openBundle(anonymous.bundle, anonymous.vaults[1]);
+      const options = {
+        bundle: anonymous.bundle,
+        participantRole: "program" as const,
+        vaults: anonymousVaults("program"),
+        registryAddress,
+        severity: "high" as const,
+        payoutAtomic: "100",
+        rationale: "Critical RCE",
+        payout: opened.payload.payout,
+      };
+      const first = await createSeverityApproval(options);
+      const second = await createSeverityApproval(options);
+      expect(first.statement.rationaleHash).not.toBe(second.statement.rationaleHash);
+      expect((await verifySeverityApproval(anonymous.bundle, first, registryAddress)).verified).toBe(true);
+    });
   });
 });

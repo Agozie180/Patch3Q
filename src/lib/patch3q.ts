@@ -15,50 +15,54 @@ import type {
   OpenResult,
   Patch3QBundle,
   Patch3QKeyVault,
+  PrivacyProfile,
   PublicMetadata,
   ReportAttachment,
   ReportDraft,
+  ReporterMode,
   SealResult,
 } from "../types.js";
 import { createDemoApprovalAuthority, resolveApprovalAuthority } from "./approval.js";
 import { equalBytes, fromBase64Url, fromUtf8, randomBytes, sha256, toBase64Url, utf8 } from "./encoding.js";
+import { padToBucket, payoutCommitment, pqKeyHash, sealedPayout } from "./privacy.js";
 import { MAX_ATTACHMENT_BYTES, PATCH3Q_CHAIN_ID, PATCH3Q_PURPOSE, PATCH3Q_REST_PROXY } from "./protocol.js";
 
 export { MAX_ATTACHMENT_BYTES, PATCH3Q_CHAIN_ID, PATCH3Q_PURPOSE, PATCH3Q_REST_PROXY } from "./protocol.js";
 
-interface AuthenticatedMetadata {
+type AuthenticatedFields =
+  "caseId" | "chainId" | "purpose" | "createdAt" | "mode" | "sealMode" | "anonymous" | "recipients" |
+  "publicMetadata" | "privacy" | "approvalAuthorities";
+
+interface AuthenticatedMetadata extends Pick<Patch3QBundle, AuthenticatedFields> {
   type: "patch3q.aad";
-  version: 4;
-  caseId: string;
-  chainId: typeof PATCH3Q_CHAIN_ID;
-  purpose: typeof PATCH3Q_PURPOSE;
-  createdAt: string;
-  mode: Patch3QBundle["mode"];
-  sealMode: Patch3QBundle["sealMode"];
-  anonymous: Patch3QBundle["anonymous"];
-  recipients: Patch3QBundle["recipients"];
-  publicMetadata: PublicMetadata;
-  approvalAuthorities?: Patch3QBundle["approvalAuthorities"];
+  version: 5;
 }
 
-interface SealReportOptions {
+export interface SealReportOptions {
   report: ReportDraft;
   attachment?: ReportAttachment;
   mode: "demo" | "testnet";
+  /** "anonymous" anchors through a relayer with a per-case reporter key and a sealed payout address. */
+  reporterMode?: ReporterMode;
+  payoutAddress?: string;
   reporterAddress?: string;
   maintainerAddress?: string;
   auditorAddress?: string;
   now?: Date;
+  /** Testnet rehearsals only: shorter public deadlines than the default 24-hour / 7-day SLA. */
+  deadlines?: { acknowledgeBy: Date; triageBy: Date; embargoUntil: Date };
+  /** REST base for key-registry reads; the browser uses the same-origin proxy. */
+  rest?: string;
 }
 
 function addHours(date: Date, hours: number): string {
   return new Date(date.getTime() + hours * 60 * 60 * 1000).toISOString();
 }
 
-function buildAuthenticatedMetadata(bundle: Pick<Patch3QBundle, "caseId" | "chainId" | "purpose" | "createdAt" | "mode" | "sealMode" | "anonymous" | "recipients" | "publicMetadata" | "approvalAuthorities">): AuthenticatedMetadata {
+function buildAuthenticatedMetadata(bundle: Pick<Patch3QBundle, AuthenticatedFields>): AuthenticatedMetadata {
   return {
     type: "patch3q.aad",
-    version: 4,
+    version: 5,
     caseId: bundle.caseId,
     chainId: bundle.chainId,
     purpose: bundle.purpose,
@@ -68,11 +72,12 @@ function buildAuthenticatedMetadata(bundle: Pick<Patch3QBundle, "caseId" | "chai
     anonymous: bundle.anonymous,
     recipients: bundle.recipients,
     publicMetadata: bundle.publicMetadata,
+    privacy: bundle.privacy,
     approvalAuthorities: bundle.approvalAuthorities,
   };
 }
 
-function authenticatedMetadataBytes(bundle: Pick<Patch3QBundle, "caseId" | "chainId" | "purpose" | "createdAt" | "mode" | "sealMode" | "anonymous" | "recipients" | "publicMetadata" | "approvalAuthorities">): Uint8Array {
+function authenticatedMetadataBytes(bundle: Pick<Patch3QBundle, AuthenticatedFields>): Uint8Array {
   return utf8(JSON.stringify(buildAuthenticatedMetadata(bundle)));
 }
 
@@ -99,17 +104,38 @@ export async function sealReport(options: SealReportOptions): Promise<SealResult
 
   const now = options.now ?? new Date();
   const createdAt = now.toISOString();
-  const triageBy = addHours(now, 24 * 7);
-  const embargoUntil = new Date(options.report.embargoUntil);
+  const rest = options.rest ?? PATCH3Q_REST_PROXY;
+  const reporterMode = options.reporterMode ?? "account";
+  const acknowledgeBy = options.deadlines?.acknowledgeBy.toISOString() ?? addHours(now, 24);
+  const triageBy = options.deadlines?.triageBy.toISOString() ?? addHours(now, 24 * 7);
+  const embargoUntil = options.deadlines?.embargoUntil ?? new Date(options.report.embargoUntil);
   if (Number.isNaN(embargoUntil.getTime()) || embargoUntil.getTime() < Date.parse(triageBy)) {
     throw new Error("The disclosure embargo must end after the seven-day triage deadline.");
   }
+  if (!(Date.parse(acknowledgeBy) > now.getTime() && Date.parse(triageBy) > Date.parse(acknowledgeBy))) {
+    throw new Error("Deadlines must be in the future and triage must follow acknowledgement.");
+  }
   const caseId = "P3Q-" + toBase64Url(randomBytes(12)).toUpperCase();
+  const payout = reporterMode === "anonymous" ? sealedPayout(options.payoutAddress ?? "") : undefined;
   let approvalAuthorities: Patch3QBundle["approvalAuthorities"];
   let approvalVaults: SealResult["approvalVaults"];
-  if (options.mode === "demo") {
+  if (options.mode === "testnet" && reporterMode === "anonymous") {
+    if (!options.maintainerAddress?.trim() || !options.auditorAddress?.trim()) {
+      throw new Error("Enter both program and auditor QoreChain testnet addresses.");
+    }
+    const [reporterKey, program, auditor] = await Promise.all([
+      createDemoApprovalAuthority(caseId, "reporter", "per-case"),
+      resolveApprovalAuthority(options.maintainerAddress, "program", rest),
+      resolveApprovalAuthority(options.auditorAddress, "auditor", rest),
+    ]);
+    if (program.evmAddress.toLowerCase() === auditor.evmAddress.toLowerCase()) {
+      throw new Error("Program and auditor must be two distinct QoreChain accounts.");
+    }
+    approvalAuthorities = { reporter: reporterKey.authority, program, auditor };
+    approvalVaults = [reporterKey.vault];
+  } else if (options.mode === "demo") {
     const [reporterApproval, programApproval, auditorApproval] = await Promise.all([
-      createDemoApprovalAuthority(caseId, "reporter"),
+      createDemoApprovalAuthority(caseId, "reporter", reporterMode === "anonymous" ? "per-case" : "embedded-demo"),
       createDemoApprovalAuthority(caseId, "program"),
       createDemoApprovalAuthority(caseId, "auditor"),
     ]);
@@ -124,9 +150,9 @@ export async function sealReport(options: SealReportOptions): Promise<SealResult
       throw new Error("Connect the reporter wallet and enter both program and auditor QoreChain testnet addresses.");
     }
     const [reporter, program, auditor] = await Promise.all([
-      resolveApprovalAuthority(options.reporterAddress, "reporter"),
-      resolveApprovalAuthority(options.maintainerAddress, "program"),
-      resolveApprovalAuthority(options.auditorAddress, "auditor"),
+      resolveApprovalAuthority(options.reporterAddress, "reporter", rest),
+      resolveApprovalAuthority(options.maintainerAddress, "program", rest),
+      resolveApprovalAuthority(options.auditorAddress, "auditor", rest),
     ]);
     if (new Set([reporter.evmAddress, program.evmAddress, auditor.evmAddress].map((value) => value.toLowerCase())).size !== 3) {
       throw new Error("Reporter, program, and auditor must be three distinct QoreChain accounts.");
@@ -134,7 +160,7 @@ export async function sealReport(options: SealReportOptions): Promise<SealResult
     approvalAuthorities = { reporter, program, auditor };
   }
   const publicMetadata: PublicMetadata = {
-    acknowledgeBy: addHours(now, 24),
+    acknowledgeBy,
     triageBy,
     embargoUntil: embargoUntil.toISOString(),
   };
@@ -165,6 +191,27 @@ export async function sealReport(options: SealReportOptions): Promise<SealResult
     recipients = testnetAddresses;
   }
   const sealMode = options.mode === "demo" ? "hybrid" as const : "mlkem" as const;
+  const unpadded: ConfidentialReport = {
+    type: "patch3q.report",
+    version: 1,
+    caseId,
+    createdAt,
+    salt: toBase64Url(randomBytes(32)),
+    report: options.report,
+    ...(options.attachment ? { attachment: options.attachment } : {}),
+    ...(payout ? { payout } : {}),
+  };
+  const { json, bucket } = padToBucket(unpadded);
+  const caseIdHash = await sha256(utf8(caseId));
+  const reporterPqPublicKey = approvalAuthorities?.reporter.pqPublicKey;
+  const privacy: PrivacyProfile = reporterMode === "anonymous" && payout && reporterPqPublicKey
+    ? {
+        reporterMode,
+        reporterPqKeyHash: pqKeyHash(fromBase64Url(reporterPqPublicKey)),
+        payoutCommitment: payoutCommitment(caseIdHash, payout),
+        sizeBucket: bucket,
+      }
+    : { reporterMode: "account", sizeBucket: bucket };
   const metadataBase = {
     caseId,
     chainId: PATCH3Q_CHAIN_ID,
@@ -175,19 +222,11 @@ export async function sealReport(options: SealReportOptions): Promise<SealResult
     anonymous: true,
     recipients,
     publicMetadata,
+    privacy,
     approvalAuthorities,
   } as const;
   const aadBytes = authenticatedMetadataBytes(metadataBase);
-  const payload: ConfidentialReport = {
-    type: "patch3q.report",
-    version: 1,
-    caseId,
-    createdAt,
-    salt: toBase64Url(randomBytes(32)),
-    report: options.report,
-    ...(options.attachment ? { attachment: options.attachment } : {}),
-  };
-  const plaintext = utf8(JSON.stringify(payload));
+  const plaintext = utf8(json);
   const contentCommitment = await sha256(plaintext);
 
   let envelope: Uint8Array;
@@ -205,7 +244,7 @@ export async function sealReport(options: SealReportOptions): Promise<SealResult
   } else {
     if (!testnetAddresses) throw new Error("Testnet recipients were not initialized.");
     envelope = await sealToAddresses({
-      rest: PATCH3Q_REST_PROXY,
+      rest,
       chainId: PATCH3Q_CHAIN_ID,
       purpose: PATCH3Q_PURPOSE,
       recipients: testnetAddresses.map(({ address }) => ({ address })),
@@ -218,22 +257,25 @@ export async function sealReport(options: SealReportOptions): Promise<SealResult
 
   const bundle: Patch3QBundle = {
     type: "patch3q.bundle",
-    version: 4,
+    version: 5,
     ...metadataBase,
     aad: toBase64Url(aadBytes),
     envelope: envelopeToText(envelope),
     envelopeHash: await sha256(envelope),
     contentCommitment,
   };
-  return { bundle, vaults, approvalVaults };
+  return { bundle, vaults, approvalVaults, payout };
 }
 
 export function parseBundle(value: string): Patch3QBundle {
   const parsed: unknown = JSON.parse(value);
   if (!parsed || typeof parsed !== "object") throw new Error("Bundle must be a JSON object.");
   const candidate = parsed as Partial<Patch3QBundle>;
-  if (candidate.type !== "patch3q.bundle" || candidate.version !== 4) throw new Error("Unsupported Patch3Q bundle.");
-  if (!candidate.caseId || !candidate.envelope || !candidate.aad || !candidate.envelopeHash || !candidate.contentCommitment) {
+  if (candidate.type !== "patch3q.bundle" || candidate.version !== 5) throw new Error("Unsupported Patch3Q bundle.");
+  if (
+    !candidate.caseId || !candidate.envelope || !candidate.aad || !candidate.envelopeHash ||
+    !candidate.contentCommitment || !candidate.privacy
+  ) {
     throw new Error("Patch3Q bundle is missing required fields.");
   }
   if (candidate.chainId !== PATCH3Q_CHAIN_ID || candidate.purpose !== PATCH3Q_PURPOSE) {
@@ -275,12 +317,23 @@ export async function openBundle(bundle: Patch3QBundle, vault: Patch3QKeyVault):
       attachmentBytes.byteLength === payload.attachment.size &&
       (await sha256(attachmentBytes)) === payload.attachment.sha256;
   }
+  const privacy = bundle.privacy;
+  const reporterKey = bundle.approvalAuthorities?.reporter.pqPublicKey;
+  const payoutBinding = privacy.reporterMode === "anonymous"
+    ? Boolean(
+        payload.payout && privacy.payoutCommitment && reporterKey &&
+        payoutCommitment(await sha256(utf8(bundle.caseId)), payload.payout) === privacy.payoutCommitment &&
+        pqKeyHash(fromBase64Url(reporterKey)) === privacy.reporterPqKeyHash,
+      )
+    : !payload.payout;
   const checks = {
     envelopeHash: (await sha256(envelope)) === bundle.envelopeHash,
     contentCommitment: (await sha256(plaintext)) === bundle.contentCommitment,
     attachmentHash,
     authenticatedMetadata: equalBytes(suppliedAad, expectedAad),
     caseBinding: payload.caseId === bundle.caseId && payload.createdAt === bundle.createdAt,
+    payoutBinding,
+    sizeBucket: plaintext.length === privacy.sizeBucket,
   };
   return { payload, checks, verified: Object.values(checks).every(Boolean) };
 }
