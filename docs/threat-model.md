@@ -11,6 +11,7 @@ Patch3Q is designed to reduce the impact of mailbox or storage compromise, estab
 - Escrow release limits, distinct reporter/program/auditor roles, an immutable bounty token, and exact token accounting.
 - Replay protection across cases, registry deployments, and EVM chains.
 - Authenticated bundle metadata, including recipient roles, seal mode, anonymity setting, deadlines, and approval authority.
+- An authenticated reporter account in the sealed metadata and an application check that the anchoring wallet matches it.
 
 ## Not hidden
 
@@ -21,6 +22,8 @@ Timing, envelope size, addresses, recipient authority, deadlines, token amounts,
 The EVM authorization window limits use of a stolen classical transaction key, but it is not treated as the approval itself. Normal payout requires program + auditor ML-DSA signatures over the exact digest; escalated payout requires reporter + auditor signatures.
 
 Deadline enforcement is permissionless but not autonomous. A researcher, auditor, or keeper must submit the enforcement transaction after the timestamp. If no bounty was funded before a program ghosts, escalation cannot manufacture funds.
+
+The contract cannot decrypt the QoreSeal AAD that contains the reporter/program/auditor role set. The application checks the reporter wallet and anchors the authenticated roles, but a caller bypassing the application can submit copied ciphertext with a different role set. The auditor and recipients must compare on-chain roles with the verified bundle. Contract-enforced reporter binding requires a future PQ submission signature.
 
 ## Out of scope
 

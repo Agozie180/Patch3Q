@@ -2,7 +2,7 @@
 
 1. Run `pnpm dev` and open the local app.
 2. Click **Load QoreChain synthetic customer scenario**, seal it in demo mode, and download the encrypted bundle,
-   two decryption vaults, and two independent approval vaults.
+   two decryption vaults, and three role-separated approval vaults.
 3. Open the bundle once as the maintainer and once as the auditor to show independent recovery and all integrity checks.
 4. Run `pnpm verify:precompile` to show live ML-DSA verification on Diana.
 5. Anchor two synthetic testnet receipts using a deployed registry whose constructor is bound to the designated test token.

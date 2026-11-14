@@ -14,7 +14,7 @@ independently replayed on QoreChain Diana.
 | Dual-PQ severity approval | Missing | `SeverityApproved` and `BountyReleased` using program + auditor, or reporter + auditor after escalation |
 | ECDSA-only rejection | Local only | Testnet failure receipt or reproducible RPC simulation showing rejection |
 | Redacted disclosure | Missing | Optional stretch transaction after resolution and embargo |
-| QCAI transaction preflight | Attempted; precompile unavailable | `evidence/qcai-audit.json` records live empty-return failures at Diana block 10034790 |
+| QCAI transaction preflight | Attempted; precompile unavailable | `evidence/qcai-audit.json` records live empty-return failures at Diana block 10091116 |
 | Production browser render | Local evidence | `evidence/browser-smoke.json`, two screenshots, and `docs/browser-smoke.md` |
 | Demo video | Missing | Public short video URL following `docs/demo-runbook.md` |
 | Real-customer dry run | Local synthetic scenario | App preset targets QoreChain's published intake; no report or email was sent |

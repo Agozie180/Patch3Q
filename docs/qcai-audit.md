@@ -15,9 +15,9 @@ fund, dual-PQ approval, and disclosure calldata. The machine-readable result is
 
 - Diana RPC: `https://evm-testnet.qore.host`
 - Chain ID: `9800`
-- Observed block: `10034790`
-- Compiled creation bytecode: `0x5a58552537365aafd44a5921267a412e1d298d755cc0317dba99e5be916d850d`
-- Compiled deployed bytecode: `0xe430bb2b22b55235ed561a056288fbb21452168884588ea82539625c00350b11`
+- Observed block: `10091116`
+- Compiled creation bytecode: `0xc030621bf5d1470b56f96b0b36755bd08e28b07a660a1ed55feca9e1b2141d8a`
+- Compiled deployed bytecode: `0xaa3ecb9d80a4910050b28239d893fe8970b5a45eb97b980c8543bfbb8557bebc`
 - QCAI result: **unavailable on the public Diana RPC used by this run**
 
 Every call to `0x0000000000000000000000000000000000000B01` and `0x0000000000000000000000000000000000000B02`

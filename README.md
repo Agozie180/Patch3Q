@@ -7,6 +7,7 @@ Patch3Q is a post-quantum vulnerability-disclosure and bug-bounty escrow dApp fo
 - Local multi-recipient sealing with QoreSeal and ML-KEM-1024.
 - Hybrid ML-KEM-1024 + X25519 demo envelopes and QoreChain-registered ML-KEM testnet recipients.
 - Salted plaintext commitments, ciphertext hashes, authenticated public deadlines, and case binding.
+- An authenticated reporter authority in every bundle; the anchor workspace refuses a wallet that is not that reporter.
 - Independent maintainer and auditor decryption.
 - Two independent ML-DSA-87 + secp256k1 hybrid severity approvals with QoreSign.
 - On-chain verification of both ML-DSA-87 signatures through QoreChain's `0x…0A01` PQC precompile before escrow release.
@@ -14,7 +15,7 @@ Patch3Q is a post-quantum vulnerability-disclosure and bug-bounty escrow dApp fo
 - QoreChain receipt lifecycle: submitted, acknowledged, triaged, resolved, and disclosed.
 - Immutable trusted-token escrow, exact balance accounting, and atomic payout after dual PQ verification.
 - Permissionless enforcement of missed acknowledgement and triage deadlines. Enforcement moves the case to
-  `Escalated` and replaces the ghosted program signer with the reporter while retaining the independent auditor.
+  `Escalated`, permanently replaces the ghosted program signer with the reporter, and retains the independent auditor.
 - Redacted disclosure commitments after resolution and embargo.
 - No application backend and no plaintext upload path.
 
@@ -58,7 +59,7 @@ pnpm install
 pnpm dev
 ```
 
-Open `http://localhost:5173`. The demo mode needs no wallet or network and generates separate decryption vaults plus program and auditor approval vaults.
+Open `http://localhost:5173`. The demo mode needs no wallet or network and generates separate decryption vaults plus reporter, program, and auditor approval vaults.
 
 Never publish or commit a vault file. Anyone holding one can decrypt or approve its case.
 
@@ -101,10 +102,10 @@ VITE_PATCH3Q_REGISTRY_ADDRESS=0xYourRegistry
 ```
 
 5. Start the app and choose **QoreChain testnet** when sealing.
-6. Enter both the maintainer/program and auditor QoreChain addresses. Both need registered ML-KEM and ML-DSA-87 keys.
-7. Anchor the case with the reporter wallet.
+6. Connect the reporter wallet, then enter both the maintainer/program and auditor QoreChain addresses. All three accounts need registered ML-DSA-87 keys; both recipients also need registered ML-KEM keys.
+7. Anchor the case with the same reporter wallet authenticated inside the sealed bundle.
 8. Connect the program wallet, acknowledge, triage, approve the registry-bound token, and fund escrow.
-9. Import matching program and auditor approvals, then connect the auditor wallet to release the bounty. In-browser approval-vault creation is intentionally limited to local demo mode.
+9. Import matching program + auditor approvals for a normal case, or reporter + auditor approvals after escalation, then connect the auditor wallet to release the bounty. In-browser approval-vault creation is intentionally limited to local demo mode.
 
 EVM writes require an injected signing wallet with a live QoreChain EVM authorization window. QoreX can currently be used for connection and reads.
 
@@ -122,5 +123,7 @@ Token transfers use checks-effects-interactions, a reentrancy guard, contract-co
 ## Threat model and current limits
 
 Patch3Q protects report confidentiality at rest, provides first-report and deadline evidence, detects ciphertext/AAD changes, and requires the PQ approval layer. It does not hide timing, envelope size, public accounts, recipient authority, token amounts, or transaction activity. Browser compromise before sealing, recipient-key theft, unsafe vault sharing, and malicious redaction remain out of scope.
+
+Reporter identity is authenticated inside the bundle and enforced by the application at anchoring, but the Solidity contract cannot decrypt QoreSeal AAD. An actor bypassing the application can anchor copied ciphertext under a different reporter account; recipients and the auditor must reject any on-chain role set that does not match the authenticated bundle. A future submission-authorization PQ signature should make this contract-enforceable.
 
 The demo stores encrypted bundles and redacted reports wherever the user chooses; production needs an availability layer for ciphertext without turning that layer into a plaintext custodian. QoreSeal is pre-1.0 and should receive external cryptographic review before production use.

@@ -5,7 +5,7 @@
 - The public Diana EVM RPC responded on chain ID `9800`.
 - QoreChain's `pqcVerify` precompile accepted the exact ML-DSA-87 message domain used by Patch3Q approvals via
   `pnpm verify:precompile`.
-- The QCAI probe reached Diana at block `10034790`; its documented AI precompile addresses returned empty data on
+- The QCAI probe reached Diana at block `10091116`; its documented AI precompile addresses returned empty data on
   that public endpoint. See `evidence/qcai-audit.json`.
 
 ## What remains blocked

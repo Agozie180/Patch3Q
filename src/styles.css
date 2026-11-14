@@ -137,6 +137,8 @@ input:focus, select:focus, textarea:focus { border-color: #7da30f; box-shadow: 0
 .pill { display: inline-flex; align-items: center; border-radius: 999px; border: 1px solid #d6ddd2; padding: 5px 9px; background: #f6f8f1; color: #66726b; font-size: 8px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; white-space: nowrap; }
 .pill.positive { color: #426407; border-color: #cde09f; background: #f1f8dc; }.pill.amber { color: var(--amber); background: #fff8e5; border-color: #ead59a; }
 .recipient-addresses { margin-top: 18px; }
+.wallet-field { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; }
+.wallet-field input { min-width: 0; }
 .error-callout, .warning-callout { display: flex; gap: 8px; margin-top: 18px; padding: 12px 14px; border: 1px solid #edc6c1; background: #fff2ef; color: #8b2e27; border-radius: 4px; font-size: 11px; line-height: 1.45; word-break: break-word; }
 .warning-callout { border-color: #e5d9a9; background: #fffae9; color: #716123; flex-direction: column; }
 .warning-callout span { font-size: 10px; }

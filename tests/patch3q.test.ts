@@ -40,11 +40,14 @@ describe("Patch3Q disclosure bundles", () => {
     unrelated = await sealReport({ report, mode: "demo", now: new Date("2026-11-13T11:00:00Z") });
   }, 60_000);
 
-  function approvalVaults(): { program: Patch3QApprovalVault; auditor: Patch3QApprovalVault } {
-    const program = sealed.approvalVaults?.find((vault) => vault.role === "program");
+  function approvalVaults(participantRole: "reporter" | "program" = "program"): {
+    participant: Patch3QApprovalVault;
+    auditor: Patch3QApprovalVault;
+  } {
+    const participant = sealed.approvalVaults?.find((vault) => vault.role === participantRole);
     const auditor = sealed.approvalVaults?.find((vault) => vault.role === "auditor");
-    if (!program || !auditor) throw new Error("Demo seal did not return both approval vaults.");
-    return { program, auditor };
+    if (!participant || !auditor) throw new Error("Demo seal did not return the required approval vaults.");
+    return { participant, auditor };
   }
 
   it("opens independently for maintainer and auditor", async () => {
@@ -53,6 +56,14 @@ describe("Patch3Q disclosure bundles", () => {
     expect(maintainer.verified).toBe(true);
     expect(auditor.verified).toBe(true);
     expect(auditor.payload.report.title).toBe(report.title);
+  });
+
+  it("rejects an embargo that ends before the triage deadline", async () => {
+    await expect(sealReport({
+      report: { ...report, embargoUntil: "2026-11-15" },
+      mode: "demo",
+      now: new Date("2026-11-13T10:00:00Z"),
+    })).rejects.toThrow("seven-day triage deadline");
   });
 
   it("exports only ciphertext and public metadata, never report or PoC plaintext", () => {
@@ -116,7 +127,8 @@ describe("Patch3Q disclosure bundles", () => {
     const result = await openBundle(bundle, vault);
     expect(result.verified).toBe(true);
     expect(Object.values(result.checks)).toEqual([true, true, true, true, true]);
-    expect(bundle.version).toBe(3);
+    expect(bundle.version).toBe(4);
+    expect(bundle.approvalAuthorities?.reporter.role).toBe("reporter");
     expect(bundle.approvalAuthorities?.program.role).toBe("program");
     expect(bundle.approvalAuthorities?.auditor.role).toBe("auditor");
   });
@@ -145,6 +157,22 @@ describe("Patch3Q disclosure bundles", () => {
     expect(result.checks.authenticatedMetadata).toBe(false);
   });
 
+  it("detects an altered reporter authority in the sealed metadata", async () => {
+    const changed = {
+      ...sealed.bundle,
+      approvalAuthorities: {
+        ...sealed.bundle.approvalAuthorities!,
+        reporter: {
+          ...sealed.bundle.approvalAuthorities!.reporter,
+          evmAddress: "0x2222222222222222222222222222222222222222" as const,
+        },
+      },
+    };
+    const result = await openBundle(changed, sealed.vaults[0]);
+    expect(result.verified).toBe(false);
+    expect(result.checks.authenticatedMetadata).toBe(false);
+  });
+
   it("detects a forged envelope hash", async () => {
     const changed = {
       ...sealed.bundle,
@@ -158,6 +186,7 @@ describe("Patch3Q disclosure bundles", () => {
   it("issues and verifies two independent ML-DSA-87 hybrid severity approvals", async () => {
     const approval = await createSeverityApproval({
       bundle: sealed.bundle,
+      participantRole: "program",
       vaults: approvalVaults(),
       registryAddress,
       severity: "critical",
@@ -167,13 +196,45 @@ describe("Patch3Q disclosure bundles", () => {
     });
     const result = await verifySeverityApproval(sealed.bundle, approval);
     expect(result.verified).toBe(true);
-    expect(approval.signatures.program.signatureType).toBe("ml-dsa-87-hybrid");
+    expect(approval.signatures.participant.signatureType).toBe("ml-dsa-87-hybrid");
     expect(approval.signatures.auditor.signatureType).toBe("ml-dsa-87-hybrid");
+  });
+
+  it("issues reporter and auditor approval for an escalated case", async () => {
+    const approval = await createSeverityApproval({
+      bundle: sealed.bundle,
+      participantRole: "reporter",
+      vaults: approvalVaults("reporter"),
+      registryAddress,
+      severity: "critical",
+      payoutAtomic: "2500000000",
+      rationale: "The program missed its deadline, so the reporter and auditor authorize the escrow consequence.",
+    });
+    const result = await verifySeverityApproval(sealed.bundle, approval, registryAddress, "reporter");
+    expect(result.verified).toBe(true);
+    expect(approval.participantRole).toBe("reporter");
+    expect(approval.signers.participant).toBe(sealed.bundle.approvalAuthorities?.reporter.signer);
+  });
+
+  it("rejects a program approval when the on-chain case expects the reporter", async () => {
+    const approval = await createSeverityApproval({
+      bundle: sealed.bundle,
+      participantRole: "program",
+      vaults: approvalVaults(),
+      registryAddress,
+      severity: "critical",
+      payoutAtomic: "2500000000",
+      rationale: "This otherwise valid approval uses the wrong participant for an escalated case.",
+    });
+    const result = await verifySeverityApproval(sealed.bundle, approval, registryAddress, "reporter");
+    expect(result.verified).toBe(false);
+    expect(result.checks.participantRoleBinding).toBe(false);
   });
 
   it("rejects a severity approval changed after signing", async () => {
     const approval = await createSeverityApproval({
       bundle: sealed.bundle,
+      participantRole: "program",
       vaults: approvalVaults(),
       registryAddress,
       severity: "high",
@@ -189,14 +250,15 @@ describe("Patch3Q disclosure bundles", () => {
     };
     const result = await verifySeverityApproval(sealed.bundle, tampered);
     expect(result.verified).toBe(false);
-    expect(result.checks.programHybridSignature).toBe(false);
+    expect(result.checks.participantHybridSignature).toBe(false);
     expect(result.checks.auditorHybridSignature).toBe(false);
     expect(result.checks.approvalHash).toBe(false);
   });
 
-  it.each(["program", "auditor"] as const)("rejects an altered %s PQ signature", async (role) => {
+  it.each(["participant", "auditor"] as const)("rejects an altered %s PQ signature", async (role) => {
     const approval = await createSeverityApproval({
       bundle: sealed.bundle,
+      participantRole: "program",
       vaults: approvalVaults(),
       registryAddress,
       severity: "high",
@@ -217,12 +279,13 @@ describe("Patch3Q disclosure bundles", () => {
     };
     const result = await verifySeverityApproval(sealed.bundle, tampered);
     expect(result.verified).toBe(false);
-    expect(result.checks[role === "program" ? "programHybridSignature" : "auditorHybridSignature"]).toBe(false);
+    expect(result.checks[role === "participant" ? "participantHybridSignature" : "auditorHybridSignature"]).toBe(false);
   });
 
   it("does not verify an approval for a different registry", async () => {
     const approval = await createSeverityApproval({
       bundle: sealed.bundle,
+      participantRole: "program",
       vaults: approvalVaults(),
       registryAddress,
       severity: "high",
@@ -238,6 +301,7 @@ describe("Patch3Q disclosure bundles", () => {
   it.each(["program", "auditor"] as const)("does not verify an approval when the bound %s PQ-key fingerprint is altered", async (role) => {
     const approval = await createSeverityApproval({
       bundle: sealed.bundle,
+      participantRole: "program",
       vaults: approvalVaults(),
       registryAddress,
       severity: "high",
@@ -256,12 +320,13 @@ describe("Patch3Q disclosure bundles", () => {
     };
     const result = await verifySeverityApproval(changedBundle, approval, registryAddress);
     expect(result.verified).toBe(false);
-    expect(result.checks[role === "program" ? "programKeyBinding" : "auditorKeyBinding"]).toBe(false);
+    expect(result.checks[role === "program" ? "participantKeyBinding" : "auditorKeyBinding"]).toBe(false);
   });
 
   it("demonstrates that neither classical key alone can forge approval", async () => {
     const approval = await createSeverityApproval({
       bundle: sealed.bundle,
+      participantRole: "program",
       vaults: approvalVaults(),
       registryAddress,
       severity: "critical",
@@ -269,7 +334,7 @@ describe("Patch3Q disclosure bundles", () => {
       rationale: "This approval is bound to both the encrypted evidence and the auditor keys.",
     });
     const vaults = approvalVaults();
-    await expect(demonstrateClassicalOnlyForgeryRejection(sealed.bundle, approval, vaults.program)).resolves.toBe(true);
+    await expect(demonstrateClassicalOnlyForgeryRejection(sealed.bundle, approval, vaults.participant)).resolves.toBe(true);
     await expect(demonstrateClassicalOnlyForgeryRejection(sealed.bundle, approval, vaults.auditor)).resolves.toBe(true);
   });
 });

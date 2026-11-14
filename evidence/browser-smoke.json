@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-14T11:44:32.102Z",
+  "generatedAt": "2026-11-14T19:27:51.915Z",
   "targetUrl": "http://127.0.0.1:4173/",
   "chromePath": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
   "viewport": {
@@ -30,7 +30,7 @@
   "approval": {
     "selectedTab": "04Approve bounty",
     "heading": "Approve severity with two PQ parties",
-    "description": "The program and auditor independently hybrid-sign the same evidence-bound payout instruction.",
+    "description": "The program and auditor sign normal payouts; an escalated case requires the reporter and auditor instead.",
     "emptyState": "No case loaded.\nSeal or verify a Patch3Q bundle before issuing a severity decision."
   },
   "pageErrors": [],

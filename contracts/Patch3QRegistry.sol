@@ -217,7 +217,8 @@ contract Patch3QRegistry {
 
     /// @notice Applies the deterministic consequence for a program that misses an acknowledgement or triage SLA.
     /// @dev Blockchains do not execute on wall-clock time by themselves. Any account or keeper may call this after
-    ///      the deadline; the case then enters Escalated and the independent auditor may adjudicate funded escrow.
+    ///      the deadline; the case then permanently enters Escalated and the independent auditor may adjudicate
+    ///      funded escrow with the reporter. The late program cannot restore its former signing authority.
     function escalateMissedDeadline(bytes32 caseIdHash) external existing(caseIdHash) {
         CaseReceipt storage receipt = cases[caseIdHash];
         uint8 breach;
@@ -285,10 +286,7 @@ contract Patch3QRegistry {
 
     function acknowledgeCase(bytes32 caseIdHash) external existing(caseIdHash) onlyProgram(caseIdHash) {
         CaseReceipt storage receipt = cases[caseIdHash];
-        if (
-            (receipt.status != Status.Submitted && receipt.status != Status.Escalated) ||
-            receipt.acknowledgedAt != 0
-        ) revert InvalidStatus();
+        if (receipt.status != Status.Submitted || receipt.acknowledgedAt != 0) revert InvalidStatus();
         _recordDeadlineBreaches(caseIdHash, receipt);
         receipt.acknowledgedAt = uint64(block.timestamp);
         receipt.status = Status.Acknowledged;
@@ -298,8 +296,7 @@ contract Patch3QRegistry {
     function triageCase(bytes32 caseIdHash) external existing(caseIdHash) onlyProgram(caseIdHash) {
         CaseReceipt storage receipt = cases[caseIdHash];
         if (
-            (receipt.status != Status.Acknowledged && receipt.status != Status.Escalated) ||
-            receipt.acknowledgedAt == 0 || receipt.triagedAt != 0
+            receipt.status != Status.Acknowledged || receipt.acknowledgedAt == 0 || receipt.triagedAt != 0
         ) revert InvalidStatus();
         _recordDeadlineBreaches(caseIdHash, receipt);
         receipt.triagedAt = uint64(block.timestamp);

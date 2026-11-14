@@ -5,7 +5,9 @@ import {Patch3QRegistry} from "../Patch3QRegistry.sol";
 
 contract Patch3QRegistryHarness is Patch3QRegistry {
     mapping(address account => bytes pubkey) private testPqKeys;
+    mapping(bytes32 pubkeyHash => bool valid) private testPqKeyValidity;
     bool public testPqSignatureValid = true;
+    bool public useKeySpecificValidity;
 
     constructor(address trustedBountyToken) Patch3QRegistry(trustedBountyToken) {}
 
@@ -15,6 +17,12 @@ contract Patch3QRegistryHarness is Patch3QRegistry {
 
     function setPqSignatureValid(bool valid) external {
         testPqSignatureValid = valid;
+        useKeySpecificValidity = false;
+    }
+
+    function setPqKeySignatureValid(bytes calldata pubkey, bool valid) external {
+        testPqKeyValidity[keccak256(pubkey)] = valid;
+        useKeySpecificValidity = true;
     }
 
     function _registeredPqKey(address account) internal view override returns (bytes memory pubkey) {
@@ -22,10 +30,10 @@ contract Patch3QRegistryHarness is Patch3QRegistry {
         require(pubkey.length != 0, "test PQ key missing");
     }
 
-    function _verifyPq(bytes memory, bytes calldata, bytes memory)
+    function _verifyPq(bytes memory pubkey, bytes calldata, bytes memory)
         internal view override returns (bool)
     {
-        return testPqSignatureValid;
+        return useKeySpecificValidity ? testPqKeyValidity[keccak256(pubkey)] : testPqSignatureValid;
     }
 }
 

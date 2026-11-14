@@ -143,6 +143,7 @@ function SealWorkspace({
   onResult: (result: SealResult) => void;
   onVerify: (bundle: Patch3QBundle, vault: Patch3QKeyVault) => void;
 }) {
+  const { address: reporterAddress, isConnected } = useAccount();
   const [draft, setDraft] = useState(INITIAL_REPORT);
   const [mode, setMode] = useState<"demo" | "testnet">("demo");
   const [maintainerAddress, setMaintainerAddress] = useState("");
@@ -186,6 +187,7 @@ function SealWorkspace({
         report: draft,
         attachment,
         mode,
+        reporterAddress,
         maintainerAddress,
         auditorAddress,
       });
@@ -351,7 +353,7 @@ function SealWorkspace({
             <textarea required rows={4} value={draft.remediation} onChange={(event) => update("remediation", event.target.value)} placeholder="A focused mitigation or patch direction." />
           </Field>
           <Field label="Requested embargo end" hint="The public receipt exposes this date, not the report.">
-            <input required type="date" min={localDateAfter(1)} value={draft.embargoUntil} onChange={(event) => update("embargoUntil", event.target.value)} />
+            <input required type="date" min={localDateAfter(8)} value={draft.embargoUntil} onChange={(event) => update("embargoUntil", event.target.value)} />
           </Field>
           <Field label="Proof-of-concept file" hint="Maximum 512 KiB for the hackathon demo.">
             <div className="file-picker">
@@ -394,6 +396,12 @@ function SealWorkspace({
           </div>
         ) : (
           <div className="form-grid recipient-addresses">
+            <Field label="Reporter QoreChain account" hint="This wallet is authenticated inside the sealed bundle." wide>
+              <div className="wallet-field">
+                <input readOnly value={reporterAddress ?? "Connect the reporter wallet"} />
+                <ConnectButton />
+              </div>
+            </Field>
             <Field label="Maintainer QoreChain address" wide>
               <input required value={maintainerAddress} onChange={(event) => setMaintainerAddress(event.target.value)} placeholder="qor1… or 0x…" />
             </Field>
@@ -404,7 +412,7 @@ function SealWorkspace({
         )}
 
         {error && <div className="error-callout" role="alert">{error}</div>}
-        <button className="seal-button" type="submit" disabled={busy || attachmentBusy}>
+        <button className="seal-button" type="submit" disabled={busy || attachmentBusy || (mode === "testnet" && !isConnected)}>
           <span className="seal-lock">{busy ? "◌" : "◇"}</span>
           <span><strong>{busy ? "Sealing with post-quantum keys…" : "Seal report"}</strong><small>ML-KEM-1024 · local encryption · salted commitment</small></span>
           <span className="arrow">→</span>
@@ -567,9 +575,13 @@ function ApprovalWorkspace({
   onApproval: (approval: SeverityApproval) => void;
 }) {
   const { isConnected } = useAccount();
+  const initialReporterVault = initialVaults?.find((vault) => vault.role === "reporter");
   const initialProgramVault = initialVaults?.find((vault) => vault.role === "program");
   const initialAuditorVault = initialVaults?.find((vault) => vault.role === "auditor");
-  const [programVaultText, setProgramVaultText] = useState(
+  const [participantRole, setParticipantRole] = useState<"reporter" | "program">(
+    initialApproval?.participantRole ?? "program",
+  );
+  const [participantVaultText, setParticipantVaultText] = useState(
     initialProgramVault ? approvalVaultToJson(initialProgramVault) : "",
   );
   const [auditorVaultText, setAuditorVaultText] = useState(
@@ -581,7 +593,7 @@ function ApprovalWorkspace({
   const [approval, setApproval] = useState<SeverityApproval | undefined>(initialApproval);
   const [verification, setVerification] = useState<ApprovalVerificationResult>();
   const [classicalForgeryRejected, setClassicalForgeryRejected] = useState<{
-    program: boolean;
+    participant: boolean;
     auditor: boolean;
   }>();
   const [busy, setBusy] = useState(false);
@@ -591,6 +603,38 @@ function ApprovalWorkspace({
   const registryReady = Boolean(
     patch3qRegistryAddress && isAddress(patch3qRegistryAddress) && patch3qRegistryAddress !== zeroAddress,
   );
+  const approvalCaseIdHash = useMemo(
+    () => bundle ? viemSha256(toBytes(bundle.caseId)) : undefined,
+    [bundle],
+  );
+  const approvalCaseRead = useReadContract({
+    address: patch3qRegistryAddress ?? zeroAddress,
+    abi: patch3qRegistryAbi,
+    functionName: "caseState",
+    args: [approvalCaseIdHash ?? zeroHash],
+    query: { enabled: registryReady && bundle?.mode === "testnet" && Boolean(approvalCaseIdHash), retry: false },
+  });
+  const onchainParticipantRole = approvalCaseRead.data && Number(approvalCaseRead.data[0]) === 6
+    ? "reporter" as const
+    : approvalCaseRead.data
+      ? "program" as const
+      : undefined;
+
+  useEffect(() => {
+    if (!onchainParticipantRole || onchainParticipantRole === participantRole) return;
+    setParticipantRole(onchainParticipantRole);
+    const matchingVault = onchainParticipantRole === "reporter" ? initialReporterVault : initialProgramVault;
+    setParticipantVaultText(matchingVault ? approvalVaultToJson(matchingVault) : "");
+  }, [onchainParticipantRole, participantRole, initialReporterVault, initialProgramVault]);
+
+  function chooseParticipantRole(role: "reporter" | "program") {
+    setParticipantRole(role);
+    const matchingVault = role === "reporter" ? initialReporterVault : initialProgramVault;
+    setParticipantVaultText(matchingVault ? approvalVaultToJson(matchingVault) : "");
+    setApproval(undefined);
+    setVerification(undefined);
+    setClassicalForgeryRejected(undefined);
+  }
 
   async function issueApproval() {
     if (!bundle) return;
@@ -601,21 +645,27 @@ function ApprovalWorkspace({
     }
     setBusy(true);
     try {
-      const programVault = parseApprovalVault(programVaultText);
+      const participantVault = parseApprovalVault(participantVaultText);
       const auditorVault = parseApprovalVault(auditorVaultText);
       const nextApproval = await createSeverityApproval({
         bundle,
-        vaults: { program: programVault, auditor: auditorVault },
+        participantRole,
+        vaults: { participant: participantVault, auditor: auditorVault },
         registryAddress: patch3qRegistryAddress,
         severity,
         payoutAtomic,
         rationale,
       });
-      const checked = await verifySeverityApproval(bundle, nextApproval, patch3qRegistryAddress);
-      const rejected = bundle.approvalAuthorities?.program.source === "embedded-demo" &&
+      const checked = await verifySeverityApproval(
+        bundle,
+        nextApproval,
+        patch3qRegistryAddress,
+        onchainParticipantRole,
+      );
+      const rejected = bundle.approvalAuthorities?.[participantRole].source === "embedded-demo" &&
         bundle.approvalAuthorities.auditor.source === "embedded-demo"
         ? {
-            program: await demonstrateClassicalOnlyForgeryRejection(bundle, nextApproval, programVault),
+            participant: await demonstrateClassicalOnlyForgeryRejection(bundle, nextApproval, participantVault),
             auditor: await demonstrateClassicalOnlyForgeryRejection(bundle, nextApproval, auditorVault),
           }
         : undefined;
@@ -640,7 +690,13 @@ function ApprovalWorkspace({
     setBusy(true);
     try {
       const imported = parseSeverityApproval(text);
-      const checked = await verifySeverityApproval(bundle, imported, patch3qRegistryAddress);
+      const checked = await verifySeverityApproval(
+        bundle,
+        imported,
+        patch3qRegistryAddress,
+        onchainParticipantRole,
+      );
+      setParticipantRole(imported.participantRole);
       setApproval(imported);
       setVerification(checked);
       setClassicalForgeryRejected(undefined);
@@ -663,10 +719,10 @@ function ApprovalWorkspace({
       setError("The approval must pass every hybrid-signature and evidence-binding check first.");
       return;
     }
-    const programPqSignature = approval.signatures.program.pq?.signature;
+    const participantPqSignature = approval.signatures.participant.pq?.signature;
     const auditorPqSignature = approval.signatures.auditor.pq?.signature;
-    if (!programPqSignature || !auditorPqSignature) {
-      setError("The approval needs both program and auditor ML-DSA-87 signatures.");
+    if (!participantPqSignature || !auditorPqSignature) {
+      setError(`The approval needs both ${approval.participantRole} and auditor ML-DSA-87 signatures.`);
       return;
     }
     try {
@@ -679,7 +735,7 @@ function ApprovalWorkspace({
           SEVERITY_CODES[approval.statement.severity],
           BigInt(approval.statement.payout.atomic),
           approval.statement.rationaleHash,
-          bytesToHex(fromBase64(programPqSignature)),
+          bytesToHex(fromBase64(participantPqSignature)),
           bytesToHex(fromBase64(auditorPqSignature)),
         ],
       });
@@ -694,7 +750,7 @@ function ApprovalWorkspace({
         <div>
           <p className="eyebrow">Independent co-signing workspace</p>
           <h2 id="approval-title">Approve severity with two PQ parties</h2>
-          <p>The program and auditor independently hybrid-sign the same evidence-bound payout instruction.</p>
+          <p>The program and auditor sign normal payouts; an escalated case requires the reporter and auditor instead.</p>
         </div>
         <ConnectButton />
       </div>
@@ -712,6 +768,7 @@ function ApprovalWorkspace({
               <span className="pill positive">Two authorities locked</span>
             </div>
             <HashRow label="Ciphertext commitment" value={bundle.envelopeHash} />
+            <HashRow label="Reporter ML-DSA fingerprint" value={bundle.approvalAuthorities?.reporter.keyFingerprint ?? "Unavailable"} />
             <HashRow label="Program ML-DSA fingerprint" value={bundle.approvalAuthorities?.program.keyFingerprint ?? "Unavailable"} />
             <HashRow label="Auditor ML-DSA fingerprint" value={bundle.approvalAuthorities?.auditor.keyFingerprint ?? "Unavailable"} />
           </div>
@@ -721,6 +778,16 @@ function ApprovalWorkspace({
             <div><h3>Adjudicate the report</h3><p>The signed decision becomes the sole escrow release instruction.</p></div>
           </div>
           <div className="form-grid">
+            <Field label="Required participant signer" hint={onchainParticipantRole ? "Derived from the on-chain case status." : "Program normally; reporter after escalation."}>
+              <select
+                value={participantRole}
+                disabled={Boolean(onchainParticipantRole)}
+                onChange={(event) => chooseParticipantRole(event.target.value as "reporter" | "program")}
+              >
+                <option value="program">Program</option>
+                <option value="reporter">Reporter (escalated case)</option>
+              </select>
+            </Field>
             <Field label="Final severity">
               <select value={severity} onChange={(event) => setSeverity(event.target.value as Severity)}>
                 <option value="critical">Critical</option>
@@ -738,15 +805,15 @@ function ApprovalWorkspace({
             </Field>
           </div>
 
-          {initialProgramVault || programVaultText ? (
-            <details className="paste-fallback" open={!initialProgramVault}>
-              <summary>Program approval vault</summary>
-              <textarea value={programVaultText} onChange={(event) => setProgramVaultText(event.target.value)} placeholder="Patch3Q program approval vault JSON" rows={6} />
+          {(participantRole === "reporter" ? initialReporterVault : initialProgramVault) || participantVaultText ? (
+            <details className="paste-fallback" open={!(participantRole === "reporter" ? initialReporterVault : initialProgramVault)}>
+              <summary>{participantRole === "reporter" ? "Reporter" : "Program"} approval vault</summary>
+              <textarea value={participantVaultText} onChange={(event) => setParticipantVaultText(event.target.value)} placeholder={`Patch3Q ${participantRole} approval vault JSON`} rows={6} />
             </details>
           ) : (
             <FileImport
-              label="Import program approval vault"
-              onLoad={setProgramVaultText}
+              label={`Import ${participantRole} approval vault`}
+              onLoad={setParticipantVaultText}
             />
           )}
           {initialAuditorVault || auditorVaultText ? (
@@ -759,7 +826,7 @@ function ApprovalWorkspace({
           )}
 
           {error && <div className="error-callout" role="alert">{error}</div>}
-          <button className="primary-button verify-button" type="button" disabled={!programVaultText || !auditorVaultText || busy} onClick={() => void issueApproval()}>
+          <button className="primary-button verify-button" type="button" disabled={!participantVaultText || !auditorVaultText || busy} onClick={() => void issueApproval()}>
             {busy ? "Collecting two ML-DSA-87 signatures…" : "Co-sign severity approval"}
           </button>
 
@@ -773,7 +840,7 @@ function ApprovalWorkspace({
               <div className="verification-head">
                 <div className="verified-mark">{verification.verified ? "✓" : "!"}</div>
                 <div>
-                  <p className="eyebrow">2 × ML-DSA-87 hybrid signatures</p>
+                  <p className="eyebrow">{approval.participantRole} + auditor · 2 × ML-DSA-87 hybrid signatures</p>
                   <h3>{verification.verified ? "Payout instruction verified" : "Approval rejected"}</h3>
                 </div>
               </div>
@@ -885,10 +952,15 @@ function AnchorWorkspace({ bundle }: { bundle?: Patch3QBundle }) {
     const authorities = bundle.approvalAuthorities;
     if (
       !authorities ||
+      !isAddress(authorities.reporter.evmAddress) ||
       !isAddress(authorities.program.evmAddress) ||
       !isAddress(authorities.auditor.evmAddress)
     ) {
       setLocalError("This bundle does not contain valid program and auditor approval authorities.");
+      return;
+    }
+    if (!address || address.toLowerCase() !== authorities.reporter.evmAddress.toLowerCase()) {
+      setLocalError("Connect the reporter wallet authenticated inside this sealed bundle.");
       return;
     }
     try {
@@ -1037,6 +1109,11 @@ function AnchorWorkspace({ bundle }: { bundle?: Patch3QBundle }) {
           <span>Case bundle</span>
           <code>{bundle?.caseId ?? "Seal or verify a bundle first"}</code>
           <span className={bundle ? "pill positive" : "pill amber"}>{bundle ? "Loaded" : "Missing"}</span>
+        </div>
+        <div className="config-row">
+          <span>Reporter authority</span>
+          <code>{bundle?.approvalAuthorities ? shortHash(bundle.approvalAuthorities.reporter.evmAddress) : "Not bound"}</code>
+          <span className={bundle?.approvalAuthorities ? "pill positive" : "pill amber"}>{bundle?.approvalAuthorities ? "Sender bound" : "Missing"}</span>
         </div>
         <div className="config-row">
           <span>Program authority</span>

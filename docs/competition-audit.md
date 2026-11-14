@@ -56,7 +56,7 @@ Current evidence-backed score: **70/100**.
 - Cryptographic implementation: 14/15
 - Smart-contract core: 13/15
 - Threat model and honesty: 9/10
-- Test coverage and reproducibility: 9/10 (`19` browser/crypto tests and `15` contract tests pass in Ubuntu WSL, plus a production headless-browser render)
+- Test coverage and reproducibility: 9/10 (`23` browser/crypto tests and `17` contract tests pass in Ubuntu WSL, plus a production headless-browser render)
 - Testnet evidence: 0/15
 - Demo/customer/build-in-public evidence: 2/10
 

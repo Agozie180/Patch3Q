@@ -21,4 +21,4 @@ recorded in [`evidence/browser-smoke.json`](../evidence/browser-smoke.json).
 
 The Codex sandbox-browser host was also retried and returned `browser access host is unavailable`, so this run did
 not claim interactive sandbox-browser coverage. The application and cryptographic behavior are covered separately by
-the 19 Vitest cases and 15 Hardhat contract cases run through `pnpm check`.
+the 23 Vitest cases and 17 Hardhat contract cases run through `pnpm check`.

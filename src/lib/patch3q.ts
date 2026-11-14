@@ -28,7 +28,7 @@ export { MAX_ATTACHMENT_BYTES, PATCH3Q_CHAIN_ID, PATCH3Q_PURPOSE, PATCH3Q_REST_P
 
 interface AuthenticatedMetadata {
   type: "patch3q.aad";
-  version: 3;
+  version: 4;
   caseId: string;
   chainId: typeof PATCH3Q_CHAIN_ID;
   purpose: typeof PATCH3Q_PURPOSE;
@@ -45,6 +45,7 @@ interface SealReportOptions {
   report: ReportDraft;
   attachment?: ReportAttachment;
   mode: "demo" | "testnet";
+  reporterAddress?: string;
   maintainerAddress?: string;
   auditorAddress?: string;
   now?: Date;
@@ -57,7 +58,7 @@ function addHours(date: Date, hours: number): string {
 function buildAuthenticatedMetadata(bundle: Pick<Patch3QBundle, "caseId" | "chainId" | "purpose" | "createdAt" | "mode" | "sealMode" | "anonymous" | "recipients" | "publicMetadata" | "approvalAuthorities">): AuthenticatedMetadata {
   return {
     type: "patch3q.aad",
-    version: 3,
+    version: 4,
     caseId: bundle.caseId,
     chainId: bundle.chainId,
     purpose: bundle.purpose,
@@ -98,33 +99,44 @@ export async function sealReport(options: SealReportOptions): Promise<SealResult
 
   const now = options.now ?? new Date();
   const createdAt = now.toISOString();
+  const triageBy = addHours(now, 24 * 7);
+  const embargoUntil = new Date(options.report.embargoUntil);
+  if (Number.isNaN(embargoUntil.getTime()) || embargoUntil.getTime() < Date.parse(triageBy)) {
+    throw new Error("The disclosure embargo must end after the seven-day triage deadline.");
+  }
   const caseId = "P3Q-" + toBase64Url(randomBytes(12)).toUpperCase();
   let approvalAuthorities: Patch3QBundle["approvalAuthorities"];
   let approvalVaults: SealResult["approvalVaults"];
   if (options.mode === "demo") {
-    const [programApproval, auditorApproval] = await Promise.all([
+    const [reporterApproval, programApproval, auditorApproval] = await Promise.all([
+      createDemoApprovalAuthority(caseId, "reporter"),
       createDemoApprovalAuthority(caseId, "program"),
       createDemoApprovalAuthority(caseId, "auditor"),
     ]);
     approvalAuthorities = {
+      reporter: reporterApproval.authority,
       program: programApproval.authority,
       auditor: auditorApproval.authority,
     };
-    approvalVaults = [programApproval.vault, auditorApproval.vault];
+    approvalVaults = [reporterApproval.vault, programApproval.vault, auditorApproval.vault];
   } else {
-    if (!options.maintainerAddress?.trim() || !options.auditorAddress?.trim()) {
-      throw new Error("Enter both program and auditor QoreChain testnet addresses.");
+    if (!options.reporterAddress?.trim() || !options.maintainerAddress?.trim() || !options.auditorAddress?.trim()) {
+      throw new Error("Connect the reporter wallet and enter both program and auditor QoreChain testnet addresses.");
     }
-    const [program, auditor] = await Promise.all([
+    const [reporter, program, auditor] = await Promise.all([
+      resolveApprovalAuthority(options.reporterAddress, "reporter"),
       resolveApprovalAuthority(options.maintainerAddress, "program"),
       resolveApprovalAuthority(options.auditorAddress, "auditor"),
     ]);
-    approvalAuthorities = { program, auditor };
+    if (new Set([reporter.evmAddress, program.evmAddress, auditor.evmAddress].map((value) => value.toLowerCase())).size !== 3) {
+      throw new Error("Reporter, program, and auditor must be three distinct QoreChain accounts.");
+    }
+    approvalAuthorities = { reporter, program, auditor };
   }
   const publicMetadata: PublicMetadata = {
     acknowledgeBy: addHours(now, 24),
-    triageBy: addHours(now, 24 * 7),
-    embargoUntil: new Date(options.report.embargoUntil).toISOString(),
+    triageBy,
+    embargoUntil: embargoUntil.toISOString(),
   };
   let vaults: Patch3QKeyVault[] = [];
   let recipients: Patch3QBundle["recipients"];
@@ -206,7 +218,7 @@ export async function sealReport(options: SealReportOptions): Promise<SealResult
 
   const bundle: Patch3QBundle = {
     type: "patch3q.bundle",
-    version: 3,
+    version: 4,
     ...metadataBase,
     aad: toBase64Url(aadBytes),
     envelope: envelopeToText(envelope),
@@ -220,7 +232,7 @@ export function parseBundle(value: string): Patch3QBundle {
   const parsed: unknown = JSON.parse(value);
   if (!parsed || typeof parsed !== "object") throw new Error("Bundle must be a JSON object.");
   const candidate = parsed as Partial<Patch3QBundle>;
-  if (candidate.type !== "patch3q.bundle" || candidate.version !== 3) throw new Error("Unsupported Patch3Q bundle.");
+  if (candidate.type !== "patch3q.bundle" || candidate.version !== 4) throw new Error("Unsupported Patch3Q bundle.");
   if (!candidate.caseId || !candidate.envelope || !candidate.aad || !candidate.envelopeHash || !candidate.contentCommitment) {
     throw new Error("Patch3Q bundle is missing required fields.");
   }

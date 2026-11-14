@@ -108,6 +108,20 @@ describe("Patch3QRegistry foundation", () => {
     assert.equal(Number(state[2]) & 1, 1);
   });
 
+  it("does not let a late program undo acknowledgement escalation", async () => {
+    const { acknowledgeBy } = await submitCase();
+    const testClient = await viem.getTestClient();
+    await testClient.setNextBlockTimestamp({ timestamp: acknowledgeBy + 1n });
+    await testClient.mine({ blocks: 1 });
+    await registry.write.escalateMissedDeadline([caseIdHash], { account: outsider.account });
+
+    await viem.assertions.revertWithCustomError(
+      registry.write.acknowledgeCase([caseIdHash], { account: program.account }),
+      registry,
+      "InvalidStatus",
+    );
+  });
+
   it("cannot escalate while the active deadline is still open", async () => {
     await submitCase();
     await viem.assertions.revertWithCustomError(
@@ -129,6 +143,21 @@ describe("Patch3QRegistry foundation", () => {
     assert.equal(Number(state[2]) & 2, 2);
   });
 
+  it("does not let a late program undo triage escalation", async () => {
+    const { triageBy } = await submitCase();
+    await registry.write.acknowledgeCase([caseIdHash], { account: program.account });
+    const testClient = await viem.getTestClient();
+    await testClient.setNextBlockTimestamp({ timestamp: triageBy + 1n });
+    await testClient.mine({ blocks: 1 });
+    await registry.write.escalateMissedDeadline([caseIdHash], { account: outsider.account });
+
+    await viem.assertions.revertWithCustomError(
+      registry.write.triageCase([caseIdHash], { account: program.account }),
+      registry,
+      "InvalidStatus",
+    );
+  });
+
   it("lets the independent auditor adjudicate funded escrow after escalation", async () => {
     const { acknowledgeBy } = await submitCase();
     const payout = 1_000_000_000n;
@@ -139,6 +168,10 @@ describe("Patch3QRegistry foundation", () => {
     await testClient.setNextBlockTimestamp({ timestamp: acknowledgeBy + 1n });
     await testClient.mine({ blocks: 1 });
     await registry.write.escalateMissedDeadline([caseIdHash], { account: outsider.account });
+
+    await registry.write.setPqKeySignatureValid(["0x11111111", true]);
+    await registry.write.setPqKeySignatureValid(["0x22222222", false]);
+    await registry.write.setPqKeySignatureValid(["0x12345678", true]);
 
     await registry.write.approveSeverity([
       caseIdHash,

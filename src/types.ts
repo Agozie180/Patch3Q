@@ -40,7 +40,7 @@ export interface PublicMetadata {
 }
 
 export interface ApprovalAuthority {
-  role: "program" | "auditor";
+  role: "reporter" | "program" | "auditor";
   signer: string;
   evmAddress: `0x${string}`;
   keyFingerprint: string;
@@ -57,7 +57,7 @@ export interface BundleRecipient {
 
 export interface Patch3QBundle {
   type: "patch3q.bundle";
-  version: 3;
+  version: 4;
   caseId: string;
   chainId: "qorechain-diana";
   purpose: "patch3q:vulnerability-report:v1";
@@ -72,6 +72,7 @@ export interface Patch3QBundle {
   recipients: BundleRecipient[];
   publicMetadata: PublicMetadata;
   approvalAuthorities?: {
+    reporter: ApprovalAuthority;
     program: ApprovalAuthority;
     auditor: ApprovalAuthority;
   };
@@ -91,7 +92,7 @@ export interface Patch3QApprovalVault {
   type: "patch3q.approval-key";
   version: 1;
   caseId: string;
-  role: "program" | "auditor";
+  role: "reporter" | "program" | "auditor";
   signer: string;
   classicalPrivateKey: string;
   pqSeed: string;
@@ -118,14 +119,15 @@ export interface SeverityApprovalStatement {
 
 export interface SeverityApproval {
   type: "patch3q.severity-approval";
-  version: 2;
+  version: 3;
   statement: SeverityApprovalStatement;
+  participantRole: "reporter" | "program";
   signers: {
-    program: string;
+    participant: string;
     auditor: string;
   };
   signatures: {
-    program: MessageSignature;
+    participant: MessageSignature;
     auditor: MessageSignature;
   };
   approvalHash: `0x${string}`;
@@ -155,14 +157,15 @@ export interface ApprovalChecks {
   statementShape: boolean;
   caseBinding: boolean;
   evidenceBinding: boolean;
-  programAuthorityBinding: boolean;
+  participantRoleBinding: boolean;
+  participantAuthorityBinding: boolean;
   auditorAuthorityBinding: boolean;
-  programKeyBinding: boolean;
+  participantKeyBinding: boolean;
   auditorKeyBinding: boolean;
   registryBinding: boolean;
   rationaleBinding: boolean;
   approvalHash: boolean;
-  programHybridSignature: boolean;
+  participantHybridSignature: boolean;
   auditorHybridSignature: boolean;
 }
 

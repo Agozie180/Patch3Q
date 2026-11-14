@@ -8,6 +8,6 @@ Patch3Q has three layers:
 
 The encrypted bundle and redacted report remain off-chain. Only hashes, public deadlines, roles, amounts, and lifecycle events are public.
 
-Deadline enforcement is deterministic and permissionless rather than autonomous: any account or keeper may submit the enforcement transaction after the timestamp. Normal payout requires program + auditor PQ signatures. An escalated case replaces the ghosted program with the reporter, so release requires reporter + auditor PQ signatures and cannot be decided by the auditor alone.
+Deadline enforcement is deterministic and permissionless rather than autonomous: any account or keeper may submit the enforcement transaction after the timestamp. Normal payout requires program + auditor PQ signatures. An escalated case permanently replaces the ghosted program with the reporter, so release requires reporter + auditor PQ signatures and cannot be decided by the auditor alone.
 
 The QoreChain EVM lane is quantum-ready through a PQ-authorized EVM window. Patch3Q does not treat that window as the severity decision: the registry separately calls `IQorePQC.pqcVerify` at `0x0000000000000000000000000000000000000a01` twice and releases escrow only when both snapshotted registered ML-DSA-87 keys verify the exact approval digest.

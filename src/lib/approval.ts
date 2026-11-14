@@ -148,7 +148,8 @@ export async function resolveApprovalAuthority(
 
 export async function createSeverityApproval(options: {
   bundle: Patch3QBundle;
-  vaults: { program: Patch3QApprovalVault; auditor: Patch3QApprovalVault };
+  participantRole: "reporter" | "program";
+  vaults: { participant: Patch3QApprovalVault; auditor: Patch3QApprovalVault };
   registryAddress: `0x${string}`;
   severity: Severity;
   payoutAtomic: string;
@@ -157,12 +158,12 @@ export async function createSeverityApproval(options: {
 }): Promise<SeverityApproval> {
   const { bundle, vaults } = options;
   const authorities = bundle.approvalAuthorities;
-  if (!authorities) throw new Error("This bundle does not bind both approval authorities.");
-  if (vaults.program.caseId !== bundle.caseId || vaults.auditor.caseId !== bundle.caseId) {
+  if (!authorities) throw new Error("This bundle does not bind its approval authorities.");
+  if (vaults.participant.caseId !== bundle.caseId || vaults.auditor.caseId !== bundle.caseId) {
     throw new Error("An approval vault belongs to a different case.");
   }
-  if (vaults.program.role !== "program" || vaults.auditor.role !== "auditor") {
-    throw new Error("Load one program vault and one auditor vault.");
+  if (vaults.participant.role !== options.participantRole || vaults.auditor.role !== "auditor") {
+    throw new Error(`Load the ${options.participantRole} vault and the auditor vault.`);
   }
   if (!SEVERITIES.has(options.severity)) throw new Error("Choose a supported severity.");
   if (!isAddress(options.registryAddress) || options.registryAddress === zeroAddress) {
@@ -174,9 +175,9 @@ export async function createSeverityApproval(options: {
   const rationale = options.rationale.trim();
   if (rationale.length < 12) throw new Error("Add a short severity rationale before approving payment.");
 
-  const programKeys = approvalKeysFromVault(vaults.program);
+  const participantKeys = approvalKeysFromVault(vaults.participant);
   const auditorKeys = approvalKeysFromVault(vaults.auditor);
-  for (const [role, keys] of [["program", programKeys], ["auditor", auditorKeys]] as const) {
+  for (const [role, keys] of [[options.participantRole, participantKeys], ["auditor", auditorKeys]] as const) {
     const authority = authorities[role];
     if (keys.signer.bech32 !== authority.signer) {
       throw new Error(`The ${role} vault is not the authority bound into this bundle.`);
@@ -209,19 +210,20 @@ export async function createSeverityApproval(options: {
   };
   const unsigned = {
     type: "patch3q.severity-approval" as const,
-    version: 2 as const,
+    version: 3 as const,
     statement,
+    participantRole: options.participantRole,
     signers: {
-      program: programKeys.signer.bech32,
+      participant: participantKeys.signer.bech32,
       auditor: auditorKeys.signer.bech32,
     },
     signatures: {
-      program: signMessage({
+      participant: signMessage({
         chainId: bundle.chainId,
-        signer: programKeys.signer.bech32,
+        signer: participantKeys.signer.bech32,
         data: hexToBytes(approvalHash),
-        classicalKey: programKeys.classicalKey,
-        pqKey: programKeys.pqKey,
+        classicalKey: participantKeys.classicalKey,
+        pqKey: participantKeys.pqKey,
       }),
       auditor: signMessage({
         chainId: bundle.chainId,
@@ -239,6 +241,7 @@ export async function verifySeverityApproval(
   bundle: Patch3QBundle,
   approval: SeverityApproval,
   expectedRegistryAddress?: `0x${string}`,
+  expectedParticipantRole?: "reporter" | "program",
 ): Promise<ApprovalVerificationResult> {
   const authorities = bundle.approvalAuthorities;
   const checks = {
@@ -250,13 +253,16 @@ export async function verifySeverityApproval(
     evidenceBinding:
       approval.statement.envelopeHash === bundle.envelopeHash &&
       approval.statement.contentCommitment === bundle.contentCommitment,
-    programAuthorityBinding: Boolean(
-      authorities && approval.signers.program === authorities.program.signer,
+    participantRoleBinding:
+      (approval.participantRole === "reporter" || approval.participantRole === "program") &&
+      (!expectedParticipantRole || approval.participantRole === expectedParticipantRole),
+    participantAuthorityBinding: Boolean(
+      authorities && approval.signers.participant === authorities[approval.participantRole]?.signer,
     ),
     auditorAuthorityBinding: Boolean(
       authorities && approval.signers.auditor === authorities.auditor.signer,
     ),
-    programKeyBinding: false,
+    participantKeyBinding: false,
     auditorKeyBinding: false,
     registryBinding:
       approval.statement.evmChainId === EVM_CHAIN_ID &&
@@ -266,7 +272,7 @@ export async function verifySeverityApproval(
         approval.statement.registryAddress.toLowerCase() === expectedRegistryAddress.toLowerCase()),
     rationaleBinding: keccak256(toBytes(approval.statement.rationale)) === approval.statement.rationaleHash,
     approvalHash: false,
-    programHybridSignature: false,
+    participantHybridSignature: false,
     auditorHybridSignature: false,
   };
   let expectedDigest = approval.approvalHash;
@@ -284,11 +290,12 @@ export async function verifySeverityApproval(
     checks.approvalHash = expectedDigest === approval.approvalHash;
   }
 
-  async function verifyAuthority(role: "program" | "auditor"): Promise<{
+  async function verifyAuthority(role: "participant" | "auditor"): Promise<{
     keyBinding: boolean;
     hybridSignature: boolean;
   }> {
-    const authority = authorities?.[role];
+    const authorityRole = role === "auditor" ? "auditor" : approval.participantRole;
+    const authority = authorities?.[authorityRole];
     const signer = approval.signers[role];
     const signature = approval.signatures[role];
     if (!authority || signer !== authority.signer) return { keyBinding: false, hybridSignature: false };
@@ -328,12 +335,12 @@ export async function verifySeverityApproval(
     }
   }
 
-  const [programResult, auditorResult] = await Promise.all([
-    verifyAuthority("program"),
+  const [participantResult, auditorResult] = await Promise.all([
+    verifyAuthority("participant"),
     verifyAuthority("auditor"),
   ]);
-  checks.programKeyBinding = programResult.keyBinding;
-  checks.programHybridSignature = programResult.hybridSignature;
+  checks.participantKeyBinding = participantResult.keyBinding;
+  checks.participantHybridSignature = participantResult.hybridSignature;
   checks.auditorKeyBinding = auditorResult.keyBinding;
   checks.auditorHybridSignature = auditorResult.hybridSignature;
   return { checks, verified: Object.values(checks).every(Boolean) };
@@ -347,7 +354,7 @@ export function parseApprovalVault(value: string): Patch3QApprovalVault {
     candidate.type !== "patch3q.approval-key" ||
     candidate.version !== 1 ||
     !candidate.caseId ||
-    (candidate.role !== "program" && candidate.role !== "auditor") ||
+    (candidate.role !== "reporter" && candidate.role !== "program" && candidate.role !== "auditor") ||
     !candidate.signer ||
     !candidate.classicalPrivateKey ||
     !candidate.pqSeed
@@ -363,11 +370,12 @@ export function parseSeverityApproval(value: string): SeverityApproval {
   const candidate = parsed as Partial<SeverityApproval>;
   if (
     candidate.type !== "patch3q.severity-approval" ||
-    candidate.version !== 2 ||
+    candidate.version !== 3 ||
     !candidate.statement ||
-    !candidate.signers?.program ||
+    (candidate.participantRole !== "reporter" && candidate.participantRole !== "program") ||
+    !candidate.signers?.participant ||
     !candidate.signers?.auditor ||
-    !candidate.signatures?.program ||
+    !candidate.signatures?.participant ||
     !candidate.signatures?.auditor ||
     !candidate.approvalHash
   ) {
