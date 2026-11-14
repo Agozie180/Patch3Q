@@ -1,54 +1,80 @@
 # Patch3Q
 
-Patch3Q is a post-quantum vulnerability-disclosure and bug-bounty escrow dApp for QoreChain. Researchers encrypt a report and proof of concept locally, give the maintainer and an independent auditor separate recovery paths, and publish only commitments and deadlines on-chain.
+![Patch3Q — anonymous, post-quantum bug-bounty escrow on QoreChain](public/cover.png)
 
-## Implemented and locally verifiable
+**Report a vulnerability anonymously. Get paid only when two post-quantum signatures agree. If the vendor ghosts you, the chain takes their vote away.**
 
-- Local multi-recipient sealing with QoreSeal and ML-KEM-1024.
-- Hybrid ML-KEM-1024 + X25519 demo envelopes and QoreChain-registered ML-KEM testnet recipients.
-- Salted plaintext commitments, ciphertext hashes, authenticated public deadlines, and case binding.
-- An authenticated reporter authority in every bundle; the anchor workspace refuses a wallet that is not that reporter.
-- Independent maintainer and auditor decryption.
-- Two independent ML-DSA-87 + secp256k1 hybrid severity approvals with QoreSign.
-- On-chain verification of both ML-DSA-87 signatures through QoreChain's `0x…0A01` PQC precompile before escrow release.
-- A runnable proof that a classical-only approval is rejected, plus a live Diana precompile self-test.
-- QoreChain receipt lifecycle: submitted, acknowledged, triaged, resolved, and disclosed.
-- Immutable trusted-token escrow, exact balance accounting, and atomic payout after dual PQ verification.
-- Permissionless enforcement of missed acknowledgement and triage deadlines. Enforcement moves the case to
-  `Escalated`, permanently replaces the ghosted program signer with the reporter, and retains the independent auditor.
-- Redacted disclosure commitments after resolution and embargo.
-- No application backend and no plaintext upload path.
+Patch3Q is a post-quantum bug-bounty escrow for QoreChain. The researcher seals the report in the browser with
+ML-KEM-1024. The chain sees only hashes, deadlines and money. Every payout must carry two ML-DSA-87 signatures, and
+the registry verifies them through QoreChain's `0x…0A01` PQC precompile before any token moves.
 
-## Not yet proven on testnet
+| In 10 seconds | |
+| --- | --- |
+| Who it is for | Security researchers and the projects that need their reports before Q-Day |
+| What is new | An anonymous reporter: no wallet, no on-chain identity, payout address sealed inside the ciphertext |
+| Why post-quantum matters | An attacker holding every ECDSA key still cannot decrypt the report or release the escrow |
+| Proof | ML-KEM-1024 envelope · 2 × ML-DSA-87 verified on-chain · 0 identity on-chain |
+| Category | **Encrypted Apps** (also eligible for Best AI-Native; see [`AI_USAGE.md`](AI_USAGE.md)) |
 
-This repository does **not** currently contain a Diana deployment address, deployment transaction, end-to-end case
-transaction hashes or demo-video URL. A reproducible QCAI probe is committed, but the documented AI precompiles
-returned empty data on the public Diana RPC, so no QCAI score is claimed. See [the competition audit](docs/competition-audit.md)
-and [evidence checklist](docs/testnet-evidence.md).
+## What privacy you get
 
-## Security flow
+Most disclosure tools encrypt the report but leak the researcher. Patch3Q's default **anonymous mode** hides the
+researcher as well.
 
-1. The researcher composes the report and optional PoC in the browser.
-2. Patch3Q adds a random 32-byte salt, hashes the confidential payload, and encrypts one envelope for both recipients.
-3. Public deadlines and the bound program/auditor authorities are authenticated as QoreSeal AAD.
-4. The researcher anchors the case ID hash, envelope hash, content commitment, three PQ-key snapshots, and deadlines.
-5. The program acknowledges, triages, and funds the bounty escrow. If it misses a deadline, anyone can move the case
-   to `Escalated`; this is permissionless enforcement, not autonomous timer execution.
-6. The program and auditor sign the same replay-protected digest. After escalation, the reporter replaces the ghosted program.
-7. The registry verifies both ML-DSA-87 signatures through QoreChain's PQC precompile before releasing funds.
-8. After the fix and embargo, a redacted report is saved off-chain and only its hash is committed on-chain.
+| Data | Where it lives | Who can read it |
+| --- | --- | --- |
+| Report, PoC, rationale | QoreSeal envelope (ML-KEM-1024) | Maintainer and auditor only |
+| Researcher identity | Nowhere. A relayer anchors the case | Nobody |
+| Researcher authority | `keccak256` of a per-case ML-DSA-87 key | Whoever holds the per-case vault |
+| Payout address | Sealed in the envelope; chain stores `keccak256(typehash, case, recipient, salt)` | Revealed only by the release transaction |
+| Report size | Padded to 16 KiB / 64 KiB / 256 KiB / 1 MiB buckets | Bucket only |
+| Severity rationale | Salted hash `keccak256(salt ‖ rationale)` | Signers only; cannot be guessed from common wording |
+| Deadlines, amounts, lifecycle | Public on-chain | Everyone, by design. This is what makes ghosting provable |
 
-## Important QoreChain distinction
+Account mode is still available for researchers who want public credit.
 
-QoreChain's native lane carries hybrid transaction signatures. The EVM transaction is protected by a PQ-authorized window, while Patch3Q separately verifies the payout instruction's ML-DSA signature inside contract execution. Patch3Q therefore:
+## The story the contract enforces
 
-- hybrid-signs the severity decision twice off-chain with QoreSign;
-- verifies both signatures against the PQ keys snapshotted at submission;
-- binds it to the Diana chain ID and deployed registry address;
-- verifies both raw ML-DSA-87 signatures with the QorePQC EVM precompile; and
-- requires the bound auditor account to submit the payout transaction.
+1. **Seal.** The browser pads the report to a size bucket, salts it, and encrypts one envelope for the maintainer and an
+   independent auditor using keys registered on QoreChain's PQC key registry.
+2. **Anchor.** A relayer calls `submitAnonymousCase`. The registry snapshots the program and auditor ML-DSA-87 keys,
+   stores the reporter's per-case key hash and the sealed payout commitment, and starts the acknowledge/triage clocks.
+3. **Respond.** The program acknowledges, triages and funds the escrow in tUSDT.
+4. **Ghosted?** Anyone can call `escalateMissedDeadline`. The program loses its vote for good, and the reporter's
+   per-case PQ key replaces it.
+5. **Pay.** `approveAnonymousSeverity` checks the payout opening against the commitment, checks the reporter key
+   against its hash, verifies **both** ML-DSA-87 signatures via the precompile, then pays the sealed recipient.
+6. **Disclose.** After the fix and the embargo, only the hash of a redacted report goes on-chain.
 
-The authorization window alone is not treated as proof of the severity decision.
+An ECDSA-only signature, a payout redirected to a different address, a relayer trying to release funds, and an early
+escalation all revert. Each of these has a contract test, and `pnpm testnet:e2e` replays each one against Diana.
+
+## Live on Diana
+
+`evidence/testnet.json` is the source of truth. When it reports `"status": "verified"`, the app header shows a
+**Live on Diana** badge, and every transaction links to `https://dashboard.qorechain.io/explorer/tx/<hash>`.
+
+To produce the full evidence set yourself:
+
+```sh
+pnpm install
+pnpm testnet:accounts   # creates program, auditor and relayer accounts in .env.testnet (git-ignored)
+pnpm testnet:status     # prints qor1 addresses, balances, PQ key and EVM window status
+# Claim the faucet for the program qor1 address at https://dashboard.qorechain.io/faucet
+pnpm testnet:e2e        # resumable: funds roles, registers keys, deploys, runs two anonymous cases
+```
+
+The run registers ML-DSA-87 keys with proof of possession and publishes ML-KEM-1024 keys with hybrid native
+transactions. It opens scoped EVM authorization windows and deploys `MockTUSDT` and `Patch3QRegistry`. It then runs one normal case through acknowledgement, triage,
+funding, dual-PQ release and disclosure, and one ghosted case through permissionless escalation and a reporter plus
+auditor release. It records every hash and each negative test in `evidence/testnet.json`. The run saves a checkpoint
+after each step, so you can rerun it after any failure.
+
+The live precompile self-test runs on its own:
+
+```sh
+pnpm verify:precompile
+```
 
 ## Run locally
 
@@ -56,74 +82,58 @@ Requirements: Node.js 20+ and pnpm.
 
 ```sh
 pnpm install
-pnpm dev
+pnpm dev          # http://localhost:5173, no wallet or network needed in demo mode
+pnpm check        # typecheck, crypto tests, contract tests, Solidity compile, production build
 ```
 
-Open `http://localhost:5173`. The demo mode needs no wallet or network and generates separate decryption vaults plus reporter, program, and auditor approval vaults.
+Demo mode generates every key in the browser and downloads the decryption and approval vaults. Never publish a vault:
+anyone who holds one can decrypt or approve its case. A static production host has to proxy `/lcd-testnet` to
+`https://api-testnet.qore.host`, because the REST endpoint does not send CORS headers.
 
-Never publish or commit a vault file. Anyone holding one can decrypt or approve its case.
+## Contract roles
 
-## Verify the project
+- **Relayer** (anonymous mode): anchors the case. It has no authority after that and cannot be the program or the auditor.
+- **Reporter**: a per-case ML-DSA-87 key in anonymous mode, or a wallet in account mode. Signs only after escalation.
+- **Program**: acknowledges, triages, resolves, funds the escrow, and refunds any remainder after disclosure.
+- **Auditor**: co-signs every payout and submits the release transaction.
 
-```sh
-pnpm check
-```
+The registry binds approvals to the chain ID, the registry address, the case, the ciphertext, the content commitment,
+the severity, the amount, the rationale hash and, in anonymous mode, the payout recipient. Token handling follows
+checks-effects-interactions, uses a reentrancy guard and exact balance accounting, and rejects fee-on-transfer tokens.
 
-This runs TypeScript checking, cryptographic tests, contract-invariant tests, Solidity compilation, and the production build. Solidity artifacts are written to `artifacts/Patch3QRegistry.json` and `artifacts/MockTUSDT.json`.
+## Honest limits
 
-A production headless-Chrome render and its limitations are documented in
-[`docs/browser-smoke.md`](docs/browser-smoke.md).
+- Deadlines are enforced permissionlessly but not autonomously. Someone has to send the escalation transaction.
+- The relayer, the timing, the amounts and the program/auditor accounts are public. A relayer can refuse to relay,
+  but it cannot read the report, redirect the payout or change the vote.
+- The contract cannot decrypt the AAD. Recipients must check that the on-chain roles match the verified bundle.
+- A compromised browser before sealing, stolen vaults, malicious recipients and unsafe redaction are out of scope.
+- QoreSeal is pre-1.0. The cryptography and the contract are unaudited hackathon code.
+- The QCAI precompiles returned empty data on the public Diana RPC, so no QCAI score is claimed
+  ([`evidence/qcai-audit.json`](evidence/qcai-audit.json)).
 
-To verify the live Diana ML-DSA precompile independently:
+More detail: [threat model](docs/threat-model.md), [architecture](docs/architecture.md),
+[3-minute video script](docs/demo-runbook.md), [Q-Day Drill plan](docs/qday-drill.md),
+[self-audit](docs/competition-audit.md).
 
-```sh
-pnpm verify:precompile
-```
+## Built with (credits)
 
-To reproduce the live QCAI availability/risk probe and regenerate `evidence/qcai-audit.json`:
+QoreChain kits and SDKs:
 
-```sh
-pnpm audit:qcai
-```
+- [`@qorechain/sdk`](https://www.npmjs.com/package/@qorechain/sdk): unified accounts, PQC key and KEM registration, EVM windows, hybrid signer
+- [`@qorechain/qoreseal`](https://www.npmjs.com/package/@qorechain/qoreseal): ML-KEM-1024 multi-recipient envelopes
+- [`@qorechain/qoresign`](https://www.npmjs.com/package/@qorechain/qoresign): ML-DSA-87 + secp256k1 hybrid message signatures
+- [`@qorechain/evm`](https://www.npmjs.com/package/@qorechain/evm): EVM window cost and status helpers
+- [`@qorechain/qorex-rainbowkit`](https://www.npmjs.com/package/@qorechain/qorex-rainbowkit): QoreX wallet connector
+- QoreChain `IQorePQC` precompile at `0x0000000000000000000000000000000000000a01`
 
-The audited lockfile has no moderate, high, or critical production advisories under
-`pnpm audit --prod --audit-level moderate`. One low-severity `deepmerge` advisory remains in RainbowKit's styling
-dependency and has no published patched version.
+Open-source libraries: [viem](https://viem.sh), [wagmi](https://wagmi.sh), [RainbowKit](https://rainbowkit.com),
+[TanStack Query](https://tanstack.com/query), [React](https://react.dev), [Vite](https://vitejs.dev),
+[Vitest](https://vitest.dev), [Hardhat](https://hardhat.org), [solc-js](https://github.com/ethereum/solc-js),
+[CosmJS](https://github.com/cosmos/cosmjs), [tsx](https://github.com/privatenumber/tsx) and
+[TypeScript](https://www.typescriptlang.org). The Solidity contracts are original, with no third-party contract
+imports.
 
-## Testnet setup
+## License
 
-1. Export `PATCH3Q_DEPLOYER_PRIVATE_KEY` for a funded Diana EVM account with an active authorization window. Optionally export `PATCH3Q_TUSDT_ADDRESS`; otherwise the script deploys `MockTUSDT`.
-2. Run `pnpm deploy:testnet`. It prints the token address, registry address, and deployment transaction hashes. Copy them into the evidence files; never commit the private key.
-3. `Patch3QRegistry` is permanently bound to the constructor token and will never accept a different token.
-4. Copy `.env.example` to `.env` and set:
-
-```env
-VITE_PATCH3Q_REGISTRY_ADDRESS=0xYourRegistry
-```
-
-5. Start the app and choose **QoreChain testnet** when sealing.
-6. Connect the reporter wallet, then enter both the maintainer/program and auditor QoreChain addresses. All three accounts need registered ML-DSA-87 keys; both recipients also need registered ML-KEM keys.
-7. Anchor the case with the same reporter wallet authenticated inside the sealed bundle.
-8. Connect the program wallet, acknowledge, triage, approve the registry-bound token, and fund escrow.
-9. Import matching program + auditor approvals for a normal case, or reporter + auditor approvals after escalation, then connect the auditor wallet to release the bounty. In-browser approval-vault creation is intentionally limited to local demo mode.
-
-EVM writes require an injected signing wallet with a live QoreChain EVM authorization window. QoreX can currently be used for connection and reads.
-
-## Contract roles and constraints
-
-- Reporter: creates and may cancel a still-unacknowledged case.
-- Program: acknowledges, triages, resolves, funds escrow, and may refund any remainder after cancellation or disclosure.
-- Program + auditor: independently sign a normal severity approval.
-- Reporter + auditor: independently sign after a missed deadline moves the case to `Escalated`.
-- Auditor: submits the co-signed decision and releases at most the escrowed amount.
-- Reporter or program: publishes the redacted-report commitment only after resolution and embargo.
-
-Token transfers use checks-effects-interactions, a reentrancy guard, contract-code checks, and exact before/after balance accounting. Fee-on-transfer and fake-token deposits are rejected.
-
-## Threat model and current limits
-
-Patch3Q protects report confidentiality at rest, provides first-report and deadline evidence, detects ciphertext/AAD changes, and requires the PQ approval layer. It does not hide timing, envelope size, public accounts, recipient authority, token amounts, or transaction activity. Browser compromise before sealing, recipient-key theft, unsafe vault sharing, and malicious redaction remain out of scope.
-
-Reporter identity is authenticated inside the bundle and enforced by the application at anchoring, but the Solidity contract cannot decrypt QoreSeal AAD. An actor bypassing the application can anchor copied ciphertext under a different reporter account; recipients and the auditor must reject any on-chain role set that does not match the authenticated bundle. A future submission-authorization PQ signature should make this contract-enforceable.
-
-The demo stores encrypted bundles and redacted reports wherever the user chooses; production needs an availability layer for ciphertext without turning that layer into a plaintext custodian. QoreSeal is pre-1.0 and should receive external cryptographic review before production use.
+[MIT](LICENSE)

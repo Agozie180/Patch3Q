@@ -1,23 +1,29 @@
 # Testnet evidence checklist
 
-Patch3Q must not be described as testnet-complete until every required item below has a public value and can be
-independently replayed on QoreChain Diana.
+`pnpm testnet:e2e` writes every item below to `evidence/testnet.json`. Patch3Q must not be described as
+testnet-complete until that file reports `"status": "verified"` and each hash resolves on
+`https://dashboard.qorechain.io/explorer/tx/<hash>`.
 
-| Evidence | Current status | Required proof |
+| Evidence | Produced by | JSON path |
 | --- | --- | --- |
-| Registry deployment | Missing | Contract address, deployment transaction, constructor token address, verified bytecode |
-| tUSDT deployment/designation | Missing | Token address and transaction or canonical test-token reference |
-| Sealed QoreChain-targeted case | Missing | Synthetic bundle hash plus `CaseSubmitted` transaction |
-| Maintainer acknowledgement | Missing | Successful transaction before deadline |
-| Missed-deadline consequence | Missing | A separate synthetic case, expired deadline, `CaseEscalated` transaction and event |
-| Triage and escrow funding | Missing | Transactions and resulting `caseState`/token balances |
-| Dual-PQ severity approval | Missing | `SeverityApproved` and `BountyReleased` using program + auditor, or reporter + auditor after escalation |
-| ECDSA-only rejection | Local only | Testnet failure receipt or reproducible RPC simulation showing rejection |
-| Redacted disclosure | Missing | Optional stretch transaction after resolution and embargo |
-| QCAI transaction preflight | Attempted; precompile unavailable | `evidence/qcai-audit.json` records live empty-return failures at Diana block 10091116 |
-| Production browser render | Local evidence | `evidence/browser-smoke.json`, two screenshots, and `docs/browser-smoke.md` |
-| Demo video | Missing | Public short video URL following `docs/demo-runbook.md` |
-| Real-customer dry run | Local synthetic scenario | App preset targets QoreChain's published intake; no report or email was sent |
+| Program, auditor and relayer accounts (qor1 + 0x) | `accounts` | `accounts.*` |
+| ML-DSA-87 key registration with proof of possession | bootstrap-exempt native tx | `native.pqc_<role>` |
+| ML-KEM-1024 recipient key publication | hybrid native tx | `native.kem_<role>` |
+| Role funding and scoped EVM authorization windows | hybrid native tx | `native.fund_<role>`, `native.window_<role>` |
+| MockTUSDT and registry deployment | EVM | `bountyTokenAddress`, `registryAddress`, `evm.*Deployment` |
+| Anonymous case anchored by a relayer | `submitAnonymousCase` | `transactions.caseSubmitted` |
+| Acknowledge, triage, fund, resolve | program | `transactions.{acknowledgement,triage,escrowFunding,resolution}` |
+| Dual-PQ release to the sealed payout address | `approveAnonymousSeverity` | `transactions.severityApprovalAndRelease` |
+| Ghosted case: permissionless escalation | `escalateMissedDeadline` | `transactions.deadlineEscalation` |
+| Reporter (per-case PQ key) + auditor release | `approveAnonymousSeverity` | `transactions.escalatedApprovalAndRelease` |
+| Redacted disclosure after embargo | `disclose` | `transactions.redactedDisclosure` |
+| ECDSA-only, redirected payout, relayer release, early escalation and out-of-scope window are all rejected | `eth_call` against Diana | `negativeTests.*` |
+| Live precompile self-test | `pnpm verify:precompile` | console output |
+| QCAI probe | `pnpm audit:qcai` | `evidence/qcai-audit.json`. The precompile returned empty data |
+| Demo video | manual | README link |
 
-The QoreChain security page returned HTTP 200 and publicly listed `security@qore.network` during the 2026-11-13 audit.
-That verifies the customer framing, not a completed customer test.
+## Blocker
+
+The Diana faucet requires a signed-in QoreChain dashboard account. It allows one claim per 24 hours and gives 100 QOR.
+Claim it once for the **program** qor1 address printed by `pnpm testnet:status`, then rerun `pnpm testnet:e2e`. The
+script funds the other roles itself.
