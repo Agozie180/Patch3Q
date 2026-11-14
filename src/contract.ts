@@ -41,6 +41,7 @@ export const testnetEvidence = evidence as {
   registryAddress: `0x${string}` | null;
   bountyTokenAddress: `0x${string}` | null;
   transactions?: Record<string, unknown>;
+  cases?: Record<string, { transactions?: Record<string, unknown> }>;
 };
 
 export const patch3qRegistryAddress = (

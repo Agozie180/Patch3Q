@@ -1481,7 +1481,10 @@ function LiveEvidence() {
   if (testnetEvidence.status !== "verified" || !testnetEvidence.registryAddress) {
     return <div className="live-evidence pending"><i /> Diana testnet deployment pending — run <code>pnpm testnet:e2e</code></div>;
   }
-  const transactions = Object.values(testnetEvidence.transactions ?? {}).filter(Boolean).length;
+  const transactions = Object.values(testnetEvidence.cases ?? {}).reduce(
+    (total, entry) => total + Object.keys(entry.transactions ?? {}).length,
+    0,
+  );
   return (
     <a
       className="live-evidence"
