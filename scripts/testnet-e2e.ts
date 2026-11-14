@@ -261,7 +261,7 @@ async function revertName(promise: Promise<unknown>): Promise<string> {
     if (error instanceof BaseError) {
       const revert = error.walk((cause) => cause instanceof ContractFunctionRevertedError);
       if (revert instanceof ContractFunctionRevertedError) return revert.data?.errorName ?? revert.shortMessage;
-      return error.shortMessage;
+      return error.details ? error.details.replace(/\s*\[cosmossdk[^\]]*\]/u, "") : error.shortMessage;
     }
     return error instanceof Error ? error.message : String(error);
   }
@@ -488,7 +488,8 @@ async function run(): Promise<void> {
     });
   }
 
-  console.log("\n7. Negative tests against live Diana state (eth_call, nothing is broadcast)");
+  console.log("\n7. Negative tests against live Diana state (eth_call reverts, plus one broadcast refused by the node)");
+  const needNegativeTests = Object.keys(state.negativeTests).length < 5;
   const auditorAccount = privateKeyToAccount(auditor.privateKey as Hex);
   const approvalA = await createSeverityApproval({
     bundle: caseA.bundle,
@@ -512,23 +513,23 @@ async function run(): Promise<void> {
     caseA.caseIdHash, SEVERITY_CRITICAL, 2_500_000_000n, approvalA.statement.rationaleHash, recipient, salt, "0x",
     participant, auditorSignature,
   ] as const;
-  state.negativeTests.ecdsaOnlyAuditorApproval = await revertName(publicClient.simulateContract({
+  if (needNegativeTests) state.negativeTests.ecdsaOnlyAuditorApproval = await revertName(publicClient.simulateContract({
     address: registry, abi: registryAbi, functionName: "approveAnonymousSeverity", account: auditorAccount,
     args: approveArgs(caseA.payout.recipient, caseA.payout.salt, programSig, bytesToHex(fromBase64(ecdsaOnly.classical.signature))),
   }));
-  state.negativeTests.redirectedPayoutToAuditor = await revertName(publicClient.simulateContract({
+  if (needNegativeTests) state.negativeTests.redirectedPayoutToAuditor = await revertName(publicClient.simulateContract({
     address: registry, abi: registryAbi, functionName: "approveAnonymousSeverity", account: auditorAccount,
     args: approveArgs(auditor.evm as Hex, caseA.payout.salt, programSig, auditorSig),
   }));
-  state.negativeTests.relayerCannotReleaseEscrow = await revertName(publicClient.simulateContract({
+  if (needNegativeTests) state.negativeTests.relayerCannotReleaseEscrow = await revertName(publicClient.simulateContract({
     address: registry, abi: registryAbi, functionName: "approveAnonymousSeverity", account: privateKeyToAccount(relayer.privateKey as Hex),
     args: approveArgs(caseA.payout.recipient, caseA.payout.salt, programSig, auditorSig),
   }));
-  state.negativeTests.prematureEscalation = await revertName(publicClient.simulateContract({
+  if (needNegativeTests) state.negativeTests.prematureEscalation = await revertName(publicClient.simulateContract({
     address: registry, abi: registryAbi, functionName: "escalateMissedDeadline", account: privateKeyToAccount(relayer.privateKey as Hex),
     args: [caseA.caseIdHash],
   }));
-  state.negativeTests.scopedWindowBlocksTokenCall = await revertName(evmWrite(auditor, {
+  if (needNegativeTests) state.negativeTests.scopedWindowBlocksTokenCall = await revertName(evmWrite(auditor, {
     address: token, abi: tokenAbi, functionName: "mint", args: [auditor.evm, 1n],
   }));
   saveState(state);
