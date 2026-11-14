@@ -11,12 +11,13 @@ independently replayed on QoreChain Diana.
 | Maintainer acknowledgement | Missing | Successful transaction before deadline |
 | Missed-deadline consequence | Missing | A separate synthetic case, expired deadline, `CaseEscalated` transaction and event |
 | Triage and escrow funding | Missing | Transactions and resulting `caseState`/token balances |
-| PQ severity approval | Missing | `SeverityApproved` and `BountyReleased` transaction using the Diana precompile |
+| Dual-PQ severity approval | Missing | `SeverityApproved` and `BountyReleased` using program + auditor, or reporter + auditor after escalation |
 | ECDSA-only rejection | Local only | Testnet failure receipt or reproducible RPC simulation showing rejection |
 | Redacted disclosure | Missing | Optional stretch transaction after resolution and embargo |
-| QCAI contract audit | Missing | Published QCAI report, findings, fixes, and rerun result |
+| QCAI transaction preflight | Attempted; precompile unavailable | `evidence/qcai-audit.json` records live empty-return failures at Diana block 10034790 |
+| Production browser render | Local evidence | `evidence/browser-smoke.json`, two screenshots, and `docs/browser-smoke.md` |
 | Demo video | Missing | Public short video URL following `docs/demo-runbook.md` |
-| Real-customer dry run | Missing | Synthetic drop addressed to QoreChain's published `security@qore.network` process |
+| Real-customer dry run | Local synthetic scenario | App preset targets QoreChain's published intake; no report or email was sent |
 
 The QoreChain security page returned HTTP 200 and publicly listed `security@qore.network` during the 2026-11-13 audit.
 That verifies the customer framing, not a completed customer test.

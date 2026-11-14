@@ -40,7 +40,7 @@ export interface PublicMetadata {
 }
 
 export interface ApprovalAuthority {
-  role: "auditor";
+  role: "program" | "auditor";
   signer: string;
   evmAddress: `0x${string}`;
   keyFingerprint: string;
@@ -57,7 +57,7 @@ export interface BundleRecipient {
 
 export interface Patch3QBundle {
   type: "patch3q.bundle";
-  version: 2;
+  version: 3;
   caseId: string;
   chainId: "qorechain-diana";
   purpose: "patch3q:vulnerability-report:v1";
@@ -71,7 +71,10 @@ export interface Patch3QBundle {
   anonymous: boolean;
   recipients: BundleRecipient[];
   publicMetadata: PublicMetadata;
-  approvalAuthority?: ApprovalAuthority;
+  approvalAuthorities?: {
+    program: ApprovalAuthority;
+    auditor: ApprovalAuthority;
+  };
 }
 
 export interface Patch3QKeyVault {
@@ -88,7 +91,7 @@ export interface Patch3QApprovalVault {
   type: "patch3q.approval-key";
   version: 1;
   caseId: string;
-  role: "auditor";
+  role: "program" | "auditor";
   signer: string;
   classicalPrivateKey: string;
   pqSeed: string;
@@ -115,17 +118,23 @@ export interface SeverityApprovalStatement {
 
 export interface SeverityApproval {
   type: "patch3q.severity-approval";
-  version: 1;
+  version: 2;
   statement: SeverityApprovalStatement;
-  signer: string;
-  signature: MessageSignature;
+  signers: {
+    program: string;
+    auditor: string;
+  };
+  signatures: {
+    program: MessageSignature;
+    auditor: MessageSignature;
+  };
   approvalHash: `0x${string}`;
 }
 
 export interface SealResult {
   bundle: Patch3QBundle;
   vaults: Patch3QKeyVault[];
-  approvalVault?: Patch3QApprovalVault;
+  approvalVaults?: Patch3QApprovalVault[];
 }
 
 export interface IntegrityChecks {
@@ -146,12 +155,15 @@ export interface ApprovalChecks {
   statementShape: boolean;
   caseBinding: boolean;
   evidenceBinding: boolean;
-  authorityBinding: boolean;
-  authorityKeyBinding: boolean;
+  programAuthorityBinding: boolean;
+  auditorAuthorityBinding: boolean;
+  programKeyBinding: boolean;
+  auditorKeyBinding: boolean;
   registryBinding: boolean;
   rationaleBinding: boolean;
   approvalHash: boolean;
-  hybridSignature: boolean;
+  programHybridSignature: boolean;
+  auditorHybridSignature: boolean;
 }
 
 export interface ApprovalVerificationResult {

@@ -43,6 +43,8 @@ contract Patch3QRegistry {
         address auditor;
         bytes32 envelopeHash;
         bytes32 contentCommitment;
+        bytes32 reporterPqKeyHash;
+        bytes32 programPqKeyHash;
         bytes32 auditorPqKeyHash;
         bytes32 programRef;
         bytes32 approvalHash;
@@ -84,6 +86,8 @@ contract Patch3QRegistry {
     error RolesMustBeDistinct();
     error ApprovalAlreadyRecorded();
     error AuditorPqKeyChanged();
+    error ProgramPqKeyChanged();
+    error ReporterPqKeyChanged();
     error AuditorPqKeyMissing();
     error EmbargoActive();
     error NothingToRefund();
@@ -99,6 +103,8 @@ contract Patch3QRegistry {
         address auditor,
         bytes32 envelopeHash,
         bytes32 contentCommitment,
+        bytes32 reporterPqKeyHash,
+        bytes32 programPqKeyHash,
         bytes32 auditorPqKeyHash,
         bytes32 programRef,
         uint64 acknowledgeBy,
@@ -174,7 +180,11 @@ contract Patch3QRegistry {
             embargoUntil < triageBy
         ) revert InvalidDeadline();
 
+        bytes memory reporterPqKey = _registeredPqKey(msg.sender);
+        bytes memory programPqKey = _registeredPqKey(program);
         bytes memory auditorPqKey = _registeredPqKey(auditor);
+        bytes32 reporterPqKeyHash = keccak256(reporterPqKey);
+        bytes32 programPqKeyHash = keccak256(programPqKey);
         bytes32 auditorPqKeyHash = keccak256(auditorPqKey);
 
         CaseReceipt storage receipt = cases[caseIdHash];
@@ -184,6 +194,8 @@ contract Patch3QRegistry {
         receipt.auditor = auditor;
         receipt.envelopeHash = envelopeHash;
         receipt.contentCommitment = contentCommitment;
+        receipt.reporterPqKeyHash = reporterPqKeyHash;
+        receipt.programPqKeyHash = programPqKeyHash;
         receipt.auditorPqKeyHash = auditorPqKeyHash;
         receipt.programRef = programRef;
         receipt.submittedAt = uint64(block.timestamp);
@@ -194,7 +206,8 @@ contract Patch3QRegistry {
 
         emit CaseSubmitted(
             caseIdHash, msg.sender, program, auditor, envelopeHash, contentCommitment,
-            auditorPqKeyHash, programRef, acknowledgeBy, triageBy, embargoUntil
+            reporterPqKeyHash, programPqKeyHash, auditorPqKeyHash,
+            programRef, acknowledgeBy, triageBy, embargoUntil
         );
     }
 
@@ -340,15 +353,16 @@ contract Patch3QRegistry {
         ));
     }
 
-    /// @notice Verifies the exact ML-DSA-87 approval on-chain and atomically releases the approved payout.
-    /// @dev The transaction sender supplies the classical account authorization; the QorePQC precompile verifies
-    ///      the independently bound post-quantum signature over the evidence, payout, registry, and chain.
+    /// @notice Verifies two independent ML-DSA-87 approvals and atomically releases the approved payout.
+    /// @dev Normal cases require program + auditor. Escalated cases replace the ghosted program with reporter +
+    ///      auditor. The auditor still submits the transaction, adding the network's scoped EVM-window authorization.
     function approveSeverity(
         bytes32 caseIdHash,
         Severity severity,
         uint256 payoutAmount,
         bytes32 rationaleHash,
-        bytes calldata pqSignature
+        bytes calldata participantPqSignature,
+        bytes calldata auditorPqSignature
     ) external existing(caseIdHash) onlyAuditor(caseIdHash) nonReentrant {
         CaseReceipt storage receipt = cases[caseIdHash];
         if (
@@ -359,14 +373,26 @@ contract Patch3QRegistry {
         if (severity == Severity.Unset || payoutAmount == 0 || payoutAmount > receipt.escrowedAmount) {
             revert InvalidAmount();
         }
-        if (rationaleHash == bytes32(0) || pqSignature.length == 0) revert InvalidHash();
+        if (
+            rationaleHash == bytes32(0) || participantPqSignature.length == 0 ||
+            auditorPqSignature.length == 0
+        ) revert InvalidHash();
 
         bytes memory auditorPqKey = _registeredPqKey(receipt.auditor);
         if (keccak256(auditorPqKey) != receipt.auditorPqKeyHash) revert AuditorPqKeyChanged();
+        bytes memory participantPqKey;
+        if (receipt.status == Status.Escalated) {
+            participantPqKey = _registeredPqKey(receipt.reporter);
+            if (keccak256(participantPqKey) != receipt.reporterPqKeyHash) revert ReporterPqKeyChanged();
+        } else {
+            participantPqKey = _registeredPqKey(receipt.program);
+            if (keccak256(participantPqKey) != receipt.programPqKeyHash) revert ProgramPqKeyChanged();
+        }
 
         bytes32 digest = approvalDigest(caseIdHash, severity, payoutAmount, rationaleHash);
         bytes memory message = bytes.concat(QORESIGN_MESSAGE_PREFIX, abi.encodePacked(digest));
-        if (!_verifyPq(auditorPqKey, pqSignature, message)) revert InvalidPqSignature();
+        if (!_verifyPq(participantPqKey, participantPqSignature, message)) revert InvalidPqSignature();
+        if (!_verifyPq(auditorPqKey, auditorPqSignature, message)) revert InvalidPqSignature();
 
         receipt.approvalHash = digest;
         receipt.severity = severity;

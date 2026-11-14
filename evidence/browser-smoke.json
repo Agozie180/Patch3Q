@@ -1,0 +1,41 @@
+{
+  "generatedAt": "2026-11-14T11:44:32.102Z",
+  "targetUrl": "http://127.0.0.1:4173/",
+  "chromePath": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+  "viewport": {
+    "width": 1440,
+    "height": 1400
+  },
+  "assertions": {
+    "homeRendered": true,
+    "fourWorkspaceTabsRendered": true,
+    "qoreChainScenarioVisible": true,
+    "dianaVisible": true,
+    "approvalTabClicked": true,
+    "dualPartyApprovalVisible": true,
+    "noPageErrors": true
+  },
+  "home": {
+    "title": "Patch3Q — Post-quantum disclosure receipts",
+    "heading": "Report the flaw.\nNot the secret.",
+    "workspaceTabs": [
+      "01Seal report",
+      "02Verify & open",
+      "03Anchor & escrow",
+      "04Approve bounty"
+    ],
+    "qoreChainScenarioVisible": true,
+    "dianaVisible": true
+  },
+  "approval": {
+    "selectedTab": "04Approve bounty",
+    "heading": "Approve severity with two PQ parties",
+    "description": "The program and auditor independently hybrid-sign the same evidence-bound payout instruction.",
+    "emptyState": "No case loaded.\nSeal or verify a Patch3Q bundle before issuing a severity decision."
+  },
+  "pageErrors": [],
+  "screenshots": [
+    "evidence/browser-home.png",
+    "evidence/browser-approval.png"
+  ]
+}

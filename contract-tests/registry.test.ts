@@ -28,6 +28,8 @@ describe("Patch3QRegistry foundation", () => {
     [reporter, program, auditor, outsider] = await viem.getWalletClients();
     token = await viem.deployContract("MockTUSDT");
     registry = await viem.deployContract("Patch3QRegistryHarness", [token.address]);
+    await registry.write.setPqKey([reporter.account.address, "0x11111111"]);
+    await registry.write.setPqKey([program.account.address, "0x22222222"]);
     await registry.write.setPqKey([auditor.account.address, "0x12345678"]);
   });
 
@@ -143,6 +145,7 @@ describe("Patch3QRegistry foundation", () => {
       5,
       payout,
       rationaleHash,
+      "0x5678",
       "0x1234",
     ], { account: auditor.account });
     assert.equal(await token.read.balanceOf([reporter.account.address]), payout);
@@ -157,10 +160,27 @@ describe("Patch3QRegistry foundation", () => {
         5,
         amount,
         rationaleHash,
+        "0x5678",
         "0x1234",
       ], { account: auditor.account }),
       registry,
       "InvalidPqSignature",
+    );
+  });
+
+  it("requires both independent PQ signatures", async () => {
+    const amount = await triageAndFund();
+    await viem.assertions.revertWithCustomError(
+      registry.write.approveSeverity([
+        caseIdHash,
+        5,
+        amount,
+        rationaleHash,
+        "0x5678",
+        "0x",
+      ], { account: auditor.account }),
+      registry,
+      "InvalidHash",
     );
   });
 
@@ -211,6 +231,7 @@ describe("Patch3QRegistry foundation", () => {
         5,
         amount,
         rationaleHash,
+        "0x5678",
         "0x1234",
       ], { account: auditor.account }),
       registry,
@@ -226,6 +247,7 @@ describe("Patch3QRegistry foundation", () => {
       5,
       payout,
       rationaleHash,
+      "0x5678",
       "0x1234",
     ], { account: auditor.account });
 
@@ -244,9 +266,54 @@ describe("Patch3QRegistry foundation", () => {
     );
   });
 
+  it("rejects a normal payout after the program rotates its bound PQ key", async () => {
+    const amount = await triageAndFund();
+    await registry.write.setPqKey([program.account.address, "0x99999999"]);
+    await viem.assertions.revertWithCustomError(
+      registry.write.approveSeverity([
+        caseIdHash,
+        5,
+        amount,
+        rationaleHash,
+        "0x5678",
+        "0x1234",
+      ], { account: auditor.account }),
+      registry,
+      "ProgramPqKeyChanged",
+    );
+  });
+
+  it("rejects an escalated payout after the reporter rotates its bound PQ key", async () => {
+    const { acknowledgeBy } = await submitCase();
+    const payout = 1_000_000_000n;
+    await token.write.mint([program.account.address, payout]);
+    await token.write.approve([registry.address, payout], { account: program.account });
+    await registry.write.fundBounty([caseIdHash, payout], { account: program.account });
+    const testClient = await viem.getTestClient();
+    await testClient.setNextBlockTimestamp({ timestamp: acknowledgeBy + 1n });
+    await testClient.mine({ blocks: 1 });
+    await registry.write.escalateMissedDeadline([caseIdHash], { account: outsider.account });
+    await registry.write.setPqKey([reporter.account.address, "0x99999999"]);
+
+    await viem.assertions.revertWithCustomError(
+      registry.write.approveSeverity([
+        caseIdHash,
+        5,
+        payout,
+        rationaleHash,
+        "0x5678",
+        "0x1234",
+      ], { account: auditor.account }),
+      registry,
+      "ReporterPqKeyChanged",
+    );
+  });
+
   it("rejects fee-on-transfer tokens instead of creating unbacked escrow", async () => {
     const feeToken = await viem.deployContract("FeeOnTransferToken");
     const strictRegistry = await viem.deployContract("Patch3QRegistryHarness", [feeToken.address]);
+    await strictRegistry.write.setPqKey([reporter.account.address, "0x11111111"]);
+    await strictRegistry.write.setPqKey([program.account.address, "0x22222222"]);
     await strictRegistry.write.setPqKey([auditor.account.address, "0x12345678"]);
     const block = await publicClient.getBlock();
     await strictRegistry.write.submitCase([

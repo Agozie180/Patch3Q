@@ -15,9 +15,10 @@
     "redactedDisclosure": null
   },
   "externalEvidence": {
-    "qcaiAuditUrl": null,
+    "qcaiAuditArtifact": "evidence/qcai-audit.json",
+    "qcaiStatus": "precompile-unavailable-on-public-diana-rpc",
     "demoVideoUrl": null,
     "buildInPublicUrl": null
   },
-  "note": "Null values are deliberate. Do not change status to verified until every value is independently replayable."
+  "note": "Transaction nulls are deliberate: no funded deployer key, registered signing parties, or active EVM authorization window was available. Do not change status to verified until every hash is independently replayable."
 }

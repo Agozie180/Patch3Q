@@ -28,7 +28,7 @@ export { MAX_ATTACHMENT_BYTES, PATCH3Q_CHAIN_ID, PATCH3Q_PURPOSE, PATCH3Q_REST_P
 
 interface AuthenticatedMetadata {
   type: "patch3q.aad";
-  version: 2;
+  version: 3;
   caseId: string;
   chainId: typeof PATCH3Q_CHAIN_ID;
   purpose: typeof PATCH3Q_PURPOSE;
@@ -38,7 +38,7 @@ interface AuthenticatedMetadata {
   anonymous: Patch3QBundle["anonymous"];
   recipients: Patch3QBundle["recipients"];
   publicMetadata: PublicMetadata;
-  approvalAuthority?: Patch3QBundle["approvalAuthority"];
+  approvalAuthorities?: Patch3QBundle["approvalAuthorities"];
 }
 
 interface SealReportOptions {
@@ -54,10 +54,10 @@ function addHours(date: Date, hours: number): string {
   return new Date(date.getTime() + hours * 60 * 60 * 1000).toISOString();
 }
 
-function buildAuthenticatedMetadata(bundle: Pick<Patch3QBundle, "caseId" | "chainId" | "purpose" | "createdAt" | "mode" | "sealMode" | "anonymous" | "recipients" | "publicMetadata" | "approvalAuthority">): AuthenticatedMetadata {
+function buildAuthenticatedMetadata(bundle: Pick<Patch3QBundle, "caseId" | "chainId" | "purpose" | "createdAt" | "mode" | "sealMode" | "anonymous" | "recipients" | "publicMetadata" | "approvalAuthorities">): AuthenticatedMetadata {
   return {
     type: "patch3q.aad",
-    version: 2,
+    version: 3,
     caseId: bundle.caseId,
     chainId: bundle.chainId,
     purpose: bundle.purpose,
@@ -67,11 +67,11 @@ function buildAuthenticatedMetadata(bundle: Pick<Patch3QBundle, "caseId" | "chai
     anonymous: bundle.anonymous,
     recipients: bundle.recipients,
     publicMetadata: bundle.publicMetadata,
-    approvalAuthority: bundle.approvalAuthority,
+    approvalAuthorities: bundle.approvalAuthorities,
   };
 }
 
-function authenticatedMetadataBytes(bundle: Pick<Patch3QBundle, "caseId" | "chainId" | "purpose" | "createdAt" | "mode" | "sealMode" | "anonymous" | "recipients" | "publicMetadata" | "approvalAuthority">): Uint8Array {
+function authenticatedMetadataBytes(bundle: Pick<Patch3QBundle, "caseId" | "chainId" | "purpose" | "createdAt" | "mode" | "sealMode" | "anonymous" | "recipients" | "publicMetadata" | "approvalAuthorities">): Uint8Array {
   return utf8(JSON.stringify(buildAuthenticatedMetadata(bundle)));
 }
 
@@ -99,17 +99,27 @@ export async function sealReport(options: SealReportOptions): Promise<SealResult
   const now = options.now ?? new Date();
   const createdAt = now.toISOString();
   const caseId = "P3Q-" + toBase64Url(randomBytes(12)).toUpperCase();
-  let approvalAuthority: Patch3QBundle["approvalAuthority"];
-  let approvalVault: SealResult["approvalVault"];
+  let approvalAuthorities: Patch3QBundle["approvalAuthorities"];
+  let approvalVaults: SealResult["approvalVaults"];
   if (options.mode === "demo") {
-    const demoApproval = await createDemoApprovalAuthority(caseId);
-    approvalAuthority = demoApproval.authority;
-    approvalVault = demoApproval.vault;
+    const [programApproval, auditorApproval] = await Promise.all([
+      createDemoApprovalAuthority(caseId, "program"),
+      createDemoApprovalAuthority(caseId, "auditor"),
+    ]);
+    approvalAuthorities = {
+      program: programApproval.authority,
+      auditor: auditorApproval.authority,
+    };
+    approvalVaults = [programApproval.vault, auditorApproval.vault];
   } else {
-    if (!options.auditorAddress?.trim()) {
-      throw new Error("Enter the independent auditor's QoreChain testnet address.");
+    if (!options.maintainerAddress?.trim() || !options.auditorAddress?.trim()) {
+      throw new Error("Enter both program and auditor QoreChain testnet addresses.");
     }
-    approvalAuthority = await resolveApprovalAuthority(options.auditorAddress);
+    const [program, auditor] = await Promise.all([
+      resolveApprovalAuthority(options.maintainerAddress, "program"),
+      resolveApprovalAuthority(options.auditorAddress, "auditor"),
+    ]);
+    approvalAuthorities = { program, auditor };
   }
   const publicMetadata: PublicMetadata = {
     acknowledgeBy: addHours(now, 24),
@@ -153,7 +163,7 @@ export async function sealReport(options: SealReportOptions): Promise<SealResult
     anonymous: true,
     recipients,
     publicMetadata,
-    approvalAuthority,
+    approvalAuthorities,
   } as const;
   const aadBytes = authenticatedMetadataBytes(metadataBase);
   const payload: ConfidentialReport = {
@@ -196,21 +206,21 @@ export async function sealReport(options: SealReportOptions): Promise<SealResult
 
   const bundle: Patch3QBundle = {
     type: "patch3q.bundle",
-    version: 2,
+    version: 3,
     ...metadataBase,
     aad: toBase64Url(aadBytes),
     envelope: envelopeToText(envelope),
     envelopeHash: await sha256(envelope),
     contentCommitment,
   };
-  return { bundle, vaults, approvalVault };
+  return { bundle, vaults, approvalVaults };
 }
 
 export function parseBundle(value: string): Patch3QBundle {
   const parsed: unknown = JSON.parse(value);
   if (!parsed || typeof parsed !== "object") throw new Error("Bundle must be a JSON object.");
   const candidate = parsed as Partial<Patch3QBundle>;
-  if (candidate.type !== "patch3q.bundle" || candidate.version !== 2) throw new Error("Unsupported Patch3Q bundle.");
+  if (candidate.type !== "patch3q.bundle" || candidate.version !== 3) throw new Error("Unsupported Patch3Q bundle.");
   if (!candidate.caseId || !candidate.envelope || !candidate.aad || !candidate.envelopeHash || !candidate.contentCommitment) {
     throw new Error("Patch3Q bundle is missing required fields.");
   }

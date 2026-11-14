@@ -11,13 +11,14 @@ linked.
 
 - Browser-side QoreSeal multi-recipient encryption with separate maintainer and auditor recovery paths.
 - A random 32-byte salt inside the committed plaintext and a SHA-256 ciphertext commitment.
-- Authenticated deadlines, recipient metadata, seal settings, case identity, and auditor approval authority.
-- Full-length PQ key fingerprints and rejection of a rotated auditor key in both browser and contract paths.
-- QoreSign hybrid approval generation and an explicit ECDSA-only rejection test.
+- Authenticated deadlines, recipient metadata, seal settings, case identity, and program/auditor approval authorities.
+- Full-length reporter/program/auditor PQ-key snapshots and rotation rejection in contract tests.
+- Two-party QoreSign hybrid approval generation and explicit ECDSA-only rejection tests for both signers.
 - A live `pnpm verify:precompile` run during this audit successfully verified the exact QoreSign approval domain on Diana.
 - Replay protection across chain ID, registry address, case, ciphertext, content commitment, severity, payout, and rationale.
 - An immutable escrow token, exact deposit accounting, reentrancy protection, and one approved payout.
-- Permissionless deadline enforcement with an explicit `Escalated` state and auditor adjudication of pre-funded escrow.
+- Permissionless deadline enforcement with an explicit `Escalated` state. Normal payout requires program + auditor;
+  escalated payout requires reporter + auditor.
 - Explicit metadata and availability limits in the threat model.
 
 ## Implemented but not externally evidenced
@@ -34,29 +35,28 @@ linked.
 
 - No deployed registry address or token address in repository configuration or documentation.
 - No transaction hashes, explorer links, verified bytecode, or machine-readable evidence manifest.
-- No QCAI audit artifact. A normal self-audit must not be relabelled as QCAI output.
+- A QCAI probe artifact now exists, but Diana's public RPC returned empty data from both documented AI precompiles;
+  therefore there is no score or QCAI approval to claim.
 - No short demo video.
 - No completed synthetic delivery to QoreChain's published security process.
 - No build-in-public feed or `#BuildBeforeQDay` evidence.
 - A static production host must provide the `/lcd-testnet` reverse proxy used for key-registry reads; Vite supplies it only during local development and preview.
-- A production HTTP smoke test passed for `/` and the generated JavaScript asset. A visual background-browser run was not possible because the machine's browser-access host returned no browser surfaces.
+- A production HTTP smoke test passed for `/` and the generated JavaScript asset. A reproducible 1440×1400 headless Chrome run rendered the home and two-party approval workspaces with no captured page errors; the separate sandbox-browser host remained unavailable.
 - The production dependency audit has no moderate/high/critical findings. One low-severity `deepmerge` advisory has no patched release, and targeted Zod overrides produce peer warnings in unused Coinbase/WalletConnect branches.
-- Escrow approval is one auditor's hybrid signature plus the auditor transaction sender; it is not two independent
-  parties each providing a PQ signature. If the judging rubric literally requires maintainer-and-auditor PQ
-  co-signatures, this remains a protocol gap.
+- The two-independent-PQ-party protocol gap is fixed in code and tests, but still lacks a Diana transaction receipt.
 - Deadline enforcement needs a transaction from a person or keeper. It is deterministic and permissionless, not an
   autonomous cron job.
 
 ## Brutal judge score
 
-Current evidence-backed score: **69/100**.
+Current evidence-backed score: **70/100**.
 
 - Problem and story: 9/10
 - Encrypted-app fit: 14/15
 - Cryptographic implementation: 14/15
 - Smart-contract core: 13/15
 - Threat model and honesty: 9/10
-- Test coverage and reproducibility: 8/10 (`16` browser/crypto tests and `12` contract tests pass in Ubuntu WSL)
+- Test coverage and reproducibility: 9/10 (`19` browser/crypto tests and `15` contract tests pass in Ubuntu WSL, plus a production headless-browser render)
 - Testnet evidence: 0/15
 - Demo/customer/build-in-public evidence: 2/10
 

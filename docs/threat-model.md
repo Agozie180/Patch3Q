@@ -7,7 +7,7 @@ Patch3Q is designed to reduce the impact of mailbox or storage compromise, estab
 - Report and PoC confidentiality while stored as a QoreSeal envelope.
 - Independent maintainer and auditor recovery.
 - Ciphertext, authenticated-metadata, commitment, and case-binding integrity.
-- Severity and payout binding through an ML-DSA-87 hybrid signature verified by the QorePQC EVM precompile.
+- Severity and payout binding through two independent ML-DSA-87 hybrid signatures verified by the QorePQC EVM precompile.
 - Escrow release limits, distinct reporter/program/auditor roles, an immutable bounty token, and exact token accounting.
 - Replay protection across cases, registry deployments, and EVM chains.
 - Authenticated bundle metadata, including recipient roles, seal mode, anonymity setting, deadlines, and approval authority.
@@ -18,7 +18,7 @@ Timing, envelope size, addresses, recipient authority, deadlines, token amounts,
 
 ## Residual limits
 
-The EVM authorization window limits use of a stolen classical transaction key, but it is not treated as the approval itself. Payout still requires a separate valid ML-DSA signature over the exact Patch3Q approval digest.
+The EVM authorization window limits use of a stolen classical transaction key, but it is not treated as the approval itself. Normal payout requires program + auditor ML-DSA signatures over the exact digest; escalated payout requires reporter + auditor signatures.
 
 Deadline enforcement is permissionless but not autonomous. A researcher, auditor, or keeper must submit the enforcement transaction after the timestamp. If no bounty was funded before a program ghosts, escalation cannot manufacture funds.
 

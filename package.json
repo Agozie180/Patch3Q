@@ -14,6 +14,8 @@
     "test:watch": "vitest",
     "compile:contract": "node scripts/compile-contract.mjs",
     "deploy:testnet": "pnpm compile:contract && node scripts/deploy-testnet.mjs",
+    "audit:qcai": "pnpm compile:contract && node scripts/run-qcai-audit.mjs",
+    "smoke:browser": "node scripts/browser-smoke.mjs",
     "verify:precompile": "node scripts/verify-pqc-precompile.mjs",
     "check": "pnpm typecheck && pnpm test && pnpm test:contract && pnpm compile:contract && pnpm build"
   },

@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-11-13T21:14:39.749Z",
+  "network": "qorechain-diana",
+  "chainId": 9800,
+  "rpcUrl": "https://evm-testnet.qore.host",
+  "blockNumber": "10034790",
+  "status": "precompile-unavailable-on-public-diana-rpc",
+  "precompiles": {
+    "aiRiskScore": "0x0000000000000000000000000000000000000B01",
+    "aiAnomalyCheck": "0x0000000000000000000000000000000000000B02"
+  },
+  "sdkUnsafeLevelThreshold": 3,
+  "contract": {
+    "artifact": "artifacts/Patch3QRegistry.json",
+    "compiler": "0.8.30+commit.73712a01.Emscripten.clang",
+    "creationBytecodeHash": "0x5a58552537365aafd44a5921267a412e1d298d755cc0317dba99e5be916d850d",
+    "deployedBytecodeHash": "0xe430bb2b22b55235ed561a056288fbb21452168884588ea82539625c00350b11"
+  },
+  "methodology": {
+    "risk": "Live eth_call to QCAI aiRiskScore(bytes) for compiled creation bytecode and representative Patch3Q calldata.",
+    "anomaly": "Live eth_call to QCAI aiAnomalyCheck(address,uint256) using clearly synthetic addresses and native-value amounts."
+  },
+  "transactions": [
+    {
+      "name": "deploy-registry",
+      "functionName": "constructor(address)",
+      "calldataHash": "0x9e4be82359802338817a4ae7b5317ce6afdd9b1305b64e7e6ce7b73c92d252ac",
+      "calldataBytes": 8351,
+      "status": "unavailable",
+      "error": "Cannot decode zero data (\"0x\") with ABI parameters.\n\nVersion: viem@2.53.1"
+    },
+    {
+      "name": "submit-sealed-case",
+      "functionName": "submitCase",
+      "calldataHash": "0xebc20003f57ddc079e1e9354c1207486cdf5df6ec22a12f631baefe0e3d5d18a",
+      "calldataBytes": 292,
+      "status": "unavailable",
+      "error": "Cannot decode zero data (\"0x\") with ABI parameters.\n\nVersion: viem@2.53.1"
+    },
+    {
+      "name": "acknowledge-case",
+      "functionName": "acknowledgeCase",
+      "calldataHash": "0x4408d04d71bb88ba64f11748a50c88b4df900158550829d9adc76da0a894c7cd",
+      "calldataBytes": 36,
+      "status": "unavailable",
+      "error": "Cannot decode zero data (\"0x\") with ABI parameters.\n\nVersion: viem@2.53.1"
+    },
+    {
+      "name": "escalate-missed-deadline",
+      "functionName": "escalateMissedDeadline",
+      "calldataHash": "0x6ea27ff7d36b4b4110a20f007eef769f410ff0fe0503230f42494039765757ba",
+      "calldataBytes": 36,
+      "status": "unavailable",
+      "error": "Cannot decode zero data (\"0x\") with ABI parameters.\n\nVersion: viem@2.53.1"
+    },
+    {
+      "name": "fund-bounty",
+      "functionName": "fundBounty",
+      "calldataHash": "0x062e440268b8b6336121dc62a8332c8e3f2d80555360cd2aaf4755074e5d39b2",
+      "calldataBytes": 68,
+      "status": "unavailable",
+      "error": "Cannot decode zero data (\"0x\") with ABI parameters.\n\nVersion: viem@2.53.1"
+    },
+    {
+      "name": "dual-pq-approve-and-release",
+      "functionName": "approveSeverity",
+      "calldataHash": "0x5b3a87dd140f8cdf0943b71d5330c9a82be15c6766abfd0b405ea0b5af67eca6",
+      "calldataBytes": 324,
+      "status": "unavailable",
+      "error": "Cannot decode zero data (\"0x\") with ABI parameters.\n\nVersion: viem@2.53.1"
+    },
+    {
+      "name": "publish-redacted-commitment",
+      "functionName": "discloseCase",
+      "calldataHash": "0xba963e19db8cecca61312da692f7896f504a1fac325c3f8645c59df355ca754f",
+      "calldataBytes": 68,
+      "status": "unavailable",
+      "error": "Cannot decode zero data (\"0x\") with ABI parameters.\n\nVersion: viem@2.53.1"
+    }
+  ],
+  "anomalies": [
+    {
+      "name": "zero-native-value-contract-call",
+      "sender": "0x1000000000000000000000000000000000000001",
+      "amount": "0",
+      "status": "unavailable",
+      "error": "Cannot decode zero data (\"0x\") with ABI parameters.\n\nVersion: viem@2.53.1"
+    },
+    {
+      "name": "synthetic-native-value-stress-case",
+      "sender": "0x2000000000000000000000000000000000000002",
+      "amount": "2500000000",
+      "status": "unavailable",
+      "error": "Cannot decode zero data (\"0x\") with ABI parameters.\n\nVersion: viem@2.53.1"
+    }
+  ],
+  "limitations": [
+    "QCAI results are advisory transaction-risk signals, not a source-code security proof.",
+    "Representative calldata is synthetic and was not broadcast; this artifact contains no deployment or lifecycle transaction hashes.",
+    "The anomaly amount is native EVM value. Patch3Q bounty amounts are ERC-20 units and are represented inside calldata instead.",
+    "A score can change when QCAI models or chain state change; the block number and bytecode hashes make this run reproducible."
+  ]
+}

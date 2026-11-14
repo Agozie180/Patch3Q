@@ -93,7 +93,10 @@ function freshClassicalPrivateKey(): Uint8Array {
   }
 }
 
-export async function createDemoApprovalAuthority(caseId: string): Promise<{
+export async function createDemoApprovalAuthority(
+  caseId: string,
+  role: ApprovalAuthority["role"],
+): Promise<{
   authority: ApprovalAuthority;
   vault: Patch3QApprovalVault;
 }> {
@@ -104,7 +107,7 @@ export async function createDemoApprovalAuthority(caseId: string): Promise<{
   const signer = addressFromPublicKey(classicalKey.publicKey, classicalKey.type);
   return {
     authority: {
-      role: "auditor",
+      role,
       signer: signer.bech32,
       evmAddress: signer.hex as `0x${string}`,
       keyFingerprint: await sha256(pqKey.publicKey),
@@ -115,7 +118,7 @@ export async function createDemoApprovalAuthority(caseId: string): Promise<{
       type: "patch3q.approval-key",
       version: 1,
       caseId,
-      role: "auditor",
+      role,
       signer: signer.bech32,
       classicalPrivateKey: toBase64Url(classicalPrivateKey),
       pqSeed: toBase64Url(pqSeed),
@@ -124,14 +127,17 @@ export async function createDemoApprovalAuthority(caseId: string): Promise<{
   };
 }
 
-export async function resolveApprovalAuthority(address: string): Promise<ApprovalAuthority> {
+export async function resolveApprovalAuthority(
+  address: string,
+  role: ApprovalAuthority["role"],
+): Promise<ApprovalAuthority> {
   const signer = parseAddress(address.trim());
   const status = await fetchPqKeyStatus({ rest: PATCH3Q_REST_PROXY, address: signer.bech32 });
   if (!status.registered || !status.publicKey) {
-    throw new Error("The auditor has no registered ML-DSA-87 key on QoreChain testnet.");
+    throw new Error(`The ${role} has no registered ML-DSA-87 key on QoreChain testnet.`);
   }
   return {
-    role: "auditor",
+    role,
     signer: signer.bech32,
     evmAddress: signer.hex as `0x${string}`,
     keyFingerprint: await sha256(status.publicKey),
@@ -142,17 +148,22 @@ export async function resolveApprovalAuthority(address: string): Promise<Approva
 
 export async function createSeverityApproval(options: {
   bundle: Patch3QBundle;
-  vault: Patch3QApprovalVault;
+  vaults: { program: Patch3QApprovalVault; auditor: Patch3QApprovalVault };
   registryAddress: `0x${string}`;
   severity: Severity;
   payoutAtomic: string;
   rationale: string;
   now?: Date;
 }): Promise<SeverityApproval> {
-  const { bundle, vault } = options;
-  const authority = bundle.approvalAuthority;
-  if (!authority) throw new Error("This bundle does not bind an approval authority.");
-  if (vault.caseId !== bundle.caseId) throw new Error("This approval vault belongs to a different case.");
+  const { bundle, vaults } = options;
+  const authorities = bundle.approvalAuthorities;
+  if (!authorities) throw new Error("This bundle does not bind both approval authorities.");
+  if (vaults.program.caseId !== bundle.caseId || vaults.auditor.caseId !== bundle.caseId) {
+    throw new Error("An approval vault belongs to a different case.");
+  }
+  if (vaults.program.role !== "program" || vaults.auditor.role !== "auditor") {
+    throw new Error("Load one program vault and one auditor vault.");
+  }
   if (!SEVERITIES.has(options.severity)) throw new Error("Choose a supported severity.");
   if (!isAddress(options.registryAddress) || options.registryAddress === zeroAddress) {
     throw new Error("Configure the deployed Patch3Q registry before signing an approval.");
@@ -163,10 +174,16 @@ export async function createSeverityApproval(options: {
   const rationale = options.rationale.trim();
   if (rationale.length < 12) throw new Error("Add a short severity rationale before approving payment.");
 
-  const { classicalKey, pqKey, signer } = approvalKeysFromVault(vault);
-  if (signer.bech32 !== authority.signer) throw new Error("The vault is not the auditor bound into this bundle.");
-  if (authority.pqPublicKey && toBase64Url(pqKey.publicKey) !== authority.pqPublicKey) {
-    throw new Error("The vault ML-DSA-87 key does not match the bundle authority.");
+  const programKeys = approvalKeysFromVault(vaults.program);
+  const auditorKeys = approvalKeysFromVault(vaults.auditor);
+  for (const [role, keys] of [["program", programKeys], ["auditor", auditorKeys]] as const) {
+    const authority = authorities[role];
+    if (keys.signer.bech32 !== authority.signer) {
+      throw new Error(`The ${role} vault is not the authority bound into this bundle.`);
+    }
+    if (authority.pqPublicKey && toBase64Url(keys.pqKey.publicKey) !== authority.pqPublicKey) {
+      throw new Error(`The ${role} ML-DSA-87 key does not match the bundle authority.`);
+    }
   }
   const rationaleHash = keccak256(toBytes(rationale));
   const approvalHash = await severityApprovalDigest(
@@ -192,16 +209,28 @@ export async function createSeverityApproval(options: {
   };
   const unsigned = {
     type: "patch3q.severity-approval" as const,
-    version: 1 as const,
+    version: 2 as const,
     statement,
-    signer: signer.bech32,
-    signature: signMessage({
-      chainId: bundle.chainId,
-      signer: signer.bech32,
-      data: hexToBytes(approvalHash),
-      classicalKey,
-      pqKey,
-    }),
+    signers: {
+      program: programKeys.signer.bech32,
+      auditor: auditorKeys.signer.bech32,
+    },
+    signatures: {
+      program: signMessage({
+        chainId: bundle.chainId,
+        signer: programKeys.signer.bech32,
+        data: hexToBytes(approvalHash),
+        classicalKey: programKeys.classicalKey,
+        pqKey: programKeys.pqKey,
+      }),
+      auditor: signMessage({
+        chainId: bundle.chainId,
+        signer: auditorKeys.signer.bech32,
+        data: hexToBytes(approvalHash),
+        classicalKey: auditorKeys.classicalKey,
+        pqKey: auditorKeys.pqKey,
+      }),
+    },
   };
   return { ...unsigned, approvalHash };
 }
@@ -211,7 +240,7 @@ export async function verifySeverityApproval(
   approval: SeverityApproval,
   expectedRegistryAddress?: `0x${string}`,
 ): Promise<ApprovalVerificationResult> {
-  const authority = bundle.approvalAuthority;
+  const authorities = bundle.approvalAuthorities;
   const checks = {
     statementShape:
       approval.statement.type === "patch3q.severity-approval-statement" &&
@@ -221,8 +250,14 @@ export async function verifySeverityApproval(
     evidenceBinding:
       approval.statement.envelopeHash === bundle.envelopeHash &&
       approval.statement.contentCommitment === bundle.contentCommitment,
-    authorityBinding: Boolean(authority && approval.signer === authority.signer),
-    authorityKeyBinding: false,
+    programAuthorityBinding: Boolean(
+      authorities && approval.signers.program === authorities.program.signer,
+    ),
+    auditorAuthorityBinding: Boolean(
+      authorities && approval.signers.auditor === authorities.auditor.signer,
+    ),
+    programKeyBinding: false,
+    auditorKeyBinding: false,
     registryBinding:
       approval.statement.evmChainId === EVM_CHAIN_ID &&
       isAddress(approval.statement.registryAddress) &&
@@ -231,7 +266,8 @@ export async function verifySeverityApproval(
         approval.statement.registryAddress.toLowerCase() === expectedRegistryAddress.toLowerCase()),
     rationaleBinding: keccak256(toBytes(approval.statement.rationale)) === approval.statement.rationaleHash,
     approvalHash: false,
-    hybridSignature: false,
+    programHybridSignature: false,
+    auditorHybridSignature: false,
   };
   let expectedDigest = approval.approvalHash;
   if (
@@ -248,42 +284,58 @@ export async function verifySeverityApproval(
     checks.approvalHash = expectedDigest === approval.approvalHash;
   }
 
-  if (authority && checks.authorityBinding) {
+  async function verifyAuthority(role: "program" | "auditor"): Promise<{
+    keyBinding: boolean;
+    hybridSignature: boolean;
+  }> {
+    const authority = authorities?.[role];
+    const signer = approval.signers[role];
+    const signature = approval.signatures[role];
+    if (!authority || signer !== authority.signer) return { keyBinding: false, hybridSignature: false };
     try {
       if (authority.source === "qorechain-registry") {
         const current = await fetchPqKeyStatus({ rest: PATCH3Q_REST_PROXY, address: authority.signer });
-        checks.authorityKeyBinding = Boolean(
+        const keyBinding = Boolean(
           current.registered && current.publicKey &&
           (await sha256(current.publicKey)) === authority.keyFingerprint,
         );
-        if (!checks.authorityKeyBinding) throw new Error("The auditor PQ key no longer matches the case binding.");
+        if (!keyBinding) return { keyBinding: false, hybridSignature: false };
         await verifyMessageWithChain({
           rest: PATCH3Q_REST_PROXY,
           chainId: bundle.chainId,
-          signer: approval.signer,
+          signer,
           data: hexToBytes(expectedDigest),
-          signature: approval.signature,
+          signature,
           requirePq: true,
         });
-      } else {
-        if (!authority.pqPublicKey) throw new Error("Demo authority is missing its ML-DSA-87 public key.");
-        checks.authorityKeyBinding =
-          (await sha256(fromBase64Url(authority.pqPublicKey))) === authority.keyFingerprint;
-        if (!checks.authorityKeyBinding) throw new Error("The embedded auditor PQ key fingerprint is inconsistent.");
-        verifyMessage({
-          chainId: bundle.chainId,
-          signer: approval.signer,
-          data: hexToBytes(expectedDigest),
-          signature: approval.signature,
-          pqPublicKey: fromBase64Url(authority.pqPublicKey),
-          requirePq: true,
-        });
+        return { keyBinding: true, hybridSignature: true };
       }
-      checks.hybridSignature = true;
+      if (!authority.pqPublicKey) return { keyBinding: false, hybridSignature: false };
+      const pqPublicKey = fromBase64Url(authority.pqPublicKey);
+      const keyBinding = (await sha256(pqPublicKey)) === authority.keyFingerprint;
+      if (!keyBinding) return { keyBinding: false, hybridSignature: false };
+      verifyMessage({
+        chainId: bundle.chainId,
+        signer,
+        data: hexToBytes(expectedDigest),
+        signature,
+        pqPublicKey,
+        requirePq: true,
+      });
+      return { keyBinding: true, hybridSignature: true };
     } catch {
-      checks.hybridSignature = false;
+      return { keyBinding: false, hybridSignature: false };
     }
   }
+
+  const [programResult, auditorResult] = await Promise.all([
+    verifyAuthority("program"),
+    verifyAuthority("auditor"),
+  ]);
+  checks.programKeyBinding = programResult.keyBinding;
+  checks.programHybridSignature = programResult.hybridSignature;
+  checks.auditorKeyBinding = auditorResult.keyBinding;
+  checks.auditorHybridSignature = auditorResult.hybridSignature;
   return { checks, verified: Object.values(checks).every(Boolean) };
 }
 
@@ -295,6 +347,7 @@ export function parseApprovalVault(value: string): Patch3QApprovalVault {
     candidate.type !== "patch3q.approval-key" ||
     candidate.version !== 1 ||
     !candidate.caseId ||
+    (candidate.role !== "program" && candidate.role !== "auditor") ||
     !candidate.signer ||
     !candidate.classicalPrivateKey ||
     !candidate.pqSeed
@@ -310,10 +363,12 @@ export function parseSeverityApproval(value: string): SeverityApproval {
   const candidate = parsed as Partial<SeverityApproval>;
   if (
     candidate.type !== "patch3q.severity-approval" ||
-    candidate.version !== 1 ||
+    candidate.version !== 2 ||
     !candidate.statement ||
-    !candidate.signer ||
-    !candidate.signature ||
+    !candidate.signers?.program ||
+    !candidate.signers?.auditor ||
+    !candidate.signatures?.program ||
+    !candidate.signatures?.auditor ||
     !candidate.approvalHash
   ) {
     throw new Error("Unsupported or incomplete Patch3Q severity approval.");
@@ -326,8 +381,8 @@ export async function demonstrateClassicalOnlyForgeryRejection(
   approval: SeverityApproval,
   vault: Patch3QApprovalVault,
 ): Promise<boolean> {
-  const authority = bundle.approvalAuthority;
-  if (!authority?.pqPublicKey) throw new Error("The demo needs an embedded auditor ML-DSA-87 public key.");
+  const authority = bundle.approvalAuthorities?.[vault.role];
+  if (!authority?.pqPublicKey) throw new Error(`The demo needs an embedded ${vault.role} ML-DSA-87 public key.`);
   const { classicalKey, signer } = approvalKeysFromVault(vault);
   const forgedSignature = signMessage({
     chainId: bundle.chainId,

@@ -58,6 +58,19 @@ const INITIAL_REPORT: ReportDraft = {
   embargoUntil: localDateAfter(30),
 };
 
+const QORECHAIN_DEMO_REPORT: ReportDraft = {
+  title: "Synthetic demo: duplicate signer accepted in threshold verification",
+  program: "QoreChain security — security@qore.network",
+  asset: "Synthetic QoreChain verifier used only for the Patch3Q demo",
+  severity: "critical",
+  reporterAlias: "researcher-zero",
+  summary: "A synthetic threshold verifier counts the same signer twice. This is demonstration data, not a claim about a live QoreChain vulnerability.",
+  impact: "In the demo scenario, an attacker satisfies quorum without two independent signers and reaches a protected action.",
+  reproduction: "1. Create one valid signature.\n2. Submit the same signer entry twice to the synthetic verifier.\n3. Observe the demo verifier accepting the threshold.",
+  remediation: "Reject duplicate signer identifiers before accumulating signature weight, then add a regression test for repeated entries.",
+  embargoUntil: localDateAfter(30),
+};
+
 function downloadText(filename: string, content: string, mediaType = "application/json"): void {
   const url = URL.createObjectURL(new Blob([content], { type: mediaType }));
   const anchor = document.createElement("a");
@@ -245,18 +258,19 @@ function SealWorkspace({
               <span>⌘</span> Export {vault.role} demo vault
             </button>
           ))}
-          {result.approvalVault && (
+          {result.approvalVaults?.map((vault) => (
             <button
               className="secondary-button"
               type="button"
+              key={vault.role + "-approval"}
               onClick={() => downloadText(
-                result.bundle.caseId + ".auditor-approval.vault.json",
-                approvalVaultToJson(result.approvalVault!),
+                result.bundle.caseId + "." + vault.role + "-approval.vault.json",
+                approvalVaultToJson(vault),
               )}
             >
-              <span>⌘</span> Export auditor approval vault
+              <span>⌘</span> Export {vault.role} approval vault
             </button>
-          )}
+          ))}
         </div>
         {result.vaults.length > 0 && (
           <div className="warning-callout">
@@ -286,7 +300,12 @@ function SealWorkspace({
           <h2 id="seal-title">Seal a vulnerability report</h2>
           <p>Structured evidence encrypted in your browser for the people who need to act.</p>
         </div>
-        <div className="local-badge"><span /> Local-only plaintext</div>
+        <div>
+          <div className="local-badge"><span /> Local-only plaintext</div>
+          <button className="text-button quiet" type="button" onClick={() => setDraft({ ...QORECHAIN_DEMO_REPORT, embargoUntil: localDateAfter(30) })}>
+            Load QoreChain synthetic customer scenario
+          </button>
+        </div>
       </div>
 
       <form onSubmit={handleSeal}>
@@ -538,24 +557,33 @@ const CASE_STATUSES = ["Submitted", "Acknowledged", "Triaged", "Resolved", "Disc
 
 function ApprovalWorkspace({
   bundle,
-  initialVault,
+  initialVaults,
   initialApproval,
   onApproval,
 }: {
   bundle?: Patch3QBundle;
-  initialVault?: Patch3QApprovalVault;
+  initialVaults?: Patch3QApprovalVault[];
   initialApproval?: SeverityApproval;
   onApproval: (approval: SeverityApproval) => void;
 }) {
   const { isConnected } = useAccount();
-  const [vaultText, setVaultText] = useState(initialVault ? approvalVaultToJson(initialVault) : "");
-  const [vaultName, setVaultName] = useState(initialVault ? "Auditor approval vault" : "");
+  const initialProgramVault = initialVaults?.find((vault) => vault.role === "program");
+  const initialAuditorVault = initialVaults?.find((vault) => vault.role === "auditor");
+  const [programVaultText, setProgramVaultText] = useState(
+    initialProgramVault ? approvalVaultToJson(initialProgramVault) : "",
+  );
+  const [auditorVaultText, setAuditorVaultText] = useState(
+    initialAuditorVault ? approvalVaultToJson(initialAuditorVault) : "",
+  );
   const [severity, setSeverity] = useState<Severity>("high");
   const [payoutAtomic, setPayoutAtomic] = useState("2500000000");
   const [rationale, setRationale] = useState("");
   const [approval, setApproval] = useState<SeverityApproval | undefined>(initialApproval);
   const [verification, setVerification] = useState<ApprovalVerificationResult>();
-  const [classicalForgeryRejected, setClassicalForgeryRejected] = useState<boolean>();
+  const [classicalForgeryRejected, setClassicalForgeryRejected] = useState<{
+    program: boolean;
+    auditor: boolean;
+  }>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const approvalWrite = useWriteContract();
@@ -573,18 +601,23 @@ function ApprovalWorkspace({
     }
     setBusy(true);
     try {
-      const vault = parseApprovalVault(vaultText);
+      const programVault = parseApprovalVault(programVaultText);
+      const auditorVault = parseApprovalVault(auditorVaultText);
       const nextApproval = await createSeverityApproval({
         bundle,
-        vault,
+        vaults: { program: programVault, auditor: auditorVault },
         registryAddress: patch3qRegistryAddress,
         severity,
         payoutAtomic,
         rationale,
       });
       const checked = await verifySeverityApproval(bundle, nextApproval, patch3qRegistryAddress);
-      const rejected = bundle.approvalAuthority?.source === "embedded-demo"
-        ? await demonstrateClassicalOnlyForgeryRejection(bundle, nextApproval, vault)
+      const rejected = bundle.approvalAuthorities?.program.source === "embedded-demo" &&
+        bundle.approvalAuthorities.auditor.source === "embedded-demo"
+        ? {
+            program: await demonstrateClassicalOnlyForgeryRejection(bundle, nextApproval, programVault),
+            auditor: await demonstrateClassicalOnlyForgeryRejection(bundle, nextApproval, auditorVault),
+          }
         : undefined;
       setApproval(nextApproval);
       setVerification(checked);
@@ -630,9 +663,10 @@ function ApprovalWorkspace({
       setError("The approval must pass every hybrid-signature and evidence-binding check first.");
       return;
     }
-    const pqSignature = approval.signature.pq?.signature;
-    if (!pqSignature) {
-      setError("The approval has no ML-DSA-87 signature to verify on-chain.");
+    const programPqSignature = approval.signatures.program.pq?.signature;
+    const auditorPqSignature = approval.signatures.auditor.pq?.signature;
+    if (!programPqSignature || !auditorPqSignature) {
+      setError("The approval needs both program and auditor ML-DSA-87 signatures.");
       return;
     }
     try {
@@ -645,7 +679,8 @@ function ApprovalWorkspace({
           SEVERITY_CODES[approval.statement.severity],
           BigInt(approval.statement.payout.atomic),
           approval.statement.rationaleHash,
-          bytesToHex(fromBase64(pqSignature)),
+          bytesToHex(fromBase64(programPqSignature)),
+          bytesToHex(fromBase64(auditorPqSignature)),
         ],
       });
     } catch (caught) {
@@ -657,9 +692,9 @@ function ApprovalWorkspace({
     <section className="workspace" aria-labelledby="approval-title">
       <div className="workspace-heading">
         <div>
-          <p className="eyebrow">Independent auditor workspace</p>
-          <h2 id="approval-title">Approve severity with a hybrid signature</h2>
-          <p>One auditor signs with secp256k1 and ML-DSA-87; the contract requires the PQ component.</p>
+          <p className="eyebrow">Independent co-signing workspace</p>
+          <h2 id="approval-title">Approve severity with two PQ parties</h2>
+          <p>The program and auditor independently hybrid-sign the same evidence-bound payout instruction.</p>
         </div>
         <ConnectButton />
       </div>
@@ -674,10 +709,11 @@ function ApprovalWorkspace({
           <div className="receipt-card">
             <div className="receipt-head">
               <div><span className="muted-label">Evidence-bound case</span><strong>{bundle.caseId}</strong></div>
-              <span className="pill positive">Auditor locked</span>
+              <span className="pill positive">Two authorities locked</span>
             </div>
             <HashRow label="Ciphertext commitment" value={bundle.envelopeHash} />
-            <HashRow label="Auditor ML-DSA fingerprint" value={bundle.approvalAuthority?.keyFingerprint ?? "Unavailable"} />
+            <HashRow label="Program ML-DSA fingerprint" value={bundle.approvalAuthorities?.program.keyFingerprint ?? "Unavailable"} />
+            <HashRow label="Auditor ML-DSA fingerprint" value={bundle.approvalAuthorities?.auditor.keyFingerprint ?? "Unavailable"} />
           </div>
 
           <div className="section-heading divided">
@@ -702,22 +738,29 @@ function ApprovalWorkspace({
             </Field>
           </div>
 
-          {initialVault || vaultText ? (
-            <details className="paste-fallback" open={!initialVault}>
-              <summary>{vaultName || "Import the auditor approval vault"}</summary>
-              <textarea value={vaultText} onChange={(event) => setVaultText(event.target.value)} placeholder="Patch3Q auditor approval vault JSON" rows={6} />
+          {initialProgramVault || programVaultText ? (
+            <details className="paste-fallback" open={!initialProgramVault}>
+              <summary>Program approval vault</summary>
+              <textarea value={programVaultText} onChange={(event) => setProgramVaultText(event.target.value)} placeholder="Patch3Q program approval vault JSON" rows={6} />
             </details>
           ) : (
             <FileImport
-              label="Import auditor approval vault"
-              filename={vaultName || undefined}
-              onLoad={(text) => { setVaultText(text); setVaultName("Auditor approval vault"); }}
+              label="Import program approval vault"
+              onLoad={setProgramVaultText}
             />
+          )}
+          {initialAuditorVault || auditorVaultText ? (
+            <details className="paste-fallback" open={!initialAuditorVault}>
+              <summary>Auditor approval vault</summary>
+              <textarea value={auditorVaultText} onChange={(event) => setAuditorVaultText(event.target.value)} placeholder="Patch3Q auditor approval vault JSON" rows={6} />
+            </details>
+          ) : (
+            <FileImport label="Import auditor approval vault" onLoad={setAuditorVaultText} />
           )}
 
           {error && <div className="error-callout" role="alert">{error}</div>}
-          <button className="primary-button verify-button" type="button" disabled={!vaultText || busy} onClick={() => void issueApproval()}>
-            {busy ? "Signing with ML-DSA-87 + secp256k1…" : "Hybrid-sign severity approval"}
+          <button className="primary-button verify-button" type="button" disabled={!programVaultText || !auditorVaultText || busy} onClick={() => void issueApproval()}>
+            {busy ? "Collecting two ML-DSA-87 signatures…" : "Co-sign severity approval"}
           </button>
 
           <details className="paste-fallback">
@@ -730,7 +773,7 @@ function ApprovalWorkspace({
               <div className="verification-head">
                 <div className="verified-mark">{verification.verified ? "✓" : "!"}</div>
                 <div>
-                  <p className="eyebrow">{approval.signature.signatureType}</p>
+                  <p className="eyebrow">2 × ML-DSA-87 hybrid signatures</p>
                   <h3>{verification.verified ? "Payout instruction verified" : "Approval rejected"}</h3>
                 </div>
               </div>
@@ -738,9 +781,9 @@ function ApprovalWorkspace({
                 {Object.entries(verification.checks).map(([name, passed]) => (
                   <div key={name}><StatusDot good={passed} /><span>{name.replace(/([A-Z])/g, " $1")}</span><strong>{passed ? "Pass" : "Fail"}</strong></div>
                 ))}
-                {classicalForgeryRejected !== undefined && (
-                  <div><StatusDot good={classicalForgeryRejected} /><span>ECDSA-only forgery</span><strong>{classicalForgeryRejected ? "Rejected" : "Accepted"}</strong></div>
-                )}
+                {classicalForgeryRejected && Object.entries(classicalForgeryRejected).map(([role, rejected]) => (
+                  <div key={role}><StatusDot good={rejected} /><span>{role} ECDSA-only forgery</span><strong>{rejected ? "Rejected" : "Accepted"}</strong></div>
+                ))}
               </div>
               <HashRow label="Approval commitment" value={approval.approvalHash} />
               <div className="action-stack">
@@ -767,7 +810,6 @@ function ApprovalWorkspace({
 
 function AnchorWorkspace({ bundle }: { bundle?: Patch3QBundle }) {
   const { address, isConnected } = useAccount();
-  const [programAddress, setProgramAddress] = useState("");
   const [bountyAtomic, setBountyAtomic] = useState("2500000000");
   const [redactedReport, setRedactedReport] = useState("");
   const [localError, setLocalError] = useState("");
@@ -840,24 +882,25 @@ function AnchorWorkspace({ bundle }: { bundle?: Patch3QBundle }) {
       setLocalError("Deploy Patch3QRegistry and set VITE_PATCH3Q_REGISTRY_ADDRESS first.");
       return;
     }
-    if (!isAddress(programAddress)) {
-      setLocalError("Enter the maintainer program's EVM address.");
-      return;
-    }
-    if (!bundle.approvalAuthority || !isAddress(bundle.approvalAuthority.evmAddress)) {
-      setLocalError("This bundle does not contain a valid auditor approval authority.");
+    const authorities = bundle.approvalAuthorities;
+    if (
+      !authorities ||
+      !isAddress(authorities.program.evmAddress) ||
+      !isAddress(authorities.auditor.evmAddress)
+    ) {
+      setLocalError("This bundle does not contain valid program and auditor approval authorities.");
       return;
     }
     try {
       const caseIdHash = await hashText(bundle.caseId);
-      const programRef = await hashText(programAddress.toLowerCase());
+      const programRef = await hashText(bundle.recipients[0]?.address?.toLowerCase() || authorities.program.evmAddress.toLowerCase());
       await write.writeContractAsync({
         address: patch3qRegistryAddress,
         abi: patch3qRegistryAbi,
         functionName: "submitCase",
         args: [
-          programAddress,
-          bundle.approvalAuthority.evmAddress,
+          authorities.program.evmAddress,
+          authorities.auditor.evmAddress,
           caseIdHash,
           bundle.envelopeHash,
           bundle.contentCommitment,
@@ -996,13 +1039,15 @@ function AnchorWorkspace({ bundle }: { bundle?: Patch3QBundle }) {
           <span className={bundle ? "pill positive" : "pill amber"}>{bundle ? "Loaded" : "Missing"}</span>
         </div>
         <div className="config-row">
-          <span>Auditor authority</span>
-          <code>{bundle?.approvalAuthority ? shortHash(bundle.approvalAuthority.evmAddress) : "Not bound"}</code>
-          <span className={bundle?.approvalAuthority ? "pill positive" : "pill amber"}>{bundle?.approvalAuthority ? "ML-DSA bound" : "Missing"}</span>
+          <span>Program authority</span>
+          <code>{bundle?.approvalAuthorities ? shortHash(bundle.approvalAuthorities.program.evmAddress) : "Not bound"}</code>
+          <span className={bundle?.approvalAuthorities ? "pill positive" : "pill amber"}>{bundle?.approvalAuthorities ? "ML-DSA bound" : "Missing"}</span>
         </div>
-        <Field label="Program EVM address" hint="Only this address can acknowledge, triage, and resolve the receipt." wide>
-          <input value={programAddress} onChange={(event) => setProgramAddress(event.target.value)} placeholder="0x…" />
-        </Field>
+        <div className="config-row">
+          <span>Auditor authority</span>
+          <code>{bundle?.approvalAuthorities ? shortHash(bundle.approvalAuthorities.auditor.evmAddress) : "Not bound"}</code>
+          <span className={bundle?.approvalAuthorities ? "pill positive" : "pill amber"}>{bundle?.approvalAuthorities ? "ML-DSA bound" : "Missing"}</span>
+        </div>
         <div className="anchor-note">
           QoreX can read this app, but EVM writes currently require an injected signing wallet and an active QoreChain EVM authorization window.
         </div>
@@ -1244,9 +1289,9 @@ export function App() {
           {workspace === "verify" && <VerifyWorkspace key={(verifyBundle?.caseId ?? "empty") + (verifyVault?.role ?? "")} initialBundle={verifyBundle} initialVault={verifyVault} onBundle={setVerifyBundle} />}
           {workspace === "approve" && (
             <ApprovalWorkspace
-              key={(anchorBundle?.caseId ?? "empty") + (latestResult?.approvalVault?.signer ?? "")}
+              key={(anchorBundle?.caseId ?? "empty") + (latestResult?.approvalVaults?.map((vault) => vault.signer).join("") ?? "")}
               bundle={anchorBundle}
-              initialVault={latestResult?.approvalVault}
+              initialVaults={latestResult?.approvalVaults}
               initialApproval={latestApproval}
               onApproval={setLatestApproval}
             />
