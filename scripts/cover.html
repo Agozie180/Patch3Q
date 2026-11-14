@@ -1,0 +1,47 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 1920px; height: 1080px; overflow: hidden; }
+  body {
+    font-family: "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    background: radial-gradient(1200px 700px at 78% 30%, #123a35 0%, #0a1413 55%, #060b0b 100%);
+    color: #eaf5f1; padding: 110px 120px; position: relative;
+  }
+  .grid { position: absolute; inset: 0; background-image:
+    linear-gradient(rgba(94, 234, 212, .06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(94, 234, 212, .06) 1px, transparent 1px);
+    background-size: 60px 60px; }
+  .brand { position: relative; display: flex; align-items: center; gap: 22px; font-size: 40px; font-weight: 800; letter-spacing: .5px; }
+  .logo { width: 72px; height: 72px; border-radius: 18px; background: linear-gradient(135deg, #5eead4, #22c55e);
+    display: grid; place-items: center; color: #062019; font-size: 40px; font-weight: 900; }
+  .tag { margin-left: 18px; font-size: 22px; font-weight: 600; color: #5eead4; border: 2px solid #1f5c52; padding: 8px 18px; border-radius: 999px; }
+  h1 { position: relative; margin-top: 70px; font-size: 92px; line-height: 1.02; font-weight: 850; letter-spacing: -2px; max-width: 1300px; white-space: nowrap; }
+  h1 em { font-style: normal; background: linear-gradient(90deg, #5eead4, #a3e635); -webkit-background-clip: text; color: transparent; }
+  p { position: relative; margin-top: 34px; font-size: 32px; line-height: 1.4; color: #a7c4bd; max-width: 1150px; }
+  .proofs { position: absolute; left: 120px; right: 120px; bottom: 100px; display: flex; gap: 28px; }
+  .proof { flex: 1; border: 2px solid #1f4a44; background: rgba(8, 24, 22, .75); border-radius: 22px; padding: 30px 34px; }
+  .proof b { display: block; white-space: nowrap; font-size: 40px; color: #eaf5f1; }
+  .proof span { font-size: 24px; color: #7fa59c; }
+  .lock { position: absolute; right: 150px; top: 120px; width: 320px; height: 320px; border-radius: 50%;
+    border: 3px dashed rgba(94, 234, 212, .35); display: grid; place-items: center; }
+  .lock div { width: 220px; height: 220px; border-radius: 50%; background: radial-gradient(circle, rgba(94,234,212,.35), rgba(94,234,212,0) 70%);
+    display: grid; place-items: center; font-size: 120px; }
+</style>
+</head>
+<body>
+  <div class="grid"></div>
+  <div class="brand"><div class="logo">Q</div>Patch3Q <span class="tag">QoreChain · Encrypted Apps</span></div>
+  <div class="lock"><div>🔐</div></div>
+  <h1>Anonymous bug bounties<br />that survive <em>Q-Day</em>.</h1>
+  <p>Seal the report with ML-KEM-1024. Pay only when two ML-DSA-87 signatures agree on-chain. Ghost the researcher and lose your vote.</p>
+  <div class="proofs">
+    <div class="proof"><b>ML-KEM-1024</b><span>browser-side sealed report + payout</span></div>
+    <div class="proof"><b>2 × ML-DSA-87</b><span>verified by the 0x…0A01 precompile</span></div>
+    <div class="proof"><b>0 identity</b><span>no reporter wallet on-chain</span></div>
+    <div class="proof"><b>Escrow</b><span>deadlines enforced by anyone</span></div>
+  </div>
+</body>
+</html>
