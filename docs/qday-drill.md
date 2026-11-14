@@ -5,7 +5,8 @@ The Q-Day Drill gives the attacker the ECDSA key of a participating account. Reg
 
 ## What we enter
 
-The **program** account from `pnpm testnet:status`, after `pnpm testnet:e2e` has completed.
+The **program** account `qor1hfxnr2fr4camsk54qmvjjlkdfddgt9gpmu6fwv` (`0xBa4D31a923aE3Bb85A9506D9297ecd4B5a859501`).
+It owns both live cases on registry `0xb6b92510cd9ca5a1e7eac761243b51d73f619962`.
 
 ## Why the attacker gets nothing
 
@@ -23,5 +24,6 @@ The **program** account from `pnpm testnet:status`, after `pnpm testnet:e2e` has
 1. Register before the deadline at https://build.qorechain.io/.
 2. Reduce the program account's EVM window to the minimum, or let it expire, so the drill tests the PQ layer and not
    an open classical window.
-3. Leave one funded, unresolved synthetic case live as bait.
+3. Leave one funded, unresolved synthetic case live as bait. Both rehearsal cases are already paid out, so run one
+   more case before the drill.
 4. Record the block height and the escrow balance before and after the drill in `evidence/testnet.json`.

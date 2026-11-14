@@ -15,7 +15,7 @@ Hackathon limit: 3 minutes or less. Use synthetic vulnerability content only. Re
 
 ## Recording checklist
 
-1. Run `pnpm testnet:e2e` until `evidence/testnet.json` reports `"status": "verified"`.
+1. The evidence is already verified. Run `pnpm verify:evidence` on camera to show 49/49 live checks.
 2. Run `pnpm dev`, and check that the header shows **Live on Diana**.
-3. Keep the explorer tabs for the transaction hashes in the evidence file open.
+3. Open explorer tabs for the case A release (`0x1feed506…`), the case B escalation (`0x48ebd14d…`) and the case B release (`0x02b5dde0…`).
 4. Upload the video publicly, for example as an unlisted YouTube video, and add the URL to the README and the submission form.

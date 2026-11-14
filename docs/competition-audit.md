@@ -32,24 +32,34 @@ Q-Day) and a mechanism a judge can check (two ML-DSA-87 signatures verified on-c
   a 16:9 cover at `public/cover.png`, a 3-minute video script (the earlier script ran five minutes) and a Q-Day Drill
   plan.
 
-## Remaining blockers (human-only)
+## Testnet run (15 Nov 2026, 00:32–00:50 WAT)
 
-1. **Faucet.** It requires a signed-in QoreChain dashboard account. Claim it for the program address from
-   `pnpm testnet:status`, then run `pnpm testnet:e2e`. Until that happens, testnet evidence scores 0.
-2. **Q-Day Drill registration** closes on 17 Nov 2026 at 23:59 UTC.
-3. **Video.** Record it after the evidence is verified, and keep it under 3 minutes.
-4. **Submission form.** Choose **Encrypted Apps** and link the repo, the video and the cover.
+The faucet was claimed for the program account, and `pnpm testnet:e2e` completed on Diana with exit code 0:
+
+- 10 native transactions: key registration, KEM publication, role funding and scoped windows
+- 2 deployments
+- 11 case transactions across a normal case and a ghosted case
+- 5 rejected Q-Day attacks
+
+`pnpm verify:evidence` re-checks all of it against the live chain, and 49/49 checks pass. The README lists every hash.
+
+## Remaining (human-only)
+
+1. **Q-Day Drill registration** closes on 17 Nov 2026 at 23:59 UTC (18 Nov, 00:59 WAT).
+2. **Video.** Record it from `docs/demo-runbook.md`, keep it under 3 minutes, and add the link to the README.
+3. **Submission form.** Choose **Encrypted Apps** and link the repo, the video and `public/cover.png`.
+4. Optional: post the hashes under `#BuildBeforeQDay` for build-in-public credit.
 
 ## Competitive position
 
 The closest competitor seen is SealedMed Referral, which is also an ML-KEM encrypted app with live Diana hashes. Patch3Q
 beats it on three points. It has money at stake (escrow with dual-PQ release), it has an adversary built into the
-protocol (ghosting leads to permissionless escalation), and its anonymity goes further than encrypting content. That
-lead only counts once Patch3Q also has live hashes.
+protocol (ghosting leads to permissionless escalation), and its anonymity goes further than encrypting content. Patch3Q
+now has its own live Diana hashes plus an independent verifier.
 
 ## Score
 
-| Criterion | Before | Now, without testnet | With `testnet:e2e` + video |
+| Criterion | Before | Now (live on Diana) | With video + drill |
 | --- | --- | --- | --- |
 | Problem and story | 9/10 | 10/10 | 10/10 |
 | Encrypted-app fit | 14/15 | 15/15 | 15/15 |
@@ -57,8 +67,8 @@ lead only counts once Patch3Q also has live hashes.
 | Smart-contract core | 13/15 | 14/15 | 14/15 |
 | Threat model and honesty | 9/10 | 10/10 | 10/10 |
 | Tests and reproducibility | 9/10 | 10/10 | 10/10 |
-| Testnet evidence | 0/15 | 0/15 | 14/15 |
+| Testnet evidence | 0/15 | 14/15 | 15/15 |
 | Demo, customer and build-in-public | 2/10 | 4/10 | 8/10 |
-| **Total** | **70** | **77** | **95** |
+| **Total** | **70** | **91** | **96** |
 
-The top-quality award threshold is 70/100. Most of the remaining points come from the faucet claim and the video.
+The top-quality award threshold is 70/100. Most of the remaining points come from the video.

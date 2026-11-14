@@ -1,29 +1,36 @@
-# Testnet evidence checklist
+# Testnet evidence
 
-`pnpm testnet:e2e` writes every item below to `evidence/testnet.json`. Patch3Q must not be described as
-testnet-complete until that file reports `"status": "verified"` and each hash resolves on
-`https://dashboard.qorechain.io/explorer/tx/<hash>`.
+**Status: verified on Diana.** The run happened on 15 Nov 2026 between 00:32 and 00:50 WAT (23:32–23:50 UTC on 14 Nov),
+at EVM blocks 10101249–10101909. `pnpm verify:evidence` re-checks every row below against the live chain and writes
+[`evidence/verification.json`](../evidence/verification.json), which currently shows 49/49 checks passing. The
+hashes are listed in the README and in [`evidence/testnet.json`](../evidence/testnet.json).
 
-| Evidence | Produced by | JSON path |
-| --- | --- | --- |
-| Program, auditor and relayer accounts (qor1 + 0x) | `accounts` | `accounts.*` |
-| ML-DSA-87 key registration with proof of possession | bootstrap-exempt native tx | `native.pqc_<role>` |
-| ML-KEM-1024 recipient key publication | hybrid native tx | `native.kem_<role>` |
-| Role funding and scoped EVM authorization windows | hybrid native tx | `native.fund_<role>`, `native.window_<role>` |
-| MockTUSDT and registry deployment | EVM | `bountyTokenAddress`, `registryAddress`, `evm.*Deployment` |
-| Anonymous case anchored by a relayer | `submitAnonymousCase` | `transactions.caseSubmitted` |
-| Acknowledge, triage, fund, resolve | program | `transactions.{acknowledgement,triage,escrowFunding,resolution}` |
-| Dual-PQ release to the sealed payout address | `approveAnonymousSeverity` | `transactions.severityApprovalAndRelease` |
-| Ghosted case: permissionless escalation | `escalateMissedDeadline` | `transactions.deadlineEscalation` |
-| Reporter (per-case PQ key) + auditor release | `approveAnonymousSeverity` | `transactions.escalatedApprovalAndRelease` |
-| Redacted disclosure after embargo | `disclose` | `transactions.redactedDisclosure` |
-| ECDSA-only, redirected payout, relayer release, early escalation and out-of-scope window are all rejected | `eth_call` against Diana | `negativeTests.*` |
-| Live precompile self-test | `pnpm verify:precompile` | console output |
-| QCAI probe | `pnpm audit:qcai` | `evidence/qcai-audit.json`. The precompile returned empty data |
-| Demo video | manual | README link |
+| Evidence | Produced by | JSON path | Status |
+| --- | --- | --- | --- |
+| Program, auditor and relayer accounts (qor1 + 0x) | `accounts` | `accounts.*` | Verified |
+| ML-DSA-87 key registration with proof of possession | bootstrap-exempt native tx | `native.pqc_<role>` | Verified |
+| ML-KEM-1024 recipient key publication | hybrid native tx | `native.kem_<role>` | Verified |
+| Role funding and scoped EVM authorization windows | hybrid native tx | `native.fund_<role>`, `native.window_<role>` | Verified |
+| MockTUSDT and registry deployment | EVM | `bountyTokenAddress`, `registryAddress`, `evm.*Deployment` | Verified |
+| Anonymous case anchored by a relayer | `submitAnonymousCase` | `transactions.caseSubmitted` | Verified |
+| Acknowledge, triage, fund, resolve | program | `transactions.{acknowledgement,triage,escrowFunding,resolution}` | Verified |
+| Dual-PQ release to the sealed payout address | `approveAnonymousSeverity` | `transactions.severityApprovalAndRelease` | Verified |
+| Ghosted case: permissionless escalation | `escalateMissedDeadline` | `transactions.deadlineEscalation` | Verified |
+| Reporter (per-case PQ key) + auditor release | `approveAnonymousSeverity` | `transactions.escalatedApprovalAndRelease` | Verified |
+| Redacted disclosure after embargo | `discloseCase` | `transactions.redactedDisclosure` | Verified |
+| ECDSA-only, redirected payout, relayer release, early escalation and out-of-scope window are all rejected | `eth_call` reverts + a broadcast refused by the node | `negativeTests.*` | Verified |
+| Live precompile self-test | `pnpm verify:precompile` | `evidence/precompile-selftest.txt` | Verified |
+| QCAI probe | `pnpm audit:qcai` | `evidence/qcai-audit.json`. The precompile returned empty data | Unavailable on public RPC |
+| Demo video | manual | README link | Pending |
 
-## Blocker
+## Public artifacts
 
-The Diana faucet requires a signed-in QoreChain dashboard account. It allows one claim per 24 hours and gives 100 QOR.
-Claim it once for the **program** qor1 address printed by `pnpm testnet:status`, then rerun `pnpm testnet:e2e`. The
-script funds the other roles itself.
+- `evidence/testnet.json`: addresses, every transaction hash with its explorer link, case commitments and negative-test results.
+- `evidence/verification.json`: output of the independent on-chain verifier.
+- `evidence/cases/*.bundle.json`: the two sealed bundles, ciphertext only. Each hashes to its anchored `envelopeHash`.
+- `evidence/cases/case-a-normal.redacted.md`: the disclosed redacted report. It hashes to the on-chain `redactedReportHash`.
+- `evidence/precompile-selftest.txt`: the live ML-DSA-87 precompile self-test.
+- `evidence/browser-home.png`: the production build showing the **Live on Diana** badge.
+
+The private keys and decryption vaults are kept out of the repository (`.env.testnet` and `.patch3q-testnet/` are
+git-ignored).
