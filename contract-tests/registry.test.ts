@@ -342,6 +342,182 @@ describe("Patch3QRegistry foundation", () => {
     );
   });
 
+  describe("anonymous reporter mode", () => {
+    const reporterPqKey = "0xabcdef0102" as const;
+    const reporterPqKeyHash = keccak256(reporterPqKey);
+    const payoutSalt = keccak256(toBytes("sealed payout salt"));
+    const payoutTypehash = keccak256(toBytes(
+      "Patch3QPayoutCommitment(bytes32 caseIdHash,address payoutRecipient,bytes32 salt)",
+    ));
+    let payoutRecipient: `0x${string}`;
+    let payoutCommitment: `0x${string}`;
+
+    beforeEach(async () => {
+      const wallets = await viem.getWalletClients();
+      payoutRecipient = wallets[5].account.address;
+      payoutCommitment = keccak256(encodeAbiParameters(
+        [{ type: "bytes32" }, { type: "bytes32" }, { type: "address" }, { type: "bytes32" }],
+        [payoutTypehash, caseIdHash, payoutRecipient, payoutSalt],
+      ));
+    });
+
+    async function submitAnonymous(relayer = outsider) {
+      const block = await publicClient.getBlock();
+      const acknowledgeBy = block.timestamp + 86_400n;
+      await registry.write.submitAnonymousCase([
+        program.account.address,
+        auditor.account.address,
+        caseIdHash,
+        envelopeHash,
+        contentCommitment,
+        programRef,
+        acknowledgeBy,
+        block.timestamp + 7n * 86_400n,
+        block.timestamp + 30n * 86_400n,
+        reporterPqKeyHash,
+        payoutCommitment,
+      ], { account: relayer.account });
+      return { acknowledgeBy };
+    }
+
+    async function fund(amount = 2_000_000_000n) {
+      await token.write.mint([program.account.address, amount]);
+      await token.write.approve([registry.address, amount], { account: program.account });
+      await registry.write.fundBounty([caseIdHash, amount], { account: program.account });
+      return amount;
+    }
+
+    function anonymousApprove(
+      recipient: `0x${string}`,
+      payout: bigint,
+      key: `0x${string}` = "0x",
+      salt: `0x${string}` = payoutSalt,
+    ) {
+      return registry.write.approveAnonymousSeverity([
+        caseIdHash, 5, payout, rationaleHash, recipient, salt, key, "0x5678", "0x1234",
+      ], { account: auditor.account });
+    }
+
+    it("anchors without any reporter account and needs no registered reporter key", async () => {
+      await submitAnonymous();
+      const state = await registry.read.caseState([caseIdHash]);
+      assert.equal(state[7], "0x0000000000000000000000000000000000000000");
+      const privacy = await registry.read.privacyState([caseIdHash]);
+      assert.equal(privacy[0], true);
+      assert.equal(privacy[1].toLowerCase(), outsider.account.address.toLowerCase());
+      assert.equal(privacy[2], reporterPqKeyHash);
+      assert.equal(privacy[3], payoutCommitment);
+    });
+
+    it("requires a reporter key commitment and a payout commitment", async () => {
+      const block = await publicClient.getBlock();
+      await viem.assertions.revertWithCustomError(
+        registry.write.submitAnonymousCase([
+          program.account.address, auditor.account.address, caseIdHash, envelopeHash, contentCommitment,
+          programRef, block.timestamp + 100n, block.timestamp + 200n, block.timestamp + 300n,
+          reporterPqKeyHash, zeroHash,
+        ], { account: outsider.account }),
+        registry,
+        "InvalidHash",
+      );
+    });
+
+    it("pays the sealed payout address, never the relayer", async () => {
+      await submitAnonymous();
+      await registry.write.acknowledgeCase([caseIdHash], { account: program.account });
+      await registry.write.triageCase([caseIdHash], { account: program.account });
+      const amount = await fund();
+      await anonymousApprove(payoutRecipient, amount);
+      assert.equal(await token.read.balanceOf([payoutRecipient]), amount);
+      assert.equal(await token.read.balanceOf([outsider.account.address]), 0n);
+    });
+
+    it("stops the program and auditor from redirecting the bounty", async () => {
+      await submitAnonymous();
+      await registry.write.acknowledgeCase([caseIdHash], { account: program.account });
+      await registry.write.triageCase([caseIdHash], { account: program.account });
+      const amount = await fund();
+      await viem.assertions.revertWithCustomError(
+        anonymousApprove(auditor.account.address, amount),
+        registry,
+        "PayoutCommitmentMismatch",
+      );
+      await viem.assertions.revertWithCustomError(
+        anonymousApprove(payoutRecipient, amount, "0x", keccak256(toBytes("guessed salt"))),
+        registry,
+        "PayoutCommitmentMismatch",
+      );
+    });
+
+    it("lets the per-case reporter key co-sign after a ghosted deadline", async () => {
+      const { acknowledgeBy } = await submitAnonymous();
+      const amount = await fund();
+      const testClient = await viem.getTestClient();
+      await testClient.setNextBlockTimestamp({ timestamp: acknowledgeBy + 1n });
+      await testClient.mine({ blocks: 1 });
+      await registry.write.escalateMissedDeadline([caseIdHash], { account: outsider.account });
+
+      await registry.write.setPqKeySignatureValid([reporterPqKey, true]);
+      await registry.write.setPqKeySignatureValid(["0x22222222", false]);
+      await registry.write.setPqKeySignatureValid(["0x12345678", true]);
+      await viem.assertions.revertWithCustomError(
+        anonymousApprove(payoutRecipient, amount, "0x22222222"),
+        registry,
+        "ReporterPqKeyChanged",
+      );
+      await anonymousApprove(payoutRecipient, amount, reporterPqKey);
+      assert.equal(await token.read.balanceOf([payoutRecipient]), amount);
+    });
+
+    it("keeps account and anonymous approval paths separate", async () => {
+      await submitAnonymous();
+      await registry.write.acknowledgeCase([caseIdHash], { account: program.account });
+      await registry.write.triageCase([caseIdHash], { account: program.account });
+      const amount = await fund();
+      await viem.assertions.revertWithCustomError(
+        registry.write.approveSeverity([caseIdHash, 5, amount, rationaleHash, "0x5678", "0x1234"], {
+          account: auditor.account,
+        }),
+        registry,
+        "AnonymousCaseRequired",
+      );
+    });
+
+    it("rejects the anonymous path for an account-based case", async () => {
+      const amount = await triageAndFund();
+      await viem.assertions.revertWithCustomError(
+        anonymousApprove(payoutRecipient, amount),
+        registry,
+        "AccountCaseRequired",
+      );
+    });
+
+    it("binds the payout recipient into the replay-protected anonymous digest", async () => {
+      await submitAnonymous();
+      const typehash = keccak256(toBytes(
+        "Patch3QAnonymousSeverityApproval(uint256 chainId,address registry,bytes32 caseIdHash,bytes32 envelopeHash,bytes32 contentCommitment,uint8 severity,uint256 payoutAmount,bytes32 rationaleHash,address payoutRecipient)",
+      ));
+      const expected = keccak256(encodeAbiParameters(
+        [
+          { type: "bytes32" }, { type: "uint256" }, { type: "address" }, { type: "bytes32" }, { type: "bytes32" },
+          { type: "bytes32" }, { type: "uint8" }, { type: "uint256" }, { type: "bytes32" }, { type: "address" },
+        ],
+        [
+          typehash, BigInt(await publicClient.getChainId()), registry.address, caseIdHash, envelopeHash,
+          contentCommitment, 5, 1_000n, rationaleHash, payoutRecipient,
+        ],
+      ));
+      assert.equal(
+        await registry.read.anonymousApprovalDigest([caseIdHash, 5, 1_000n, rationaleHash, payoutRecipient]),
+        expected,
+      );
+      assert.equal(
+        await registry.read.payoutCommitmentOf([caseIdHash, payoutRecipient, payoutSalt]),
+        payoutCommitment,
+      );
+    });
+  });
+
   it("rejects fee-on-transfer tokens instead of creating unbacked escrow", async () => {
     const feeToken = await viem.deployContract("FeeOnTransferToken");
     const strictRegistry = await viem.deployContract("Patch3QRegistryHarness", [feeToken.address]);

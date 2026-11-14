@@ -35,6 +35,12 @@ contract Patch3QRegistry {
     bytes32 public constant APPROVAL_TYPEHASH = keccak256(
         "Patch3QSeverityApproval(uint256 chainId,address registry,bytes32 caseIdHash,bytes32 envelopeHash,bytes32 contentCommitment,uint8 severity,uint256 payoutAmount,bytes32 rationaleHash)"
     );
+    bytes32 public constant ANONYMOUS_APPROVAL_TYPEHASH = keccak256(
+        "Patch3QAnonymousSeverityApproval(uint256 chainId,address registry,bytes32 caseIdHash,bytes32 envelopeHash,bytes32 contentCommitment,uint8 severity,uint256 payoutAmount,bytes32 rationaleHash,address payoutRecipient)"
+    );
+    bytes32 public constant PAYOUT_COMMITMENT_TYPEHASH = keccak256(
+        "Patch3QPayoutCommitment(bytes32 caseIdHash,address payoutRecipient,bytes32 salt)"
+    );
 
     struct CaseReceipt {
         bool exists;
@@ -63,6 +69,12 @@ contract Patch3QRegistry {
         Severity severity;
         Status status;
         uint8 slaBreaches;
+        // Anonymous cases have no reporter account: `reporter` stays zero, `relayer` is whoever anchored the
+        // receipt, the reporter's escalation authority is a per-case ML-DSA-87 key known only by its hash, and
+        // the payout address stays hidden behind `payoutCommitment` until release.
+        bool anonymousReporter;
+        address relayer;
+        bytes32 payoutCommitment;
     }
 
     mapping(bytes32 caseIdHash => CaseReceipt receipt) public cases;
@@ -95,6 +107,9 @@ contract Patch3QRegistry {
     error Reentrancy();
     error TokenBalanceMismatch();
     error TokenTransferFailed();
+    error AnonymousCaseRequired();
+    error AccountCaseRequired();
+    error PayoutCommitmentMismatch();
 
     event CaseSubmitted(
         bytes32 indexed caseIdHash,
@@ -110,6 +125,12 @@ contract Patch3QRegistry {
         uint64 acknowledgeBy,
         uint64 triageBy,
         uint64 embargoUntil
+    );
+    event AnonymousCaseSubmitted(
+        bytes32 indexed caseIdHash,
+        address indexed relayer,
+        bytes32 reporterPqKeyHash,
+        bytes32 payoutCommitment
     );
     event DeadlineBreached(bytes32 indexed caseIdHash, uint8 indexed breach, uint64 deadline, uint64 recordedAt);
     event CaseEscalated(bytes32 indexed caseIdHash, uint8 indexed breach, uint64 timestamp);
@@ -169,6 +190,61 @@ contract Patch3QRegistry {
         uint64 triageBy,
         uint64 embargoUntil
     ) external {
+        CaseReceipt storage receipt = _storeCase(
+            program, auditor, caseIdHash, envelopeHash, contentCommitment, programRef,
+            acknowledgeBy, triageBy, embargoUntil
+        );
+        receipt.reporter = msg.sender;
+        receipt.reporterPqKeyHash = keccak256(_registeredPqKey(msg.sender));
+        _emitSubmitted(caseIdHash, receipt);
+    }
+
+    /// @notice Anchors a case for a reporter who has no on-chain account.
+    /// @dev The caller only relays public commitments. The reporter's per-case ML-DSA-87 public key is never
+    ///      registered or revealed unless the case escalates, and the payout address is revealed only at release.
+    function submitAnonymousCase(
+        address program,
+        address auditor,
+        bytes32 caseIdHash,
+        bytes32 envelopeHash,
+        bytes32 contentCommitment,
+        bytes32 programRef,
+        uint64 acknowledgeBy,
+        uint64 triageBy,
+        uint64 embargoUntil,
+        bytes32 reporterPqKeyHash,
+        bytes32 payoutCommitment
+    ) external {
+        if (reporterPqKeyHash == bytes32(0) || payoutCommitment == bytes32(0)) revert InvalidHash();
+        CaseReceipt storage receipt = _storeCase(
+            program, auditor, caseIdHash, envelopeHash, contentCommitment, programRef,
+            acknowledgeBy, triageBy, embargoUntil
+        );
+        receipt.anonymousReporter = true;
+        receipt.relayer = msg.sender;
+        receipt.reporterPqKeyHash = reporterPqKeyHash;
+        receipt.payoutCommitment = payoutCommitment;
+        _emitSubmitted(caseIdHash, receipt);
+        emit AnonymousCaseSubmitted(caseIdHash, msg.sender, reporterPqKeyHash, payoutCommitment);
+    }
+
+    function payoutCommitmentOf(bytes32 caseIdHash, address payoutRecipient, bytes32 salt)
+        public pure returns (bytes32)
+    {
+        return keccak256(abi.encode(PAYOUT_COMMITMENT_TYPEHASH, caseIdHash, payoutRecipient, salt));
+    }
+
+    function _storeCase(
+        address program,
+        address auditor,
+        bytes32 caseIdHash,
+        bytes32 envelopeHash,
+        bytes32 contentCommitment,
+        bytes32 programRef,
+        uint64 acknowledgeBy,
+        uint64 triageBy,
+        uint64 embargoUntil
+    ) private returns (CaseReceipt storage receipt) {
         if (program == address(0) || auditor == address(0)) revert InvalidAddress();
         if (program == auditor || program == msg.sender || auditor == msg.sender) revert RolesMustBeDistinct();
         if (cases[caseIdHash].exists) revert CaseAlreadyExists();
@@ -180,34 +256,28 @@ contract Patch3QRegistry {
             embargoUntil < triageBy
         ) revert InvalidDeadline();
 
-        bytes memory reporterPqKey = _registeredPqKey(msg.sender);
-        bytes memory programPqKey = _registeredPqKey(program);
-        bytes memory auditorPqKey = _registeredPqKey(auditor);
-        bytes32 reporterPqKeyHash = keccak256(reporterPqKey);
-        bytes32 programPqKeyHash = keccak256(programPqKey);
-        bytes32 auditorPqKeyHash = keccak256(auditorPqKey);
-
-        CaseReceipt storage receipt = cases[caseIdHash];
+        receipt = cases[caseIdHash];
         receipt.exists = true;
-        receipt.reporter = msg.sender;
         receipt.program = program;
         receipt.auditor = auditor;
         receipt.envelopeHash = envelopeHash;
         receipt.contentCommitment = contentCommitment;
-        receipt.reporterPqKeyHash = reporterPqKeyHash;
-        receipt.programPqKeyHash = programPqKeyHash;
-        receipt.auditorPqKeyHash = auditorPqKeyHash;
+        receipt.programPqKeyHash = keccak256(_registeredPqKey(program));
+        receipt.auditorPqKeyHash = keccak256(_registeredPqKey(auditor));
         receipt.programRef = programRef;
         receipt.submittedAt = uint64(block.timestamp);
         receipt.acknowledgeBy = acknowledgeBy;
         receipt.triageBy = triageBy;
         receipt.embargoUntil = embargoUntil;
         receipt.status = Status.Submitted;
+    }
 
+    function _emitSubmitted(bytes32 caseIdHash, CaseReceipt storage receipt) private {
         emit CaseSubmitted(
-            caseIdHash, msg.sender, program, auditor, envelopeHash, contentCommitment,
-            reporterPqKeyHash, programPqKeyHash, auditorPqKeyHash,
-            programRef, acknowledgeBy, triageBy, embargoUntil
+            caseIdHash, receipt.reporter, receipt.program, receipt.auditor, receipt.envelopeHash,
+            receipt.contentCommitment, receipt.reporterPqKeyHash, receipt.programPqKeyHash,
+            receipt.auditorPqKeyHash, receipt.programRef, receipt.acknowledgeBy, receipt.triageBy,
+            receipt.embargoUntil
         );
     }
 
@@ -282,6 +352,16 @@ contract Patch3QRegistry {
             receipt.approvalHash,
             receipt.redactedReportHash
         );
+    }
+
+    function privacyState(bytes32 caseIdHash) external view existing(caseIdHash) returns (
+        bool anonymousReporter,
+        address relayer,
+        bytes32 reporterPqKeyHash,
+        bytes32 payoutCommitment
+    ) {
+        CaseReceipt storage receipt = cases[caseIdHash];
+        return (receipt.anonymousReporter, receipt.relayer, receipt.reporterPqKeyHash, receipt.payoutCommitment);
     }
 
     function acknowledgeCase(bytes32 caseIdHash) external existing(caseIdHash) onlyProgram(caseIdHash) {
@@ -362,6 +442,87 @@ contract Patch3QRegistry {
         bytes calldata auditorPqSignature
     ) external existing(caseIdHash) onlyAuditor(caseIdHash) nonReentrant {
         CaseReceipt storage receipt = cases[caseIdHash];
+        if (receipt.anonymousReporter) revert AnonymousCaseRequired();
+        _checkApprovalInputs(receipt, severity, payoutAmount, rationaleHash, participantPqSignature, auditorPqSignature);
+
+        bytes memory participantPqKey;
+        if (receipt.status == Status.Escalated) {
+            participantPqKey = _registeredPqKey(receipt.reporter);
+            if (keccak256(participantPqKey) != receipt.reporterPqKeyHash) revert ReporterPqKeyChanged();
+        } else {
+            participantPqKey = _programPqKey(receipt);
+        }
+
+        bytes32 digest = approvalDigest(caseIdHash, severity, payoutAmount, rationaleHash);
+        _verifyApprovalSignatures(receipt, digest, participantPqKey, participantPqSignature, auditorPqSignature);
+        _release(caseIdHash, receipt, severity, payoutAmount, rationaleHash, digest, receipt.reporter);
+    }
+
+    function anonymousApprovalDigest(
+        bytes32 caseIdHash,
+        Severity severity,
+        uint256 payoutAmount,
+        bytes32 rationaleHash,
+        address payoutRecipient
+    ) public view existing(caseIdHash) returns (bytes32) {
+        CaseReceipt storage receipt = cases[caseIdHash];
+        return keccak256(abi.encode(
+            ANONYMOUS_APPROVAL_TYPEHASH,
+            block.chainid,
+            address(this),
+            caseIdHash,
+            receipt.envelopeHash,
+            receipt.contentCommitment,
+            uint8(severity),
+            payoutAmount,
+            rationaleHash,
+            payoutRecipient
+        ));
+    }
+
+    /// @notice Releases an anonymous case's bounty to the payout address the reporter sealed at submission.
+    /// @dev The payout address and salt must open the reporter's commitment, so neither signer can redirect funds.
+    ///      After escalation the reporter signs with the per-case key whose hash was anchored at submission.
+    function approveAnonymousSeverity(
+        bytes32 caseIdHash,
+        Severity severity,
+        uint256 payoutAmount,
+        bytes32 rationaleHash,
+        address payoutRecipient,
+        bytes32 payoutSalt,
+        bytes calldata reporterPqKey,
+        bytes calldata participantPqSignature,
+        bytes calldata auditorPqSignature
+    ) external existing(caseIdHash) onlyAuditor(caseIdHash) nonReentrant {
+        CaseReceipt storage receipt = cases[caseIdHash];
+        if (!receipt.anonymousReporter) revert AccountCaseRequired();
+        _checkApprovalInputs(receipt, severity, payoutAmount, rationaleHash, participantPqSignature, auditorPqSignature);
+        if (payoutRecipient == address(0)) revert InvalidAddress();
+        if (payoutCommitmentOf(caseIdHash, payoutRecipient, payoutSalt) != receipt.payoutCommitment) {
+            revert PayoutCommitmentMismatch();
+        }
+
+        bytes memory participantPqKey;
+        if (receipt.status == Status.Escalated) {
+            if (keccak256(reporterPqKey) != receipt.reporterPqKeyHash) revert ReporterPqKeyChanged();
+            participantPqKey = reporterPqKey;
+        } else {
+            participantPqKey = _programPqKey(receipt);
+        }
+
+        bytes32 digest = anonymousApprovalDigest(caseIdHash, severity, payoutAmount, rationaleHash, payoutRecipient);
+        _verifyApprovalSignatures(receipt, digest, participantPqKey, participantPqSignature, auditorPqSignature);
+        _release(caseIdHash, receipt, severity, payoutAmount, rationaleHash, digest, payoutRecipient);
+    }
+
+    function _checkApprovalInputs(
+        CaseReceipt storage receipt,
+        Severity severity,
+        uint256 payoutAmount,
+        bytes32 rationaleHash,
+        bytes calldata participantPqSignature,
+        bytes calldata auditorPqSignature
+    ) private view {
         if (
             receipt.status != Status.Triaged && receipt.status != Status.Resolved &&
             receipt.status != Status.Escalated
@@ -374,32 +535,45 @@ contract Patch3QRegistry {
             rationaleHash == bytes32(0) || participantPqSignature.length == 0 ||
             auditorPqSignature.length == 0
         ) revert InvalidHash();
+    }
 
+    function _programPqKey(CaseReceipt storage receipt) private view returns (bytes memory programPqKey) {
+        programPqKey = _registeredPqKey(receipt.program);
+        if (keccak256(programPqKey) != receipt.programPqKeyHash) revert ProgramPqKeyChanged();
+    }
+
+    function _verifyApprovalSignatures(
+        CaseReceipt storage receipt,
+        bytes32 digest,
+        bytes memory participantPqKey,
+        bytes calldata participantPqSignature,
+        bytes calldata auditorPqSignature
+    ) private view {
         bytes memory auditorPqKey = _registeredPqKey(receipt.auditor);
         if (keccak256(auditorPqKey) != receipt.auditorPqKeyHash) revert AuditorPqKeyChanged();
-        bytes memory participantPqKey;
-        if (receipt.status == Status.Escalated) {
-            participantPqKey = _registeredPqKey(receipt.reporter);
-            if (keccak256(participantPqKey) != receipt.reporterPqKeyHash) revert ReporterPqKeyChanged();
-        } else {
-            participantPqKey = _registeredPqKey(receipt.program);
-            if (keccak256(participantPqKey) != receipt.programPqKeyHash) revert ProgramPqKeyChanged();
-        }
-
-        bytes32 digest = approvalDigest(caseIdHash, severity, payoutAmount, rationaleHash);
         bytes memory message = bytes.concat(QORESIGN_MESSAGE_PREFIX, abi.encodePacked(digest));
         if (!_verifyPq(participantPqKey, participantPqSignature, message)) revert InvalidPqSignature();
         if (!_verifyPq(auditorPqKey, auditorPqSignature, message)) revert InvalidPqSignature();
+    }
 
+    function _release(
+        bytes32 caseIdHash,
+        CaseReceipt storage receipt,
+        Severity severity,
+        uint256 payoutAmount,
+        bytes32 rationaleHash,
+        bytes32 digest,
+        address payoutRecipient
+    ) private {
         receipt.approvalHash = digest;
         receipt.severity = severity;
         receipt.payoutAmount = payoutAmount;
         receipt.approvedAt = uint64(block.timestamp);
         receipt.escrowedAmount -= payoutAmount;
-        _safeTransfer(bountyToken, receipt.reporter, payoutAmount);
+        _safeTransfer(bountyToken, payoutRecipient, payoutAmount);
 
         emit SeverityApproved(caseIdHash, severity, payoutAmount, digest, rationaleHash, uint64(block.timestamp));
-        emit BountyReleased(caseIdHash, receipt.reporter, bountyToken, payoutAmount);
+        emit BountyReleased(caseIdHash, payoutRecipient, bountyToken, payoutAmount);
     }
 
     function discloseCase(bytes32 caseIdHash, bytes32 redactedReportHash) external existing(caseIdHash) {
