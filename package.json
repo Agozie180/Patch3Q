@@ -17,6 +17,7 @@
     "testnet:accounts": "tsx scripts/testnet-e2e.ts accounts",
     "testnet:status": "tsx scripts/testnet-e2e.ts status",
     "testnet:e2e": "pnpm compile:contract && tsx scripts/testnet-e2e.ts run",
+    "verify:evidence": "tsx scripts/verify-testnet-evidence.ts",
     "audit:qcai": "pnpm compile:contract && node scripts/run-qcai-audit.mjs",
     "smoke:browser": "node scripts/browser-smoke.mjs",
     "verify:precompile": "node scripts/verify-pqc-precompile.mjs",
