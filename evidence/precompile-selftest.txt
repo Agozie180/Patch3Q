@@ -1,0 +1,3 @@
+# pnpm verify:precompile
+# run at 2026-11-14T23:44:26Z, Diana EVM block 10101718
+QoreChain Diana verified the exact QoreSign domain used by Patch3Q approvals.
