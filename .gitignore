@@ -10,3 +10,5 @@ hardhat-cache/
 *.patch3q.json
 coverage/
 *.log
+.env.testnet
+.patch3q-testnet/

@@ -87,6 +87,19 @@ async function severityApprovalDigest(
   ));
 }
 
+/** Keys of a wallet whose ML-DSA-87 key is registered on QoreChain, e.g. derived from a QRC1 recovery code. */
+export interface ApprovalSignerKeys {
+  role: ApprovalAuthority["role"];
+  classicalPrivateKey: Uint8Array;
+  pqKey: { publicKey: Uint8Array; secretKey: Uint8Array };
+}
+
+function approvalKeysFromSigner(keys: ApprovalSignerKeys) {
+  const classicalKey = classicalKeyFromPrivate(keys.classicalPrivateKey, "eth_secp256k1");
+  const signer = addressFromPublicKey(classicalKey.publicKey, classicalKey.type);
+  return { classicalKey, pqKey: keys.pqKey, signer };
+}
+
 function approvalKeysFromVault(vault: Patch3QApprovalVault) {
   const classicalPrivateKey = fromBase64Url(vault.classicalPrivateKey);
   const pqSeed = fromBase64Url(vault.pqSeed);
@@ -172,7 +185,10 @@ export async function resolveApprovalAuthority(
 export async function createSeverityApproval(options: {
   bundle: Patch3QBundle;
   participantRole: "reporter" | "program";
-  vaults: { participant: Patch3QApprovalVault; auditor: Patch3QApprovalVault };
+  vaults: {
+    participant: Patch3QApprovalVault | ApprovalSignerKeys;
+    auditor: Patch3QApprovalVault | ApprovalSignerKeys;
+  };
   registryAddress: `0x${string}`;
   severity: Severity;
   payoutAtomic: string;
@@ -184,7 +200,8 @@ export async function createSeverityApproval(options: {
   const { bundle, vaults } = options;
   const authorities = bundle.approvalAuthorities;
   if (!authorities) throw new Error("This bundle does not bind its approval authorities.");
-  if (vaults.participant.caseId !== bundle.caseId || vaults.auditor.caseId !== bundle.caseId) {
+  const caseOf = (entry: Patch3QApprovalVault | ApprovalSignerKeys) => "caseId" in entry ? entry.caseId : bundle.caseId;
+  if (caseOf(vaults.participant) !== bundle.caseId || caseOf(vaults.auditor) !== bundle.caseId) {
     throw new Error("An approval vault belongs to a different case.");
   }
   if (vaults.participant.role !== options.participantRole || vaults.auditor.role !== "auditor") {
@@ -200,8 +217,10 @@ export async function createSeverityApproval(options: {
   const rationale = options.rationale.trim();
   if (rationale.length < 12) throw new Error("Add a short severity rationale before approving payment.");
 
-  const participantKeys = approvalKeysFromVault(vaults.participant);
-  const auditorKeys = approvalKeysFromVault(vaults.auditor);
+  const keysOf = (entry: Patch3QApprovalVault | ApprovalSignerKeys) =>
+    "pqSeed" in entry ? approvalKeysFromVault(entry) : approvalKeysFromSigner(entry);
+  const participantKeys = keysOf(vaults.participant);
+  const auditorKeys = keysOf(vaults.auditor);
   for (const [role, keys] of [[options.participantRole, participantKeys], ["auditor", auditorKeys]] as const) {
     const authority = authorities[role];
     if (keys.signer.bech32 !== authority.signer) {
