@@ -1,20 +1,89 @@
-# Patch3Q
+# Patch3Q: anonymous bug bounties that survive Q-Day
 
-![Patch3Q — anonymous, post-quantum bug-bounty escrow on QoreChain](public/cover.png)
+[![CI](https://github.com/Agozie180/Patch3Q/actions/workflows/ci.yml/badge.svg)](https://github.com/Agozie180/Patch3Q/actions/workflows/ci.yml)
+![Live on Diana](https://img.shields.io/badge/QoreChain%20Diana-live-2ea44f)
+![On-chain checks](https://img.shields.io/badge/verify%3Aevidence-49%2F49-2ea44f)
+![Tests](https://img.shields.io/badge/tests-35%20crypto%20%2B%2025%20contract-2ea44f)
+![ML-KEM-1024](https://img.shields.io/badge/ML--KEM-1024-0b7285)
+![ML-DSA-87](https://img.shields.io/badge/ML--DSA-87%20%C3%97%202%20on--chain-0b7285)
+![License](https://img.shields.io/badge/license-MIT-blue)
 
-**Report a vulnerability anonymously. Get paid only when two post-quantum signatures agree. If the vendor ghosts you, the chain takes their vote away.**
+![Patch3Q: anonymous, post-quantum bug-bounty escrow on QoreChain](public/cover.png)
 
-Patch3Q is a post-quantum bug-bounty escrow for QoreChain. The researcher seals the report in the browser with
-ML-KEM-1024. The chain sees only hashes, deadlines and money. Every payout must carry two ML-DSA-87 signatures, and
-the registry verifies them through QoreChain's `0x…0A01` PQC precompile before any token moves.
+> **Report a vulnerability anonymously. Get paid only when two post-quantum signatures agree. If the vendor ghosts
+> you, the chain takes their vote away.**
 
-| In 10 seconds | |
+| Links | |
 | --- | --- |
-| Who it is for | Security researchers and the projects that need their reports before Q-Day |
-| What is new | An anonymous reporter: no wallet, no on-chain identity, payout address sealed inside the ciphertext |
-| Why post-quantum matters | An attacker holding every ECDSA key still cannot decrypt the report or release the escrow |
-| Proof | ML-KEM-1024 envelope · 2 × ML-DSA-87 verified on-chain · 0 identity on-chain |
-| Category | **Encrypted Apps** (also eligible for Best AI-Native; see [`AI_USAGE.md`](AI_USAGE.md)) |
+| Event | [Build Before Q-Day: QoreChain Developer Fest](https://build.qorechain.io/) |
+| Category bounty | **Encrypted Apps** (1st $1,500 · 2nd $750) |
+| Special awards targeted | Q-Day Survivor (5 × $200) · Best AI-Native Build ($500, [`AI_USAGE.md`](AI_USAGE.md)) · People's Choice · Regional: Middle East & Africa ($200) · Top-Quality ($250) |
+| Live contract | [`Patch3QRegistry` on Diana](https://dashboard.qorechain.io/explorer/address/0xb6b92510cd9ca5a1e7eac761243b51d73f619962) |
+| Every transaction | [`evidence/testnet.json`](evidence/testnet.json) · independent check [`evidence/verification.json`](evidence/verification.json) |
+| Measured numbers | [`evidence/measurements.json`](evidence/measurements.json) |
+| Demo video (≤ 3 min) | *Added after recording*; script in [`docs/demo-runbook.md`](docs/demo-runbook.md) |
+| Hosted demo | *Added after publishing*; locally `pnpm dev` runs in demo mode with no wallet |
+
+Bug-bounty reports are the most valuable secrets in crypto. Today they travel by email and web forms that leak the
+researcher's identity, and a vendor can simply never answer. On Q-Day, every ECDSA key that guards those payouts
+breaks. In Patch3Q, the researcher seals the report in the browser with **ML-KEM-1024** to keys registered on
+QoreChain. The chain holds only hashes, deadlines and escrowed money, and a payout moves only when **two ML-DSA-87
+signatures** pass QoreChain's `0x…0A01` precompile **inside the contract**. A vendor that misses its deadline loses
+its vote for good.
+
+## Encrypted Apps requirements, with evidence
+
+| Requirement | Where Patch3Q meets it | Proof |
+| --- | --- | --- |
+| ML-KEM-1024 encryption | QoreSeal multi-recipient envelope for the maintainer and the auditor (`src/lib/patch3q.ts`) | Both bundles in [`evidence/cases/`](evidence/cases) were opened by both recipients during the live run |
+| Registered recipient keys | Recipients are qor1 addresses. Their ML-KEM-1024 keys are resolved from the chain's PQC key registry, never pasted in | `native.kem_program` and `native.kem_auditor` in [`evidence/testnet.json`](evidence/testnet.json) |
+| ML-DSA key binding | Each ML-KEM key is published by a hybrid-signed transaction from an account with a registered ML-DSA-87 key (`pqc_hybrid_verify: verified`). The bundle authenticates each signer's ML-DSA key fingerprint. The registry snapshots those keys at submission and verifies payouts against them | `native.pqc_*` transactions and the release transactions `0x1feed506…` and `0x02b5dde0…` |
+| Client-side encryption and decryption | Sealing and opening run in the browser and in the same library from Node. There is no server and no plaintext upload path | Test `exports only ciphertext and public metadata, never report or PoC plaintext` |
+
+## The thesis, enforced (not asserted)
+
+**An attacker holding every ECDSA key gets nothing: no plaintext, no payout, no identity.**
+
+| The system lets... | The system structurally prevents... | Enforced by | Proven by |
+| --- | --- | --- | --- |
+| the maintainer and the auditor read the report | anyone else, including ECDSA key holders, reading it | ML-KEM-1024 envelope + authenticated AAD | `rejects a key that is not a recipient`, `rejects a one-byte ciphertext mutation` |
+| two named PQ parties release the escrow | a payout approved with ECDSA only | `pqcVerify` precompile, called twice in `approveAnonymousSeverity` | `requires both independent PQ signatures`. Live: `InvalidPqSignature` |
+| the release to pay the sealed address | anyone redirecting the bounty, even with both signatures | `payoutCommitment` opened at release, with the recipient inside the signed digest | `stops the program and auditor from redirecting the bounty`. Live: `PayoutCommitmentMismatch` |
+| a relayer anchor the case for an anonymous reporter | the relayer releasing funds or voting | `onlyAuditor` on release; the relayer is stored only as `relayer` and holds no role | `pays the sealed payout address, never the relayer`. Live: `NotAuditor` |
+| anyone escalate a missed deadline | early escalation, or a late vendor undoing it | `escalateMissedDeadline` deadline checks; `Escalated` is terminal for the program's vote | `cannot escalate while the active deadline is still open`, `does not let a late program undo acknowledgement escalation`. Live: `DeadlineNotMissed` |
+| the auditor's EVM window call the registry | a stolen auditor key calling any other contract | A scoped EVM authorization window (`allowedTargets = [registry]`) | Live: the node refuses the transaction |
+| the chain see deadlines and amounts | the chain learning who reported, where the payout goes before release, or how large the PoC is | Relayer anchoring, per-case key hash, payout commitment, size buckets | `anchors without any reporter account…`, `pads every report to a fixed size bucket…` |
+
+## How it works
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor R as Researcher (browser, no wallet)
+    participant L as Relayer
+    participant C as Patch3QRegistry (Diana)
+    participant P as Program
+    participant A as Auditor
+    participant Q as PQC precompile 0x0A01
+    R->>R: pad to bucket, salt, ML-KEM-1024 seal to the program and the auditor (+ sealed payout address)
+    R->>L: ciphertext + commitments (no identity)
+    L->>C: submitAnonymousCase(hashes, deadlines, reporterPqKeyHash, payoutCommitment)
+    P->>C: acknowledge, triage, fund escrow, resolve
+    P-->>A: ML-DSA-87 approval of (severity, amount, salted rationale, payout recipient)
+    A->>C: approveAnonymousSeverity(..., recipient, salt, sigP, sigA)
+    C->>Q: verify sigP (program key snapshot)
+    C->>Q: verify sigA (auditor key snapshot)
+    C->>R: tUSDT to the sealed payout address
+```
+
+```mermaid
+flowchart LR
+    S[Submitted] -->|program acks in time| K[Acknowledged] --> T[Triaged] --> V[Resolved] --> D[Disclosed]
+    S -->|deadline missed: anyone calls escalateMissedDeadline| E[Escalated]
+    K -->|triage deadline missed| E
+    E -->|reporter per-case PQ key + auditor sign| X[Bounty released]
+    V -->|program + auditor sign| X
+```
 
 ## What privacy you get
 
@@ -26,28 +95,12 @@ researcher as well.
 | Report, PoC, rationale | QoreSeal envelope (ML-KEM-1024) | Maintainer and auditor only |
 | Researcher identity | Nowhere. A relayer anchors the case | Nobody |
 | Researcher authority | `keccak256` of a per-case ML-DSA-87 key | Whoever holds the per-case vault |
-| Payout address | Sealed in the envelope; chain stores `keccak256(typehash, case, recipient, salt)` | Revealed only by the release transaction |
-| Report size | Padded to 16 KiB / 64 KiB / 256 KiB / 1 MiB buckets | Bucket only |
-| Severity rationale | Salted hash `keccak256(salt ‖ rationale)` | Signers only; cannot be guessed from common wording |
+| Payout address | Sealed in the envelope; the chain stores `keccak256(typehash, case, recipient, salt)` | Revealed only by the release transaction |
+| Report size | Padded to 16 KiB / 64 KiB / 256 KiB / 1 MiB buckets | Bucket only. Both live bundles are exactly 54,971 bytes |
+| Severity rationale | Salted hash `keccak256(salt ‖ rationale)` | Signers only; common wording cannot be guessed from the hash |
 | Deadlines, amounts, lifecycle | Public on-chain | Everyone, by design. This is what makes ghosting provable |
 
 Account mode is still available for researchers who want public credit.
-
-## The story the contract enforces
-
-1. **Seal.** The browser pads the report to a size bucket, salts it, and encrypts one envelope for the maintainer and an
-   independent auditor using keys registered on QoreChain's PQC key registry.
-2. **Anchor.** A relayer calls `submitAnonymousCase`. The registry snapshots the program and auditor ML-DSA-87 keys,
-   stores the reporter's per-case key hash and the sealed payout commitment, and starts the acknowledge/triage clocks.
-3. **Respond.** The program acknowledges, triages and funds the escrow in tUSDT.
-4. **Ghosted?** Anyone can call `escalateMissedDeadline`. The program loses its vote for good, and the reporter's
-   per-case PQ key replaces it.
-5. **Pay.** `approveAnonymousSeverity` checks the payout opening against the commitment, checks the reporter key
-   against its hash, verifies **both** ML-DSA-87 signatures via the precompile, then pays the sealed recipient.
-6. **Disclose.** After the fix and the embargo, only the hash of a redacted report goes on-chain.
-
-An ECDSA-only signature, a payout redirected to a different address, a relayer trying to release funds, and an early
-escalation all revert. Each of these has a contract test, and each was replayed against Diana (see below).
 
 ## Live on Diana
 
@@ -112,23 +165,64 @@ pnpm testnet:status     # prints qor1 addresses; claim the faucet for the progra
 pnpm testnet:e2e        # resumable: keys, windows, deployment, both cases, negative tests
 ```
 
-## Run locally
+## Measured on Diana
 
-Requirements: Node.js 20+ and pnpm.
+Every number below comes from a Diana receipt. Reproduce it with `pnpm measure:evidence`, which writes
+[`evidence/measurements.json`](evidence/measurements.json).
+
+| Claim | Number | Reproduce with |
+| --- | ---: | --- |
+| Gas for a release with two ML-DSA-87 signatures verified on-chain (normal / escalated case) | 477,400 / 513,218 | `pnpm measure:evidence` |
+| Gas to escalate a ghosted case | 38,865 | `pnpm measure:evidence` |
+| Gas for a relayer to anchor an anonymous case | 337,258 | `pnpm measure:evidence` |
+| Delay from the missed deadline to on-chain escalation | 6 s | `pnpm measure:evidence` |
+| Normal case: from anchor to disclosure, including the 15-minute embargo | 7 transactions, 903 s, 1,096,307 gas | `pnpm measure:evidence` |
+| Ghosted case: from anchor to the reporter-approved release | 4 transactions, 125 s, 987,699 gas | `pnpm measure:evidence` |
+| Size of two different reports after padding | 54,971 B each (16 KiB bucket) | `ls -l evidence/cases/*.bundle.json` |
+| Registry runtime bytecode, matched against the committed artifact | 9,985 B | `pnpm verify:evidence` |
+| Independent on-chain checks passing | 49 / 49 | `pnpm verify:evidence` |
+| Local tests | 35 crypto/proxy + 25 contract | `pnpm check` |
+
+## What's used, and what's deliberately not
+
+| QoreChain surface | Used | Evidence, or the reason it is not |
+| --- | --- | --- |
+| QoreSeal ML-KEM-1024 envelopes | Yes | Both live bundles |
+| PQC key registry (ML-DSA-87 with proof of possession, ML-KEM-1024) | Yes | `native.pqc_*`, `native.kem_*` |
+| QoreSign hybrid ML-DSA-87 + secp256k1 messages | Yes | Every severity approval |
+| `pqcVerify` precompile `0x…0A01` | Yes, twice per payout | Release transactions |
+| Scoped EVM authorization windows | Yes | `native.window_*`, live out-of-scope refusal |
+| Hybrid-signed native transactions | Yes | Every native transaction except bootstrap key registration reports `pqc_hybrid_verify: verified` |
+| QoreX wallet connector | Yes, for the in-browser wallet flow | `@qorechain/qorex-rainbowkit` |
+| QCAI risk/anomaly precompiles | Probed, not claimed | Both returned empty data on the public RPC ([`evidence/qcai-audit.json`](evidence/qcai-audit.json)) |
+| Cross-VM native contract calls | No | Not needed: escrow and verification live in one EVM contract |
+| Real stablecoin | No | `MockTUSDT` keeps the test escrow synthetic; the registry can be bound to any non-fee-on-transfer token |
+
+## Try it in 30 seconds
 
 ```sh
 pnpm install
-pnpm dev          # http://localhost:5173, no wallet or network needed in demo mode
-pnpm check        # typecheck, crypto tests, contract tests, Solidity compile, production build
+pnpm dev                # http://localhost:5173: demo mode, no wallet, no network
+pnpm verify:evidence    # read-only: re-checks the whole live run against Diana
 ```
 
-Demo mode generates every key in the browser and downloads the decryption and approval vaults. Never publish a vault:
-anyone who holds one can decrypt or approve its case. A static production host has to proxy `/lcd-testnet` to
-`https://api-testnet.qore.host`, because the REST endpoint does not send CORS headers.
+In the app:
+
+1. Click **Load QoreChain synthetic customer scenario**.
+2. Keep **Anonymous** selected and click **Seal**.
+3. Open **Verify & open** and load the bundle with the maintainer vault, then with the auditor vault.
+4. Open **Approve bounty**. Watch the program + auditor approval verify, and the ECDSA-only forgery fail.
+
+`pnpm check` runs typechecking, the crypto tests, the contract tests, the Solidity compile and the production build.
+On a static host, `/lcd-testnet` must reach `https://api-testnet.qore.host`, because that endpoint sends no CORS
+headers. `api/lcd-testnet.ts` with `vercel.json` provides an allowlisted proxy for the two key lookups the app needs.
+
+Never publish a vault: anyone who holds one can decrypt or approve its case.
 
 ## Contract roles
 
-- **Relayer** (anonymous mode): anchors the case. It has no authority after that and cannot be the program or the auditor.
+- **Relayer** (anonymous mode): anchors the case and holds no authority after that. The app also refuses a relayer
+  that is the program or the auditor.
 - **Reporter**: a per-case ML-DSA-87 key in anonymous mode, or a wallet in account mode. Signs only after escalation.
 - **Program**: acknowledges, triages, resolves, funds the escrow, and refunds any remainder after disclosure.
 - **Auditor**: co-signs every payout and submits the release transaction.
@@ -137,20 +231,28 @@ The registry binds approvals to the chain ID, the registry address, the case, th
 the severity, the amount, the rationale hash and, in anonymous mode, the payout recipient. Token handling follows
 checks-effects-interactions, uses a reentrancy guard and exact balance accounting, and rejects fee-on-transfer tokens.
 
-## Honest limits
+## Limitations, stated plainly
 
 - Deadlines are enforced permissionlessly but not autonomously. Someone has to send the escalation transaction.
 - The relayer, the timing, the amounts and the program/auditor accounts are public. A relayer can refuse to relay,
   but it cannot read the report, redirect the payout or change the vote.
 - The contract cannot decrypt the AAD. Recipients must check that the on-chain roles match the verified bundle.
-- A compromised browser before sealing, stolen vaults, malicious recipients and unsafe redaction are out of scope.
+- The live run used one operator for the program, auditor and relayer keys to rehearse the protocol. In production,
+  these are three independent parties.
+- A compromised browser before sealing, stolen vaults, malicious recipients, unsafe redaction and IP-level network
+  metadata are out of scope.
 - QoreSeal is pre-1.0. The cryptography and the contract are unaudited hackathon code.
-- The QCAI precompiles returned empty data on the public Diana RPC, so no QCAI score is claimed
-  ([`evidence/qcai-audit.json`](evidence/qcai-audit.json)).
+- The QCAI precompiles returned empty data on the public Diana RPC, so no QCAI score is claimed.
 
 More detail: [threat model](docs/threat-model.md), [architecture](docs/architecture.md),
-[3-minute video script](docs/demo-runbook.md), [Q-Day Drill plan](docs/qday-drill.md),
-[self-audit](docs/competition-audit.md).
+[self-audit with fixes](docs/competition-audit.md), [Q-Day Drill plan](docs/qday-drill.md),
+[submission checklist](docs/submission-checklist.md).
+
+## Disclosures
+
+Patch3Q is a testnet prototype and holds no real funds. All vulnerability content in the repository and the live
+cases is synthetic. It is not legal advice on disclosure obligations. AI assistance is documented in
+[`AI_USAGE.md`](AI_USAGE.md).
 
 ## Built with (credits)
 
