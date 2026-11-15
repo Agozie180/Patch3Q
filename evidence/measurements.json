@@ -1,0 +1,185 @@
+{
+  "measuredAt": "2026-11-15T00:02:01.418Z",
+  "dianaBlock": "10102456",
+  "registryRuntimeBytes": 9985,
+  "dualPqReleaseGas": {
+    "normal": 477400,
+    "escalated": 513218
+  },
+  "escalationGas": 38865,
+  "relayerAnchorGas": 337258,
+  "ghostedDeadlineToEscalationSeconds": 6,
+  "cases": {
+    "normal": {
+      "bundleFileBytes": 54971,
+      "envelopeTextBytes": 26281,
+      "sizeBucket": 16384,
+      "transactions": 7,
+      "totalGas": 1096307,
+      "firstToLastSeconds": 903
+    },
+    "ghosted": {
+      "bundleFileBytes": 54971,
+      "envelopeTextBytes": 26281,
+      "sizeBucket": 16384,
+      "transactions": 4,
+      "totalGas": 987699,
+      "firstToLastSeconds": 125
+    }
+  },
+  "evm": [
+    {
+      "step": "deploy MockTUSDT",
+      "hash": "0x7135211a6b7ba954e00edf6066c342d454479cc3f79ecd76271e79109445945b",
+      "gasUsed": 363415,
+      "block": 10101249,
+      "timestamp": 1794699198
+    },
+    {
+      "step": "deploy Patch3QRegistry",
+      "hash": "0x9cbff79c8406ab6b67f04aeab1b2a2cb8168c5a1906e0c41bc36cc1f9296a087",
+      "gasUsed": 2216327,
+      "block": 10101250,
+      "timestamp": 1794699200
+    },
+    {
+      "step": "normal.submitAnonymousCase",
+      "hash": "0xe70e5dfbe514b04841689e37039928f8a8677280c23910c0bb023e7693b5821c",
+      "gasUsed": 337258,
+      "block": 10101275,
+      "timestamp": 1794699235
+    },
+    {
+      "step": "normal.acknowledgeCase",
+      "hash": "0x23621e06e6359d027b5eda13aa3c279881cb07f14e29797f2e07724f674811af",
+      "gasUsed": 41529,
+      "block": 10101277,
+      "timestamp": 1794699238
+    },
+    {
+      "step": "normal.triageCase",
+      "hash": "0xba5a190041942432ef03d5f7c87c3d3791bd85662fff5c9a909ad4251977bcc3",
+      "gasUsed": 41794,
+      "block": 10101279,
+      "timestamp": 1794699241
+    },
+    {
+      "step": "normal.fundBounty",
+      "hash": "0x3af1d0513d263aeb2be08d41d2d5eda371c79d7f05c628febf686532422d9de3",
+      "gasUsed": 98370,
+      "block": 10101280,
+      "timestamp": 1794699242
+    },
+    {
+      "step": "normal.resolveCase",
+      "hash": "0xa65ead980316f04819248eeb7bfe2f65ef8ce17b6394abd8638eb695a3d24dc7",
+      "gasUsed": 38398,
+      "block": 10101282,
+      "timestamp": 1794699245
+    },
+    {
+      "step": "normal.approveAnonymousSeverity",
+      "hash": "0x1feed50689a38db6df4244455a526685667f88a2868b3bb0b433023bbd76e755",
+      "gasUsed": 477400,
+      "block": 10101285,
+      "timestamp": 1794699249
+    },
+    {
+      "step": "normal.discloseCase",
+      "hash": "0x8709019e0c9ae3fbd6e2f8a58aadb578573ced3e3f68d3b35ce0d5eb1985d085",
+      "gasUsed": 61558,
+      "block": 10101909,
+      "timestamp": 1794700138
+    },
+    {
+      "step": "ghosted.submitAnonymousCase",
+      "hash": "0xbe71ea756ca1d5ca6c3989bb6820de4a1d71d0587d021104a933f76d8e1d7f66",
+      "gasUsed": 337258,
+      "block": 10101276,
+      "timestamp": 1794699236
+    },
+    {
+      "step": "ghosted.fundBounty",
+      "hash": "0xdc3d579fa74dac4d49c548f0145a29f3d8bb8ba36af02fa64e7d45b875bb6865",
+      "gasUsed": 98358,
+      "block": 10101287,
+      "timestamp": 1794699252
+    },
+    {
+      "step": "ghosted.escalateMissedDeadline",
+      "hash": "0x48ebd14d1e8c6effe361692adc2a4b021243db32e1510062ae4372d7acba743e",
+      "gasUsed": 38865,
+      "block": 10101362,
+      "timestamp": 1794699358
+    },
+    {
+      "step": "ghosted.approveAnonymousSeverity",
+      "hash": "0x02b5dde043293fdf3db6f3dcfc13c22020adb8cfc680d9faf435c415cf430c07",
+      "gasUsed": 513218,
+      "block": 10101364,
+      "timestamp": 1794699361
+    }
+  ],
+  "native": [
+    {
+      "step": "pqc_program",
+      "hash": "630656C6CF519B346EB632C676BA48938D377C60766E80F1F3B0DD05AD6D000D",
+      "gasUsed": 297063,
+      "height": 10101208
+    },
+    {
+      "step": "fund_auditor",
+      "hash": "3A01FDC033A79C369AD838C4718098124EA1F5D1AB0B6919CFD8ED8FBE884F5E",
+      "gasUsed": 200795,
+      "height": 10101212
+    },
+    {
+      "step": "fund_relayer",
+      "hash": "270871DD0E9EB1ACF120540744D6FD00FD043EF9979829D526221B99D15B7201",
+      "gasUsed": 200795,
+      "height": 10101217
+    },
+    {
+      "step": "pqc_auditor",
+      "hash": "792BFC95A4275EC9E705555077720FD65217C8D5A8D5E6FD781CF3DC74253F5F",
+      "gasUsed": 297060,
+      "height": 10101221
+    },
+    {
+      "step": "pqc_relayer",
+      "hash": "ED14CF8E21097FDBF284D2BF384267FB18130F16EB4672E01818AB7DDB223915",
+      "gasUsed": 297060,
+      "height": 10101226
+    },
+    {
+      "step": "kem_program",
+      "hash": "C5BF232CAE61B299657BAABE75ACEA99B2E340F082A0599DC8410CBB4A40D1E4",
+      "gasUsed": 267657,
+      "height": 10101230
+    },
+    {
+      "step": "kem_auditor",
+      "hash": "DF5598379EEBBC7E43DCFB3314DFB1C7738E7706A471875D71F2D78DB5C28550",
+      "gasUsed": 267657,
+      "height": 10101234
+    },
+    {
+      "step": "window_program",
+      "hash": "2C33AA31D83F5BCF5D71737779F8650CA9F13207F61D2EEEA1B01FC66C95DC98",
+      "gasUsed": 186801,
+      "height": 10101239
+    },
+    {
+      "step": "window_auditor",
+      "hash": "B686261BF707648429CB32B0ACB6854BC62E2864DA8AAC106DEB6CD65433D0BE",
+      "gasUsed": 189131,
+      "height": 10101254
+    },
+    {
+      "step": "window_relayer",
+      "hash": "2E8EFA64748BAC9BAC58B18A41925A3741AD43575883BBA2D35DF25DF17367F5",
+      "gasUsed": 189131,
+      "height": 10101264
+    }
+  ]
+}
