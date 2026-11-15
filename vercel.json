@@ -1,0 +1,5 @@
+{
+  "rewrites": [
+    { "source": "/lcd-testnet/:path*", "destination": "/api/lcd-testnet?path=:path*" }
+  ]
+}
