@@ -11,14 +11,16 @@ The command compiles `Patch3QRegistry`, hashes its creation and deployed bytecod
 fund, dual-PQ approval, and disclosure calldata. The machine-readable result is
 [`evidence/qcai-audit.json`](../evidence/qcai-audit.json).
 
-## Verified result on 2026-11-13
+## Verified result (latest artifact)
+
+Values below match [`evidence/qcai-audit.json`](../evidence/qcai-audit.json); re-run `pnpm audit:qcai` to refresh.
 
 - Diana RPC: `https://evm-testnet.qore.host`
 - Chain ID: `9800`
-- Observed block: `10091116`
-- Compiled creation bytecode: `0xc030621bf5d1470b56f96b0b36755bd08e28b07a660a1ed55feca9e1b2141d8a`
-- Compiled deployed bytecode: `0xaa3ecb9d80a4910050b28239d893fe8970b5a45eb97b980c8543bfbb8557bebc`
-- QCAI result: **unavailable on the public Diana RPC used by this run**
+- Observed block: see `blockNumber` in the artifact (e.g. `10102147` on the 2026-11-14 run)
+- Creation bytecode hash: `0x735e8de2a4e448cfb3f125443e1decbfd291bc03f67c1ea5e121069bb283d9ad`
+- Deployed bytecode hash: `0xb4c07ec746fa30149542bb3f5dbc704e184a27f3dd73fa82e9ab990b7ae00f11`
+- QCAI result: **unavailable on the public Diana RPC used by this run** (`precompile-unavailable-on-public-diana-rpc`)
 
 Every call to `0x0000000000000000000000000000000000000B01` and `0x0000000000000000000000000000000000000B02`
 returned empty `0x` data, which the official SDK could not decode. The artifact records each failed call rather than

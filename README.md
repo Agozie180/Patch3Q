@@ -48,12 +48,34 @@ Patch3Q is built for the researcher who has done the work but faces **silent ven
 not a support ticket. PQ signing is not decorative—it is the gate on payout in the EVM contract, on a chain where routine
 EVM access itself requires a [hybrid-signed authorization window](https://docs.qorechain.io/developer-guide/evm-window-reference/).
 
-## Not yet proven on testnet
+## Proven on Diana (reproducible)
 
-This repository does **not** currently contain a Diana deployment address, deployment transaction, end-to-end case
-transaction hashes or demo-video URL. A reproducible QCAI probe is committed, but the documented AI precompiles
-returned empty data on the public Diana RPC, so no QCAI score is claimed. See [the competition audit](docs/competition-audit.md)
-and [evidence checklist](docs/testnet-evidence.md).
+Patch3Q completed a full anonymous-reporter lifecycle on QoreChain Diana on 15 Nov 2026 (00:32–00:50 WAT). The manifest is
+[`evidence/testnet.json`](evidence/testnet.json) (`status: verified`): registry
+[`0xb6b92510cd9ca5a1e7eac761243b51d73f619962`](https://dashboard.qorechain.io/explorer/address/0xb6b92510cd9ca5a1e7eac761243b51d73f619962),
+token [`0x2b0c104a434e034a14b95c6494f2d84cd9bdff54`](https://dashboard.qorechain.io/explorer/address/0x2b0c104a434e034a14b95c6494f2d84cd9bdff54),
+two cases (normal + ghosted), five rejected Q-Day attacks, and 10 native PQC/window transactions. Anyone can re-check
+without keys:
+
+```sh
+pnpm verify:evidence   # 49/49 against live Diana → evidence/verification.json
+pnpm verify:precompile
+```
+
+Row-by-row proof: [`docs/testnet-evidence.md`](docs/testnet-evidence.md). Independent verifier:
+[`scripts/verify-testnet-evidence.ts`](scripts/verify-testnet-evidence.ts).
+
+## Still outstanding (not claimed)
+
+| Item | Status |
+| --- | --- |
+| Public demo video (≤ 3 min) | Script in [`docs/demo-runbook.md`](docs/demo-runbook.md); URL not in README yet |
+| Zero-setup hosted demo | `api/lcd-testnet.ts` + `vercel.json` are ready; publish URL not in README yet |
+| QCAI risk / anomaly scores | [`evidence/qcai-audit.json`](evidence/qcai-audit.json): AI precompiles returned empty data on the public Diana RPC |
+| GitHub repo visibility | [`Agozie180/Patch3Q`](https://github.com/Agozie180/Patch3Q) is private; hackathon rules require public |
+
+A fresh deployment from your machine needs a funded Diana account, registered ML-DSA keys and scoped EVM windows
+(`pnpm testnet:accounts` → `pnpm testnet:e2e`). That is optional: the committed evidence already matches chain state.
 
 <details>
 <summary><strong>More details</strong> — live evidence, cryptography map, architecture, measurements, tooling</summary>

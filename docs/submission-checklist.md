@@ -23,7 +23,8 @@ protocol, so judges score the repository and the live contract.
 
 ## Presentation
 
-- [x] README: thesis hook, badges, links table, Mermaid diagrams, requirement mapping, used/not-used table,
+- [x] README: ghosting-first pitch, 90-second demo, comparison table, **Proven on Diana** / **Still outstanding**,
+      collapsed technical detail, badges, links table, Mermaid diagrams, requirement mapping, used/not-used table,
       measured table, limitations and disclosures.
 - [x] A scripted demo that opens on the guardrail: [`demo-runbook.md`](demo-runbook.md), 3 minutes plus a 90-second cut.
 - [ ] Video recorded (at least two takes) and linked.
