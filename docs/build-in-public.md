@@ -3,11 +3,12 @@
 Post these from the Patch3Q project page on build.qorechain.io, one at a time, and on X with `#BuildBeforeQDay`.
 Each one is backed by a public transaction.
 
-**1. Live on Diana**
+**1. Repaired v2 live on Diana**
 
-> Patch3Q is live on QoreChain Diana. The registry is deployed and its runtime bytecode matches our committed
-> artifact. Researchers seal reports in the browser with ML-KEM-1024 to recipient keys registered on-chain.
-> https://dashboard.qorechain.io/explorer/tx/0x9cbff79c8406ab6b67f04aeab1b2a2cb8168c5a1906e0c41bc36cc1f9296a087
+> Patch3Q v2 is live on QoreChain Diana. Its runtime bytecode matches the current artifact and closes the late-action
+> deadline race plus escalated-case liveness gap found in the audit. The historical v1 lifecycle remains independently
+> reproducible; the app now targets v2.
+> https://dashboard.qorechain.io/explorer/tx/0xc526a2bf7fc32f22dc07e791277a477d0dee1e6cc6dcc9c6dc2f4b96a964eebb
 
 **2. Anonymous reporter**
 
@@ -39,4 +40,4 @@ Each one is backed by a public transaction.
 > - an early escalation was rejected with `DeadlineNotMissed`;
 > - a stolen auditor key outside its scoped EVM window was refused by the node.
 >
-> Anyone can re-check all of it with `pnpm verify:evidence` (49/49).
+> Anyone can re-check the v2 deployment and preserved v1 lifecycle with `pnpm verify:evidence` (62/62).

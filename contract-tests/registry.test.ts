@@ -85,15 +85,21 @@ describe("Patch3QRegistry foundation", () => {
     );
   });
 
-  it("records deadline breaches on-chain even when the program acts late", async () => {
+  it("does not let a late acknowledgement race permissionless escalation", async () => {
     const { acknowledgeBy } = await submitCase();
     const testClient = await viem.getTestClient();
     await testClient.setNextBlockTimestamp({ timestamp: acknowledgeBy + 1n });
     await testClient.mine({ blocks: 1 });
-    await registry.write.acknowledgeCase([caseIdHash], { account: program.account });
+
+    await viem.assertions.revertWithCustomError(
+      registry.write.acknowledgeCase([caseIdHash], { account: program.account }),
+      registry,
+      "DeadlineExpired",
+    );
+    await registry.write.escalateMissedDeadline([caseIdHash], { account: outsider.account });
     const state = await registry.read.caseState([caseIdHash]);
     assert.equal(Number(state[2]) & 1, 1);
-    assert.equal(Number(state[0]), 1);
+    assert.equal(Number(state[0]), 6);
   });
 
   it("turns a missed acknowledgement into a permissionless escalation consequence", async () => {
@@ -158,6 +164,24 @@ describe("Patch3QRegistry foundation", () => {
     );
   });
 
+  it("does not let a late triage race permissionless escalation", async () => {
+    const { triageBy } = await submitCase();
+    await registry.write.acknowledgeCase([caseIdHash], { account: program.account });
+    const testClient = await viem.getTestClient();
+    await testClient.setNextBlockTimestamp({ timestamp: triageBy + 1n });
+    await testClient.mine({ blocks: 1 });
+
+    await viem.assertions.revertWithCustomError(
+      registry.write.triageCase([caseIdHash], { account: program.account }),
+      registry,
+      "DeadlineExpired",
+    );
+    await registry.write.escalateMissedDeadline([caseIdHash], { account: outsider.account });
+    const state = await registry.read.caseState([caseIdHash]);
+    assert.equal(Number(state[0]), 6);
+    assert.equal(Number(state[2]) & 2, 2);
+  });
+
   it("lets the independent auditor adjudicate funded escrow after escalation", async () => {
     const { acknowledgeBy } = await submitCase();
     const payout = 1_000_000_000n;
@@ -182,6 +206,44 @@ describe("Patch3QRegistry foundation", () => {
       "0x1234",
     ], { account: auditor.account });
     assert.equal(await token.read.balanceOf([reporter.account.address]), payout);
+    const state = await registry.read.caseState([caseIdHash]);
+    assert.equal(Number(state[0]), 3);
+  });
+
+  it("closes an escalated triage case and unlocks disclosure plus remainder refund", async () => {
+    const { triageBy, embargoUntil } = await submitCase();
+    const funded = 2_000_000_000n;
+    const payout = 1_000_000_000n;
+    await registry.write.acknowledgeCase([caseIdHash], { account: program.account });
+    await token.write.mint([program.account.address, funded]);
+    await token.write.approve([registry.address, funded], { account: program.account });
+    await registry.write.fundBounty([caseIdHash, funded], { account: program.account });
+
+    const testClient = await viem.getTestClient();
+    await testClient.setNextBlockTimestamp({ timestamp: triageBy + 1n });
+    await testClient.mine({ blocks: 1 });
+    await registry.write.escalateMissedDeadline([caseIdHash], { account: outsider.account });
+    await registry.write.setPqKeySignatureValid(["0x11111111", true]);
+    await registry.write.setPqKeySignatureValid(["0x22222222", false]);
+    await registry.write.setPqKeySignatureValid(["0x12345678", true]);
+    await registry.write.approveSeverity([
+      caseIdHash, 5, payout, rationaleHash, "0x5678", "0x1234",
+    ], { account: auditor.account });
+
+    let state = await registry.read.caseState([caseIdHash]);
+    assert.equal(Number(state[0]), 3);
+    assert.equal(state[3], funded - payout);
+
+    await testClient.setNextBlockTimestamp({ timestamp: embargoUntil });
+    await testClient.mine({ blocks: 1 });
+    await registry.write.discloseCase([caseIdHash, keccak256(toBytes("redacted report"))], {
+      account: reporter.account,
+    });
+    await registry.write.refundEscrow([caseIdHash], { account: program.account });
+    state = await registry.read.caseState([caseIdHash]);
+    assert.equal(Number(state[0]), 4);
+    assert.equal(state[3], 0n);
+    assert.equal(await token.read.balanceOf([program.account.address]), funded - payout);
   });
 
   it("rejects payout when the post-quantum signature fails", async () => {
@@ -377,7 +439,10 @@ describe("Patch3QRegistry foundation", () => {
         reporterPqKeyHash,
         payoutCommitment,
       ], { account: relayer.account });
-      return { acknowledgeBy };
+      return {
+        acknowledgeBy,
+        embargoUntil: block.timestamp + 30n * 86_400n,
+      };
     }
 
     async function fund(amount = 2_000_000_000n) {
@@ -467,6 +532,28 @@ describe("Patch3QRegistry foundation", () => {
       );
       await anonymousApprove(payoutRecipient, amount, reporterPqKey);
       assert.equal(await token.read.balanceOf([payoutRecipient]), amount);
+      const state = await registry.read.caseState([caseIdHash]);
+      assert.equal(Number(state[0]), 3);
+    });
+
+    it("lets the auditor publish the redacted commitment for a resolved anonymous escalation", async () => {
+      const { acknowledgeBy, embargoUntil } = await submitAnonymous();
+      const amount = await fund();
+      const testClient = await viem.getTestClient();
+      await testClient.setNextBlockTimestamp({ timestamp: acknowledgeBy + 1n });
+      await testClient.mine({ blocks: 1 });
+      await registry.write.escalateMissedDeadline([caseIdHash], { account: outsider.account });
+      await registry.write.setPqKeySignatureValid([reporterPqKey, true]);
+      await registry.write.setPqKeySignatureValid(["0x12345678", true]);
+      await anonymousApprove(payoutRecipient, amount, reporterPqKey);
+
+      await testClient.setNextBlockTimestamp({ timestamp: embargoUntil });
+      await testClient.mine({ blocks: 1 });
+      await registry.write.discloseCase([caseIdHash, keccak256(toBytes("anonymous redacted report"))], {
+        account: auditor.account,
+      });
+      const state = await registry.read.caseState([caseIdHash]);
+      assert.equal(Number(state[0]), 4);
     });
 
     it("keeps account and anonymous approval paths separate", async () => {

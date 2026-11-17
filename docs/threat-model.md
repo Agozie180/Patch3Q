@@ -24,7 +24,9 @@ report, a mailbox that leaks, or a disclosure platform that doxxes researchers.
   commitment. Redirecting the payout invalidates both the signatures and the commitment.
 - **Replay protection** across cases, registry deployments and chains.
 - **Accountability.** Deadlines are public. Missing one lets anyone move the case to `Escalated`, and the program
-  permanently loses its vote.
+  permanently loses its vote. Late acknowledgement and triage calls revert, so the program cannot race a keeper after
+  expiry. Reporter + auditor approval resolves the escalated case, enabling redacted disclosure and refund of any
+  escrow remainder.
 - **Integrity** of the ciphertext, the authenticated metadata (roles, deadlines, privacy profile, approval
   authorities), the commitments and the case binding.
 - **EVM lane.** Auditor and relayer EVM windows are scoped to the registry, so a stolen classical key cannot use them
@@ -59,5 +61,6 @@ The following are out of scope:
 - timestamp manipulation within normal block-production bounds
 - bugs in unaudited dependencies, including pre-1.0 QoreSeal
 
-The lockfile uses targeted Zod overrides to remove moderate and high advisories in unused wallet-connector branches. A
-low-severity `deepmerge` advisory with no available patch remains through RainbowKit's styling dependency.
+`pnpm audit --prod` reports no known vulnerabilities. The high-severity `picomatch` advisory was removed at its root:
+Patch3Q no longer installs wagmi, RainbowKit or WalletConnect. A direct EIP-6963/EIP-1193 adapter handles QoreX and
+other injected wallets, so no glob engine or WalletConnect storage layer is present in the production dependency tree.

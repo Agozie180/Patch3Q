@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-11-14T23:53:01.995Z",
+  "generatedAt": "2026-11-17T22:20:28.723Z",
   "targetUrl": "http://127.0.0.1:4173/",
-  "chromePath": "/usr/bin/google-chrome",
+  "chromePath": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
   "viewport": {
     "width": 1440,
     "height": 1400
@@ -11,8 +11,12 @@
     "fourWorkspaceTabsRendered": true,
     "qoreChainScenarioVisible": true,
     "dianaVisible": true,
+    "noHorizontalOverflow": true,
     "approvalTabClicked": true,
     "dualPartyApprovalVisible": true,
+    "injectedWalletButtonClicked": true,
+    "injectedWalletConnected": true,
+    "injectedWalletDisconnected": true,
     "noPageErrors": true
   },
   "home": {
@@ -25,7 +29,8 @@
       "04Approve bounty"
     ],
     "qoreChainScenarioVisible": true,
-    "dianaVisible": true
+    "dianaVisible": true,
+    "horizontalOverflow": false
   },
   "approval": {
     "selectedTab": "04Approve bounty",

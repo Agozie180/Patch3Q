@@ -1,6 +1,14 @@
 # Diana workflow evidence
 
-## Verified on chain (15 Nov 2026)
+## Verified on chain
+
+The current v2 contracts were deployed and funded on 17 Nov 2026:
+
+- `Patch3QRegistry` v2: [`0xa7c6ff9db34aadb4301b183864d75d9a36c95b27`](https://dashboard.qorechain.io/explorer/address/0xa7c6ff9db34aadb4301b183864d75d9a36c95b27)
+- `MockTUSDT`: [`0x715a962d04391a0e308fd4fa36af63cec0df3bdc`](https://dashboard.qorechain.io/explorer/address/0x715a962d04391a0e308fd4fa36af63cec0df3bdc)
+- Deployment manifest: [`evidence/deployment-v2.json`](../evidence/deployment-v2.json)
+
+The full lifecycle rehearsal below ran on the preserved v1 contracts on 15 Nov 2026.
 
 The public Diana EVM RPC (`https://evm-testnet.qore.host`, chain ID `9800`) carried a complete Patch3Q run:
 
@@ -13,14 +21,15 @@ The public Diana EVM RPC (`https://evm-testnet.qore.host`, chain ID `9800`) carr
   and an out-of-scope EVM window refusal by the node.
 
 Canonical record: [`evidence/testnet.json`](../evidence/testnet.json). Independent re-read:
-[`evidence/verification.json`](../evidence/verification.json) (**49/49** checks via `pnpm verify:evidence`).
+[`evidence/verification.json`](../evidence/verification.json) via `pnpm verify:evidence`. The verifier checks the current
+v2 deployment and the preserved v1 lifecycle in one pass; **62/62 checks pass**.
 
 Sealed bundles (ciphertext only): [`evidence/cases/`](../evidence/cases/). Each `envelopeHash` matches the anchored
 case on Diana.
 
 ## Reproduce without deployer keys
 
-These commands need only the public RPC and the committed artifacts:
+These commands need only the public RPC, current v2 artifacts and committed v1 deployed artifacts:
 
 ```sh
 pnpm verify:evidence      # receipts, events, bytecode, balances, negative tests
@@ -38,8 +47,10 @@ The committed hashes describe contracts and cases that remain on Diana. To repla
 2. Fund the program `qor1` from the [Diana faucet](https://dashboard.qorechain.io/faucet).
 3. `pnpm testnet:e2e` — resumable: keys, KEM publication, scoped windows, deploy, both cases, negative tests.
 
-That path needs `PATCH3Q_DEPLOYER_PRIVATE_KEY` (or keys in `.env.testnet`), registered ML-DSA-87 keys and open EVM
-authorization windows, as described in the [EVM window reference](https://docs.qorechain.io/developer-guide/evm-window-reference/).
+For contracts only, put a valid `PATCH3Q_DEPLOYER_PRIVATE_KEY` or `PATCH3Q_DEPLOYER_MNEMONIC` in `.env`, ensure the
+unified account has a registered ML-DSA-87 key and open EVM authorization window, then run `pnpm deploy:testnet`.
+The full rehearsal path uses the three role keys in `.env.testnet`. Both paths follow the
+[EVM window reference](https://docs.qorechain.io/developer-guide/evm-window-reference/).
 
 Never add a transaction hash to `evidence/testnet.json` until a receipt and emitted events have been read back from
 Diana and `pnpm verify:evidence` passes.

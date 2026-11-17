@@ -1,10 +1,7 @@
-import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useEffect, useMemo, useState } from "react";
 import { isAddress, sha256 as viemSha256, toBytes, zeroAddress, zeroHash } from "viem";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
-import { useAccount, useReadContract, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
-
-import { escrowTokenAbi, patch3qRegistryAbi, patch3qRegistryAddress, testnetEvidence } from "./contract.js";
+import { currentDeployment, escrowTokenAbi, patch3qRegistryAbi, patch3qRegistryAddress, testnetEvidence } from "./contract.js";
 import { bytesToHex, fileToAttachment, fromBase64, fromBase64Url } from "./lib/encoding.js";
 import {
   approvalToJson,
@@ -39,6 +36,14 @@ import type {
   Severity,
   SeverityApproval,
 } from "./types.js";
+import {
+  useAccount,
+  useConnect,
+  useDisconnect,
+  useReadContract,
+  useWaitForTransactionReceipt,
+  useWriteContract,
+} from "./wallet.js";
 import "./styles.css";
 
 type Workspace = "seal" | "verify" | "approve" | "anchor";
@@ -97,6 +102,63 @@ function StepMark({ number, active }: { number: string; active?: boolean }) {
 
 function StatusDot({ good }: { good: boolean }) {
   return <span className={good ? "status-dot good" : "status-dot bad"} aria-hidden="true" />;
+}
+
+function WalletButton() {
+  const { address, isConnected } = useAccount();
+  const { connectors, connectAsync, isPending: isConnecting } = useConnect();
+  const { disconnect, isPending: isDisconnecting } = useDisconnect();
+  const [error, setError] = useState("");
+
+  async function connectWallet() {
+    setError("");
+    const preferred = connectors.find((connector) => connector.id === "qorex") ?? connectors[0];
+    if (!preferred) {
+      setError("No injected wallet connector is available.");
+      return;
+    }
+    try {
+      await connectAsync({ connector: preferred });
+    } catch (caught) {
+      const fallback = connectors.find((connector) => connector.id !== preferred.id);
+      if (preferred.id === "qorex" && fallback) {
+        try {
+          await connectAsync({ connector: fallback });
+          return;
+        } catch (fallbackError) {
+          setError(fallbackError instanceof Error ? fallbackError.message : "Wallet connection failed.");
+          return;
+        }
+      }
+      setError(caught instanceof Error ? caught.message : "Wallet connection failed.");
+    }
+  }
+
+  if (isConnected && address) {
+    return (
+      <button
+        className="wallet-button connected"
+        type="button"
+        disabled={isDisconnecting}
+        onClick={() => disconnect()}
+        title="Disconnect wallet"
+      >
+        {address.slice(0, 6)}…{address.slice(-4)}
+      </button>
+    );
+  }
+
+  return (
+    <button
+      className="wallet-button"
+      type="button"
+      disabled={isConnecting}
+      onClick={() => void connectWallet()}
+      title={error || "Connect QoreX or another injected wallet"}
+    >
+      {isConnecting ? "Connecting…" : error ? "Retry wallet" : "Connect wallet"}
+    </button>
+  );
 }
 
 function Field({
@@ -492,7 +554,7 @@ function SealWorkspace({
               <Field label="Reporter QoreChain account" hint="This wallet is authenticated inside the sealed bundle." wide>
                 <div className="wallet-field">
                   <input readOnly value={reporterAddress ?? "Connect the reporter wallet"} />
-                  <ConnectButton />
+                  <WalletButton />
                 </div>
               </Field>
             )}
@@ -885,7 +947,7 @@ function ApprovalWorkspace({
           <h2 id="approval-title">Approve severity with two PQ parties</h2>
           <p>The program and auditor sign normal payouts; an escalated case requires the reporter and auditor instead.</p>
         </div>
-        <ConnectButton />
+        <WalletButton />
       </div>
 
       {!bundle ? (
@@ -1067,9 +1129,15 @@ function AnchorWorkspace({ bundle }: { bundle?: Patch3QBundle }) {
   const connectedIsProgram = Boolean(
     address && caseState && address.toLowerCase() === caseState[8].toLowerCase(),
   );
+  const connectedIsAuditor = Boolean(
+    address && caseState && address.toLowerCase() === caseState[9].toLowerCase(),
+  );
   const connectedIsParticipant = Boolean(
     address && caseState &&
     (address.toLowerCase() === caseState[7].toLowerCase() || address.toLowerCase() === caseState[8].toLowerCase()),
+  );
+  const connectedCanDisclose = connectedIsParticipant || Boolean(
+    bundle?.privacy.reporterMode === "anonymous" && connectedIsAuditor && caseState?.[10] !== zeroHash,
   );
 
   useEffect(() => {
@@ -1271,7 +1339,7 @@ function AnchorWorkspace({ bundle }: { bundle?: Patch3QBundle }) {
           <h2 id="anchor-title">Anchor the encrypted receipt</h2>
           <p>Publish hashes and SLA deadlines—not the vulnerability—to QoreChain.</p>
         </div>
-        <ConnectButton />
+        <WalletButton />
       </div>
 
       <PrivacyLedger bundle={bundle} />
@@ -1459,7 +1527,7 @@ function AnchorWorkspace({ bundle }: { bundle?: Patch3QBundle }) {
           <button className="secondary-button" type="button" disabled={!redactedReport.trim()} onClick={() => downloadText((bundle?.caseId ?? "patch3q") + ".redacted.md", redactedReport, "text/markdown")}>
             ↓ Save redacted report
           </button>
-          <button className="primary-button" type="button" disabled={!bundle || !connectedIsParticipant || currentStatus !== 3 || discloseWrite.isPending} onClick={() => void publishRedactedReport()}>
+          <button className="primary-button" type="button" disabled={!bundle || !connectedCanDisclose || currentStatus !== 3 || discloseWrite.isPending} onClick={() => void publishRedactedReport()}>
             {discloseWrite.isPending ? "Confirm disclosure…" : "Publish redacted commitment"}
           </button>
         </div>
@@ -1478,7 +1546,7 @@ function AnchorWorkspace({ bundle }: { bundle?: Patch3QBundle }) {
 }
 
 function LiveEvidence() {
-  if (testnetEvidence.status !== "verified" || !testnetEvidence.registryAddress) {
+  if (currentDeployment.status !== "verified" || !currentDeployment.registryAddress) {
     return <div className="live-evidence pending"><i /> Diana testnet deployment pending — run <code>pnpm testnet:e2e</code></div>;
   }
   const transactions = Object.values(testnetEvidence.cases ?? {}).reduce(
@@ -1488,11 +1556,11 @@ function LiveEvidence() {
   return (
     <a
       className="live-evidence"
-      href={"https://dashboard.qorechain.io/explorer/address/" + testnetEvidence.registryAddress}
+      href={"https://dashboard.qorechain.io/explorer/address/" + currentDeployment.registryAddress}
       target="_blank"
       rel="noreferrer"
     >
-      <i /> Live on Diana · registry {shortHash(testnetEvidence.registryAddress)} · {transactions} verified case transactions ↗
+      <i /> v2 live on Diana · registry {shortHash(currentDeployment.registryAddress)} · {transactions} verified v1 case transactions ↗
     </a>
   );
 }
@@ -1531,7 +1599,9 @@ export function App() {
           <a href="#threat-model">Threat model</a>
           <a href="https://qorechain.io/security" target="_blank" rel="noreferrer">QoreChain bounty ↗</a>
         </nav>
-        <span className="network-badge"><i /> Diana testnet</span>
+        <span className="network-badge" title="Diana testnet" aria-label="Diana testnet">
+          <i /><span>Diana testnet</span>
+        </span>
       </header>
 
       <main>

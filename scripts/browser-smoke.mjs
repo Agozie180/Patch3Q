@@ -5,7 +5,9 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 const targetUrl = process.env.PATCH3Q_BROWSER_URL ?? "http://127.0.0.1:4173/";
-const outputDirectory = path.resolve("evidence");
+const outputDirectory = path.resolve(process.env.PATCH3Q_BROWSER_OUTPUT ?? "evidence");
+const viewportWidth = Number(process.env.PATCH3Q_BROWSER_WIDTH ?? 1440);
+const viewportHeight = Number(process.env.PATCH3Q_BROWSER_HEIGHT ?? 1400);
 const chromeCandidates = [
   process.env.PATCH3Q_CHROME_PATH,
   process.env.PROGRAMFILES && path.join(process.env.PROGRAMFILES, "Google", "Chrome", "Application", "chrome.exe"),
@@ -30,7 +32,7 @@ const chrome = spawn(chromePath, [
   "--no-default-browser-check",
   "--remote-debugging-port=0",
   `--user-data-dir=${profileDirectory}`,
-  "--window-size=1440,1400",
+  `--window-size=${viewportWidth},${viewportHeight}`,
   targetUrl,
 ], { stdio: "ignore" });
 
@@ -130,8 +132,8 @@ try {
   await command("Runtime.enable");
   await command("Log.enable");
   await command("Emulation.setDeviceMetricsOverride", {
-    width: 1440,
-    height: 1400,
+    width: viewportWidth,
+    height: viewportHeight,
     deviceScaleFactor: 1,
     mobile: false,
   });
@@ -148,7 +150,8 @@ try {
     heading: document.querySelector('h1')?.innerText ?? '',
     workspaceTabs: [...document.querySelectorAll('[role="tab"]')].map((element) => element.textContent.trim()),
     qoreChainScenarioVisible: document.body.innerText.includes('Load QoreChain synthetic customer scenario'),
-    dianaVisible: document.body.innerText.includes('DIANA TESTNET'),
+    dianaVisible: Boolean(document.querySelector('[aria-label="Diana testnet"]')),
+    horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth,
   }))()`);
   await capture("browser-home.png");
 
@@ -167,18 +170,52 @@ try {
   }))()`);
   await capture("browser-approval.png");
 
+  const injectedWalletButtonClicked = await evaluate(`(() => {
+    const provider = {
+      isQoreX: true,
+      request: async ({ method }) => {
+        if (method === 'eth_chainId') return '0x2648';
+        if (method === 'eth_requestAccounts' || method === 'eth_accounts') {
+          return ['0x1000000000000000000000000000000000000001'];
+        }
+        throw new Error('Unexpected mock wallet method: ' + method);
+      },
+      on: () => undefined,
+      removeListener: () => undefined,
+    };
+    window.qorex = { evm: provider };
+    window.ethereum = provider;
+    const button = document.querySelector('.wallet-button');
+    if (!button) return false;
+    button.click();
+    return true;
+  })()`);
+  await pause(300);
+  const injectedWalletConnected = await evaluate("document.querySelector('.wallet-button')?.textContent.includes('0x1000') ?? false");
+  const injectedWalletDisconnected = await evaluate(`(() => {
+    const button = document.querySelector('.wallet-button.connected');
+    if (!button) return false;
+    button.click();
+    return true;
+  })()`);
+  await pause(100);
+
   const report = {
     generatedAt: new Date().toISOString(),
     targetUrl,
     chromePath,
-    viewport: { width: 1440, height: 1400 },
+    viewport: { width: viewportWidth, height: viewportHeight },
     assertions: {
       homeRendered: home.heading.includes("Report the flaw"),
       fourWorkspaceTabsRendered: home.workspaceTabs.length === 4,
       qoreChainScenarioVisible: home.qoreChainScenarioVisible,
       dianaVisible: home.dianaVisible,
+      noHorizontalOverflow: !home.horizontalOverflow,
       approvalTabClicked,
       dualPartyApprovalVisible: approval.heading === "Approve severity with two PQ parties",
+      injectedWalletButtonClicked,
+      injectedWalletConnected,
+      injectedWalletDisconnected,
       noPageErrors: pageErrors.length === 0,
     },
     home,

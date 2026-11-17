@@ -19,13 +19,13 @@ Q-Day) and a mechanism a judge can check (two ML-DSA-87 signatures verified on-c
   - a sealed payout address with an on-chain commitment opened at release (`approveAnonymousSeverity`)
   - size-bucket padding
   - salted rationale hashes
-- **Contract tests.** Eight new tests cover relayer separation, payout redirection, an ECDSA-only reporter signature,
-  per-case key mismatch, use of the account-mode entry point and the disclosure rules. The suite now has 25 contract
+- **Contract tests.** Tests cover relayer separation, payout redirection, an ECDSA-only reporter signature,
+  per-case key mismatch, deadline races, escalated-case closure and the disclosure rules. The suite now has 28 contract
   tests.
 - **Crypto tests.** Six new tests cover anonymous bundles, the payout opening, bucket tampering and rationale salting,
   for 29 in total.
 - **UI.** The app has a privacy ledger showing exactly what the chain sees, a payout-wallet generator, a
-  **Live on Diana** badge driven by `evidence/testnet.json`, and new hero copy.
+  **v2 Live on Diana** badge driven by `evidence/deployment-v2.json`, with the v1 lifecycle count labelled separately.
 - **Testnet.** `pnpm testnet:e2e` is a one-command, resumable Diana run. It covers key registration, scoped windows,
   deployment, two anonymous cases (normal and ghosted), and Q-Day negative tests replayed with `eth_call`.
 - **Submission requirements.** The README has the credits section the rules require. The repo now has `AI_USAGE.md`,
@@ -41,25 +41,37 @@ The faucet was claimed for the program account, and `pnpm testnet:e2e` completed
 - 11 case transactions across a normal case and a ghosted case
 - 5 rejected Q-Day attacks
 
-`pnpm verify:evidence` re-checks all of it against the live chain, and 49/49 checks pass. The README lists every hash.
+`pnpm verify:evidence` re-checks the historical lifecycle plus the current v2 deployment against the live chain.
+The README and deployment manifests list every hash.
+
+## Repaired deployment (17 Nov 2026)
+
+The audit fixes are no longer local-only. `Patch3QRegistry` v2 was deployed at
+[`0xa7c6ff9db34aadb4301b183864d75d9a36c95b27`](https://dashboard.qorechain.io/explorer/address/0xa7c6ff9db34aadb4301b183864d75d9a36c95b27),
+bound to a fresh `MockTUSDT` at
+[`0x715a962d04391a0e308fd4fa36af63cec0df3bdc`](https://dashboard.qorechain.io/explorer/address/0x715a962d04391a0e308fd4fa36af63cec0df3bdc).
+The deployment transaction is
+[`0xc526a2bf…`](https://dashboard.qorechain.io/explorer/tx/0xc526a2bf7fc32f22dc07e791277a477d0dee1e6cc6dcc9c6dc2f4b96a964eebb).
 
 ## Findings, fixes and the tests that pin them
 
 | # | Finding | Fix | Pinned by |
 | --- | --- | --- | --- |
 | 1 | One signer could approve a payout alone | Two independent ML-DSA-87 signatures, both verified by the precompile | `requires both independent PQ signatures` |
-| 2 | A late program could undo an escalation by acting after the deadline | `Escalated` permanently removes the program's vote | `does not let a late program undo acknowledgement escalation`, `… triage escalation` |
-| 3 | A signer could rotate keys after submission | The registry snapshots program, auditor and reporter key hashes at submission | `rejects a normal payout after the program rotates its bound PQ key`, `… reporter rotates …`, `… auditor rotates …` |
-| 4 | The reporter's account was public on-chain | Anonymous mode: relayer anchoring and a per-case PQ key hash | `anchors without any reporter account and needs no registered reporter key` |
-| 5 | Both signers together could redirect the bounty | A sealed payout commitment, with the recipient inside the signed digest | `stops the program and auditor from redirecting the bounty`, `binds the payout recipient into the replay-protected anonymous digest` |
-| 6 | Envelope length revealed the PoC size | Padding to size buckets, with the bucket authenticated | `pads every report to a fixed size bucket so length does not leak the PoC` |
-| 7 | A short rationale could be guessed from its hash | Salted rationale hash | `salts the rationale so a short decision cannot be guessed from its hash` |
-| 8 | A fee-on-transfer token could create unbacked escrow | Exact before/after balance accounting | `rejects fee-on-transfer tokens instead of creating unbacked escrow` |
-| 9 | Testnet claims could not be checked | Every hash recorded, plus an independent verifier | `pnpm verify:evidence`, 49/49, run in CI |
-| 10 | The scoped-window negative test recorded a vague RPC error | Record the node's exact refusal text | `negativeTests.scopedWindowBlocksTokenCall` |
-| 11 | The UI badge counted the deployment as a case transaction | Count only case transactions (11) | The production screenshot in `evidence/browser-home.png` |
-| 12 | The README said the contract forbids a relayer that is the program or the auditor | Corrected: the app refuses it, and the relayer holds no on-chain role either way | README "Contract roles" |
-| 13 | The hosted app had no route to Diana's REST API, which lacks CORS | Allowlisted `api/lcd-testnet.ts` proxy | `tests/lcd-proxy.test.ts` |
+| 2 | A late program could race the keeper after the deadline | Late acknowledgement and triage revert, preserving permissionless escalation | `does not let a late acknowledgement race permissionless escalation`, `does not let a late triage race permissionless escalation` |
+| 3 | A triage escalation could strand the case and escrow remainder | Reporter + auditor approval resolves an escalated case; disclosure and remainder refund become reachable | `closes an escalated triage case and unlocks disclosure plus remainder refund` |
+| 4 | A signer could rotate keys after submission | The registry snapshots program, auditor and reporter key hashes at submission | `rejects a normal payout after the program rotates its bound PQ key`, `… reporter rotates …`, `… auditor rotates …` |
+| 5 | The reporter's account was public on-chain | Anonymous mode: relayer anchoring and a per-case PQ key hash | `anchors without any reporter account and needs no registered reporter key` |
+| 6 | Both signers together could redirect the bounty | A sealed payout commitment, with the recipient inside the signed digest | `stops the program and auditor from redirecting the bounty`, `binds the payout recipient into the replay-protected anonymous digest` |
+| 7 | Envelope length revealed the PoC size | Padding to size buckets, with the bucket authenticated | `pads every report to a fixed size bucket so length does not leak the PoC` |
+| 8 | A short rationale could be guessed from its hash | Salted rationale hash | `salts the rationale so a short decision cannot be guessed from its hash` |
+| 9 | A fee-on-transfer token could create unbacked escrow | Exact before/after balance accounting | `rejects fee-on-transfer tokens instead of creating unbacked escrow` |
+| 10 | Testnet claims could not be checked | Every hash recorded, plus an independent verifier | `pnpm verify:evidence`, 62/62, run in CI |
+| 11 | The scoped-window negative test recorded a vague RPC error | Record the node's exact refusal text | `negativeTests.scopedWindowBlocksTokenCall` |
+| 12 | The UI badge counted the deployment as a case transaction | Count only case transactions (11) | The production screenshot in `evidence/browser-home.png` |
+| 13 | The README said the contract forbids a relayer that is the program or the auditor | Corrected: the app refuses it, and the relayer holds no on-chain role either way | README "Contract roles" |
+| 14 | The hosted app had no route to Diana's REST API, which lacks CORS | Allowlisted `api/lcd-testnet.ts` proxy | `tests/lcd-proxy.test.ts` |
+| 15 | Unused WalletConnect packages retained an unpatched `picomatch` ReDoS advisory | Replaced wagmi/RainbowKit with a direct QoreX + injected EIP-1193 adapter and pinned patched `zod` | `pnpm audit --prod`: no known vulnerabilities |
 
 ## Remaining (human-only)
 
@@ -87,11 +99,11 @@ now has its own live Diana hashes plus an independent verifier.
 | Problem and story | 9/10 | 10/10 | 10/10 |
 | Encrypted-app fit | 14/15 | 15/15 | 15/15 |
 | Cryptographic implementation | 14/15 | 14/15 | 14/15 |
-| Smart-contract core | 13/15 | 14/15 | 14/15 |
+| Smart-contract core | 13/15 | 15/15 | 15/15 |
 | Threat model and honesty | 9/10 | 10/10 | 10/10 |
 | Tests and reproducibility | 9/10 | 10/10 | 10/10 |
-| Testnet evidence | 0/15 | 14/15 | 15/15 |
+| Testnet evidence | 0/15 | 15/15 | 15/15 |
 | Demo, customer and build-in-public | 2/10 | 4/10 | 8/10 |
-| **Total** | **70** | **91** | **96** |
+| **Total** | **70** | **93** | **97** |
 
 The top-quality award threshold is 70/100. Most of the remaining points come from the video.

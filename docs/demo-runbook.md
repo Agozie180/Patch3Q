@@ -13,18 +13,18 @@ shows the guardrails before the happy path.
 | 0:55–1:10 | Privacy ledger panel | "This is everything the chain will ever see: hashes, deadlines, an amount. No reporter, no payout address, no report size." |
 | 1:10–1:25 | **Verify & open** as the maintainer, then as the auditor | "Two independent recoveries. Change one byte and every check fails." |
 | 1:25–1:55 | Explorer: the case B escalation `0x48ebd14d…`, then the release `0x02b5dde0…` | "This vendor funded a bounty and then ghosted. Six seconds after the deadline, a keeper escalated, and the vendor lost its vote. The reporter's one-off post-quantum key and the auditor released 1,000 tUSDT to the sealed address." |
-| 1:55–2:20 | Terminal: `pnpm verify:evidence` scrolling to `49/49 checks passed` | "Don't trust me, re-run it. Forty-nine checks against the live chain: receipts, events, bytecode, balances, and every rejected attack: redirected payout, relayer theft, early escalation, and a stolen key outside its scoped window." |
+| 1:55–2:20 | Terminal: `pnpm verify:evidence` scrolling to the final all-passed line | "Don't trust me, re-run it. The verifier checks the repaired v2 deployment and the complete historical lifecycle: receipts, events, bytecode, balances, and every rejected attack." |
 | 2:20–2:45 | README "Measured on Diana" table | "A dual post-quantum payout costs 477 thousand gas. Escalation costs 39 thousand. Two different reports are the same 54,971 bytes after padding." |
 | 2:45–3:00 | README hero | "Anonymous, encrypted and post-quantum, enforced by QoreChain's PQC precompile. Patch3Q. Build before Q-Day." |
 
 ## 90-second cut (for social posts)
 
-Use these segments: 0:00–0:30, then 1:25–1:55, then 1:55–2:20 trimmed to the 49/49 line, then 2:45–3:00.
+Use these segments: 0:00–0:30, then 1:25–1:55, then 1:55–2:20 trimmed to the verifier's all-passed line, then 2:45–3:00.
 
 ## Recording checklist
 
 1. Run `pnpm verify:evidence` once before recording, so the output is cached and the terminal is warm.
-2. Run `pnpm dev`, and check that the header shows **Live on Diana · 11 verified case transactions**.
+2. Run `pnpm dev`, and check that the header shows **v2 live on Diana · 11 verified v1 case transactions**.
 3. Open explorer tabs for `0x1feed506…` (case A release), `0x48ebd14d…` (case B escalation) and `0x02b5dde0…`
    (case B release). The full hashes are in the README.
 4. Record at least two takes. Upload the video publicly, for example as an unlisted YouTube video, and add the URL to

@@ -86,6 +86,7 @@ contract Patch3QRegistry {
     error InvalidAddress();
     error InvalidAmount();
     error InvalidDeadline();
+    error DeadlineExpired();
     error DeadlineNotMissed();
     error InvalidHash();
     error InvalidPqSignature();
@@ -367,10 +368,11 @@ contract Patch3QRegistry {
     function acknowledgeCase(bytes32 caseIdHash) external existing(caseIdHash) onlyProgram(caseIdHash) {
         CaseReceipt storage receipt = cases[caseIdHash];
         if (receipt.status != Status.Submitted || receipt.acknowledgedAt != 0) revert InvalidStatus();
-        _recordDeadlineBreaches(caseIdHash, receipt);
+        // Once the SLA expires, the program cannot race a keeper and preserve its vote.
+        if (block.timestamp > receipt.acknowledgeBy) revert DeadlineExpired();
         receipt.acknowledgedAt = uint64(block.timestamp);
         receipt.status = Status.Acknowledged;
-        emit CaseAcknowledged(caseIdHash, uint64(block.timestamp), block.timestamp <= receipt.acknowledgeBy);
+        emit CaseAcknowledged(caseIdHash, uint64(block.timestamp), true);
     }
 
     function triageCase(bytes32 caseIdHash) external existing(caseIdHash) onlyProgram(caseIdHash) {
@@ -378,10 +380,11 @@ contract Patch3QRegistry {
         if (
             receipt.status != Status.Acknowledged || receipt.acknowledgedAt == 0 || receipt.triagedAt != 0
         ) revert InvalidStatus();
-        _recordDeadlineBreaches(caseIdHash, receipt);
+        // A missed triage deadline permanently leaves the case eligible for escalation.
+        if (block.timestamp > receipt.triageBy) revert DeadlineExpired();
         receipt.triagedAt = uint64(block.timestamp);
         receipt.status = Status.Triaged;
-        emit CaseTriaged(caseIdHash, uint64(block.timestamp), block.timestamp <= receipt.triageBy);
+        emit CaseTriaged(caseIdHash, uint64(block.timestamp), true);
     }
 
     function resolveCase(bytes32 caseIdHash) external existing(caseIdHash) onlyProgram(caseIdHash) {
@@ -565,20 +568,33 @@ contract Patch3QRegistry {
         bytes32 digest,
         address payoutRecipient
     ) private {
+        bool wasEscalated = receipt.status == Status.Escalated;
         receipt.approvalHash = digest;
         receipt.severity = severity;
         receipt.payoutAmount = payoutAmount;
         receipt.approvedAt = uint64(block.timestamp);
         receipt.escrowedAmount -= payoutAmount;
+        // Reporter + auditor approval is the resolution mechanism after ghosting.
+        // Closing the case here lets the redacted disclosure and remainder-refund
+        // paths work for both acknowledgement and triage escalations.
+        if (wasEscalated) {
+            receipt.resolvedAt = uint64(block.timestamp);
+            receipt.status = Status.Resolved;
+        }
         _safeTransfer(bountyToken, payoutRecipient, payoutAmount);
 
         emit SeverityApproved(caseIdHash, severity, payoutAmount, digest, rationaleHash, uint64(block.timestamp));
         emit BountyReleased(caseIdHash, payoutRecipient, bountyToken, payoutAmount);
+        if (wasEscalated) emit CaseResolved(caseIdHash, uint64(block.timestamp));
     }
 
     function discloseCase(bytes32 caseIdHash, bytes32 redactedReportHash) external existing(caseIdHash) {
         CaseReceipt storage receipt = cases[caseIdHash];
-        if (msg.sender != receipt.reporter && msg.sender != receipt.program) revert NotParticipant();
+        bool anonymousAuditor =
+            receipt.anonymousReporter && receipt.approvalHash != bytes32(0) && msg.sender == receipt.auditor;
+        if (msg.sender != receipt.reporter && msg.sender != receipt.program && !anonymousAuditor) {
+            revert NotParticipant();
+        }
         if (receipt.status != Status.Resolved) revert InvalidStatus();
         if (block.timestamp < receipt.embargoUntil) revert EmbargoActive();
         if (redactedReportHash == bytes32(0)) revert InvalidHash();

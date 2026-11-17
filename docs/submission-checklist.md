@@ -9,14 +9,16 @@ protocol, so judges score the repository and the live contract.
       nothing." See the README "The thesis, enforced" table.
 - [x] The features that top the rubric are built and demonstrated live: ML-KEM-1024 sealing to registered keys, and a
       payout gated by two on-chain ML-DSA-87 signatures.
-- [x] Reads like a product: 35 crypto/proxy tests, 25 contract tests, CI (`.github/workflows/ci.yml`), one design system, no API keys needed.
+- [x] Reads like a product: 35 crypto/proxy tests, 28 contract tests, CI (`.github/workflows/ci.yml`), one design system, no API keys needed.
 - [x] Prize surface: Encrypted Apps, plus Q-Day Survivor, Best AI-Native, People's Choice, Regional (Middle East &
       Africa) and Top-Quality. The Post-Quantum dApp bounty fits too, but projects enter only one category, and its
       QCAI requirement cannot be met on the public RPC.
 
 ## Verifiability
 
-- [x] Live deploy with explorer links and bytecode matched to the artifact (`pnpm verify:evidence`, 49/49).
+- [x] The v1 lifecycle deploy has explorer links and bytecode matched to its preserved artifact.
+- [x] The repaired v2 registry and fresh MockTUSDT are deployed, funded, recorded in `evidence/deployment-v2.json`,
+      targeted by the app and matched to current artifacts by `pnpm verify:evidence`.
 - [ ] Zero-setup hosted demo. The proxy and config are ready; the owner still has to confirm the publish as **public**.
 - [x] Every quantified claim has a reproduction command (README "Measured on Diana").
 - [x] Demo mode needs no wallet or network. The faucet link and the account flow are documented.
@@ -31,7 +33,7 @@ protocol, so judges score the repository and the live contract.
 
 ## Honesty
 
-- [x] Limitations and negative scoping, a self-audit with 13 findings, and fixes pinned by tests
+- [x] Limitations and negative scoping, a self-audit with 15 findings, and fixes pinned by tests
       ([`competition-audit.md`](competition-audit.md)).
 - [x] No simulated numbers. The QCAI score is explicitly not claimed. The single-operator rehearsal is disclosed.
 
@@ -39,6 +41,7 @@ protocol, so judges score the repository and the live contract.
 
 - [x] No secrets in history. `.env.testnet` and `.patch3q-testnet/` are git-ignored, and no agent instruction files
       are committed.
+- [x] `pnpm audit --prod` reports no known vulnerabilities; the WalletConnect/`picomatch` dependency path was removed.
 - [ ] **The repository is public.** It is currently private, and the rules require a public repo.
 
 ## Compounding

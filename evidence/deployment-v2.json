@@ -1,0 +1,51 @@
+{
+  "network": "qorechain-diana",
+  "evmChainId": 9800,
+  "version": 2,
+  "status": "verified",
+  "deployedAt": "2026-11-17T21:51:44.688Z",
+  "deployer": {
+    "qor": "qor1dzrqfkesenlkcwa3d7e5mztjp9r4667tc9y5qt",
+    "evm": "0x688604db30CcfF6C3BB16fb34D897209475d6bcb"
+  },
+  "registryAddress": "0xa7c6ff9db34aadb4301b183864d75d9a36c95b27",
+  "bountyTokenAddress": "0x715a962d04391a0e308fd4fa36af63cec0df3bdc",
+  "native": {
+    "fundUnifiedAccount": "5814D7C45573AD5AEEDF6A82AAE218B42A925071AA80533E9DFEEB4D4DF95C77",
+    "registerPqcKey": "1BC3359735D43FEC3AF0CE7D14488391CC6536FD534AAC473A2BFBBAA2DD692B",
+    "openEvmWindow": "D3C1CA203D121DD479EF063F83E52F63C9205FE576050A4D1A48153C47E1D9F9"
+  },
+  "evm": {
+    "tokenDeployment": {
+      "hash": "0x48ba18d9fb81b74151d85013636a1b083d310e92cca7d98691e1fd3b2b1a6c18",
+      "blockNumber": "10278631",
+      "gasUsed": "363415"
+    },
+    "registryDeployment": {
+      "hash": "0xc526a2bf7fc32f22dc07e791277a477d0dee1e6cc6dcc9c6dc2f4b96a964eebb",
+      "blockNumber": "10278633",
+      "gasUsed": "2259895"
+    },
+    "mint": {
+      "hash": "0x72827d466da917dbaef0de8e4118e797765bdecacf652524053bc63d9902ef65",
+      "blockNumber": "10278635",
+      "gasUsed": "68128"
+    },
+    "approve": {
+      "hash": "0x8880850b19dc00d0248607f34dfd69516111401592bd79688bc3b1c5f415d8de",
+      "blockNumber": "10278637",
+      "gasUsed": "45913"
+    }
+  },
+  "initialFunding": {
+    "mintedTUsdtBaseUnits": "10000000000",
+    "registryAllowanceBaseUnits": "10000000000"
+  },
+  "artifacts": {
+    "token": "artifacts/MockTUSDT.json",
+    "registry": "artifacts/Patch3QRegistry.json",
+    "tokenCreationBytecodeHash": "0xd4b73b100b7c2ef0a030f947e54318b1a38eca4aa68e67c9657751caf620a04d",
+    "registryCreationBytecodeHash": "0x54b09b02d0260b15e496bf3c98b106b9dfe1a05f1c21156bd540eb34c25680f6"
+  },
+  "scope": "Fresh v2 deployment, token mint and registry allowance. Historical v1 lifecycle evidence remains in evidence/testnet.json."
+}

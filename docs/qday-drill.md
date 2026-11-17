@@ -6,7 +6,8 @@ The Q-Day Drill gives the attacker the ECDSA key of a participating account. Reg
 ## What we enter
 
 The **program** account `qor1hfxnr2fr4camsk54qmvjjlkdfddgt9gpmu6fwv` (`0xBa4D31a923aE3Bb85A9506D9297ecd4B5a859501`).
-It owns both live cases on registry `0xb6b92510cd9ca5a1e7eac761243b51d73f619962`.
+It owns both historical rehearsal cases on preserved v1 registry `0xb6b92510cd9ca5a1e7eac761243b51d73f619962`.
+The current v2 registry is `0xa7c6ff9db34aadb4301b183864d75d9a36c95b27`; a new drill case should target v2.
 
 ## Why the attacker gets nothing
 

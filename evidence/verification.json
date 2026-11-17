@@ -1,8 +1,13 @@
 {
-  "verifiedAt": "2026-11-14T23:51:26.412Z",
-  "dianaBlock": "10102011",
+  "verifiedAt": "2026-11-17T22:25:32.500Z",
+  "dianaBlock": "10280058",
   "registry": "0xB6B92510Cd9cA5A1E7eAC761243B51D73F619962",
-  "passed": 49,
+  "currentDeployment": {
+    "registry": "0xA7C6fF9DB34aADB4301B183864D75d9a36C95b27",
+    "bountyToken": "0x715a962d04391a0e308fD4fa36AF63CEC0Df3bdC",
+    "version": 2
+  },
+  "passed": 62,
   "failed": 0,
   "checks": [
     {
@@ -11,7 +16,7 @@
       "detail": "verified"
     },
     {
-      "check": "registry runtime bytecode matches artifacts/Patch3QRegistry.json (token immutable masked)",
+      "check": "registry runtime bytecode matches artifacts/deployed/Patch3QRegistryDianaV1.json (token immutable masked)",
       "ok": true,
       "detail": {
         "codeHash": "0x6e121f6b990ace804c7c083612f799e925571aaf3824100fab3b6d3a7d82cf18",
@@ -19,7 +24,7 @@
       }
     },
     {
-      "check": "MockTUSDT runtime bytecode matches artifacts/MockTUSDT.json",
+      "check": "MockTUSDT runtime bytecode matches artifacts/deployed/MockTUSDTDianaV1.json",
       "ok": true
     },
     {
@@ -33,6 +38,77 @@
     {
       "check": "Patch3QRegistry deployment 0x9cbff79c8406ab6b67f04aeab1b2a2cb8168c5a1906e0c41bc36cc1f9296a087",
       "ok": true
+    },
+    {
+      "check": "current v2 deployment status is verified",
+      "ok": true,
+      "detail": {
+        "status": "verified",
+        "version": 2
+      }
+    },
+    {
+      "check": "current v2 registry runtime bytecode matches artifacts/Patch3QRegistry.json (token immutable masked)",
+      "ok": true,
+      "detail": {
+        "codeHash": "0xe4da56f7a1a4d7bdf468fd16afc80db4251cba578407527db6a4bfc1368a6b4e",
+        "bytes": 10186
+      }
+    },
+    {
+      "check": "current v2 MockTUSDT runtime bytecode matches artifacts/MockTUSDT.json",
+      "ok": true
+    },
+    {
+      "check": "current v2 registry is bound to its deployed tUSDT token",
+      "ok": true
+    },
+    {
+      "check": "current v2 MockTUSDT deployment 0x48ba18d9fb81b74151d85013636a1b083d310e92cca7d98691e1fd3b2b1a6c18",
+      "ok": true
+    },
+    {
+      "check": "current v2 Patch3QRegistry deployment 0xc526a2bf7fc32f22dc07e791277a477d0dee1e6cc6dcc9c6dc2f4b96a964eebb",
+      "ok": true
+    },
+    {
+      "check": "current v2 initial tUSDT mint 0x72827d466da917dbaef0de8e4118e797765bdecacf652524053bc63d9902ef65",
+      "ok": true
+    },
+    {
+      "check": "current v2 registry allowance 0x8880850b19dc00d0248607f34dfd69516111401592bd79688bc3b1c5f415d8de",
+      "ok": true
+    },
+    {
+      "check": "current v2 deployer received the documented initial tUSDT mint",
+      "ok": true,
+      "detail": "10000000000"
+    },
+    {
+      "check": "current v2 registry has the documented tUSDT allowance",
+      "ok": true,
+      "detail": "10000000000"
+    },
+    {
+      "check": "current v2 native fundUnifiedAccount 5814D7C45573AD5AEEDF6A82AAE218B42A925071AA80533E9DFEEB4D4DF95C77",
+      "ok": true,
+      "detail": {
+        "height": "10278614"
+      }
+    },
+    {
+      "check": "current v2 native registerPqcKey 1BC3359735D43FEC3AF0CE7D14488391CC6536FD534AAC473A2BFBBAA2DD692B",
+      "ok": true,
+      "detail": {
+        "height": "10278618"
+      }
+    },
+    {
+      "check": "current v2 native openEvmWindow D3C1CA203D121DD479EF063F83E52F63C9205FE576050A4D1A48153C47E1D9F9",
+      "ok": true,
+      "detail": {
+        "height": "10278622"
+      }
     },
     {
       "check": "normal.submitAnonymousCase 0xe70e5dfbe514b04841689e37039928f8a8677280c23910c0bb023e7693b5821c",

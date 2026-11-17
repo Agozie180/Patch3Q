@@ -17,9 +17,9 @@ Values below match [`evidence/qcai-audit.json`](../evidence/qcai-audit.json); re
 
 - Diana RPC: `https://evm-testnet.qore.host`
 - Chain ID: `9800`
-- Observed block: see `blockNumber` in the artifact (e.g. `10102147` on the 2026-11-14 run)
-- Creation bytecode hash: `0x735e8de2a4e448cfb3f125443e1decbfd291bc03f67c1ea5e121069bb283d9ad`
-- Deployed bytecode hash: `0xb4c07ec746fa30149542bb3f5dbc704e184a27f3dd73fa82e9ab990b7ae00f11`
+- Observed block: `10278834` on the 2026-11-17 refresh
+- Creation bytecode hash: `0x54b09b02d0260b15e496bf3c98b106b9dfe1a05f1c21156bd540eb34c25680f6`
+- Deployed bytecode hash: `0x50957b91f55195d6e7bc90b200dc0be47753f0e5005cfd0855ea8aa7157a0f0c`
 - QCAI result: **unavailable on the public Diana RPC used by this run** (`precompile-unavailable-on-public-diana-rpc`)
 
 Every call to `0x0000000000000000000000000000000000000B01` and `0x0000000000000000000000000000000000000B02`
