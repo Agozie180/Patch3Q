@@ -45,7 +45,10 @@
     "token": "artifacts/MockTUSDT.json",
     "registry": "artifacts/Patch3QRegistry.json",
     "tokenCreationBytecodeHash": "0xd4b73b100b7c2ef0a030f947e54318b1a38eca4aa68e67c9657751caf620a04d",
-    "registryCreationBytecodeHash": "0x54b09b02d0260b15e496bf3c98b106b9dfe1a05f1c21156bd540eb34c25680f6"
+    "registryCreationBytecodeHash": "0x54b09b02d0260b15e496bf3c98b106b9dfe1a05f1c21156bd540eb34c25680f6",
+    "registryMaskedRuntimeBytecodeHash": "0x50957b91f55195d6e7bc90b200dc0be47753f0e5005cfd0855ea8aa7157a0f0c",
+    "tokenRuntimeBytecodeHash": "0x1e94e33b6610f1b57f39745fcd63c3e86bbc8c1f256ac90044f027b59c75def0",
+    "sourceCommit": "d7a1a68"
   },
   "scope": "Fresh v2 deployment, token mint and registry allowance. Historical v1 lifecycle evidence remains in evidence/testnet.json."
 }

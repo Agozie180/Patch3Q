@@ -348,8 +348,34 @@ describe("Patch3QRegistry foundation", () => {
 
     assert.equal(await token.read.balanceOf([reporter.account.address]), payout);
     const state = await registry.read.caseState([caseIdHash]);
+    assert.equal(Number(state[0]), 3);
     assert.equal(state[3], amount - payout);
     assert.notEqual(state[10], zeroHash);
+  });
+
+  it("treats a normal dual-PQ payout as resolution and unlocks disclosure", async () => {
+    const { embargoUntil } = await submitCase();
+    const payout = 1_000_000_000n;
+    await registry.write.acknowledgeCase([caseIdHash], { account: program.account });
+    await registry.write.triageCase([caseIdHash], { account: program.account });
+    await token.write.mint([program.account.address, payout]);
+    await token.write.approve([registry.address, payout], { account: program.account });
+    await registry.write.fundBounty([caseIdHash, payout], { account: program.account });
+    await registry.write.approveSeverity([
+      caseIdHash, 5, payout, rationaleHash, "0x5678", "0x1234",
+    ], { account: auditor.account });
+
+    let state = await registry.read.caseState([caseIdHash]);
+    assert.equal(Number(state[0]), 3);
+
+    const testClient = await viem.getTestClient();
+    await testClient.setNextBlockTimestamp({ timestamp: embargoUntil });
+    await testClient.mine({ blocks: 1 });
+    await registry.write.discloseCase([caseIdHash, keccak256(toBytes("normal redacted report"))], {
+      account: reporter.account,
+    });
+    state = await registry.read.caseState([caseIdHash]);
+    assert.equal(Number(state[0]), 4);
   });
 
   it("blocks unauthorized lifecycle transitions", async () => {

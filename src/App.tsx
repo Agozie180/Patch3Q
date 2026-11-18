@@ -841,6 +841,11 @@ function ApprovalWorkspace({
       setVerification(checked);
       setClassicalForgeryRejected(rejected);
       onApproval(nextApproval);
+      // The signed approval contains only public keys and signatures. Remove the
+      // pasted secret material from live form controls as soon as it is no longer
+      // needed, reducing accidental exposure through screenshots or inspection.
+      setParticipantVaultText("");
+      setAuditorVaultText("");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not create the severity approval.");
     } finally {
@@ -1011,10 +1016,15 @@ function ApprovalWorkspace({
             </Field>
           </div>
 
+          <div className="warning-callout">
+            <strong>Local signing only.</strong>
+            <span>Approval vaults never leave this browser and their form values are cleared immediately after signing. Prefer file import and close the tab after use.</span>
+          </div>
+
           {(participantRole === "reporter" ? initialReporterVault : initialProgramVault) || participantVaultText ? (
             <details className="paste-fallback" open={!(participantRole === "reporter" ? initialReporterVault : initialProgramVault)}>
               <summary>{participantRole === "reporter" ? "Reporter" : "Program"} approval vault</summary>
-              <textarea value={participantVaultText} onChange={(event) => setParticipantVaultText(event.target.value)} placeholder={`Patch3Q ${participantRole} approval vault JSON`} rows={6} />
+              <textarea autoComplete="off" spellCheck={false} value={participantVaultText} onChange={(event) => setParticipantVaultText(event.target.value)} placeholder={`Patch3Q ${participantRole} approval vault JSON`} rows={6} />
             </details>
           ) : (
             <FileImport
@@ -1025,7 +1035,7 @@ function ApprovalWorkspace({
           {initialAuditorVault || auditorVaultText ? (
             <details className="paste-fallback" open={!initialAuditorVault}>
               <summary>Auditor approval vault</summary>
-              <textarea value={auditorVaultText} onChange={(event) => setAuditorVaultText(event.target.value)} placeholder="Patch3Q auditor approval vault JSON" rows={6} />
+              <textarea autoComplete="off" spellCheck={false} value={auditorVaultText} onChange={(event) => setAuditorVaultText(event.target.value)} placeholder="Patch3Q auditor approval vault JSON" rows={6} />
             </details>
           ) : (
             <FileImport label="Import auditor approval vault" onLoad={setAuditorVaultText} />

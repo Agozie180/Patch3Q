@@ -568,16 +568,17 @@ contract Patch3QRegistry {
         bytes32 digest,
         address payoutRecipient
     ) private {
-        bool wasEscalated = receipt.status == Status.Escalated;
+        bool needsResolution = receipt.status != Status.Resolved;
         receipt.approvalHash = digest;
         receipt.severity = severity;
         receipt.payoutAmount = payoutAmount;
         receipt.approvedAt = uint64(block.timestamp);
         receipt.escrowedAmount -= payoutAmount;
-        // Reporter + auditor approval is the resolution mechanism after ghosting.
-        // Closing the case here lets the redacted disclosure and remainder-refund
-        // paths work for both acknowledgement and triage escalations.
-        if (wasEscalated) {
+        // A valid dual-PQ payout decision is itself a final resolution. Closing
+        // both normal and escalated cases here prevents a program from accepting
+        // a payout and then withholding the separate resolve transaction needed
+        // for disclosure or refund of any escrow remainder.
+        if (needsResolution) {
             receipt.resolvedAt = uint64(block.timestamp);
             receipt.status = Status.Resolved;
         }
@@ -585,7 +586,7 @@ contract Patch3QRegistry {
 
         emit SeverityApproved(caseIdHash, severity, payoutAmount, digest, rationaleHash, uint64(block.timestamp));
         emit BountyReleased(caseIdHash, payoutRecipient, bountyToken, payoutAmount);
-        if (wasEscalated) emit CaseResolved(caseIdHash, uint64(block.timestamp));
+        if (needsResolution) emit CaseResolved(caseIdHash, uint64(block.timestamp));
     }
 
     function discloseCase(bytes32 caseIdHash, bytes32 redactedReportHash) external existing(caseIdHash) {

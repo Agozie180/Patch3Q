@@ -52,11 +52,12 @@ const CHAIN_ID = "qorechain-diana";
 const REST = "https://api-testnet.qore.host";
 const RPC = "https://rpc-testnet.qore.host";
 const EXPLORER = "https://dashboard.qorechain.io/explorer/tx/";
+const RUN_ID = process.argv[3]?.trim();
 const ENV_FILE = path.resolve(".env.testnet");
-const STATE_DIR = path.resolve(".patch3q-testnet");
+const STATE_DIR = path.resolve(RUN_ID ? `.patch3q-testnet/${RUN_ID}` : ".patch3q-testnet");
 const STATE_FILE = path.join(STATE_DIR, "state.json");
-const EVIDENCE_FILE = path.resolve("evidence/testnet.json");
-const CASES_DIR = path.resolve("evidence/cases");
+const EVIDENCE_FILE = path.resolve(RUN_ID ? `evidence/testnet-${RUN_ID}.json` : "evidence/testnet.json");
+const CASES_DIR = path.resolve(RUN_ID ? `evidence/cases-${RUN_ID}` : "evidence/cases");
 const UQOR = 1_000_000n;
 const NATIVE_FEE = { amount: [{ denom: "uqor", amount: "150000" }], gas: "1200000" };
 const ROLES = ["program", "auditor", "relayer"] as const;
@@ -476,12 +477,11 @@ async function run(): Promise<void> {
     });
   }
 
-  console.log("\n6. Case A: program acknowledges, triages, funds and resolves within SLA");
+  console.log("\n6. Case A: program acknowledges, triages and funds within SLA");
   for (const [functionName, args] of [
     ["acknowledgeCase", [caseA.caseIdHash]],
     ["triageCase", [caseA.caseIdHash]],
     ["fundBounty", [caseA.caseIdHash, 2_500_000_000n]],
-    ["resolveCase", [caseA.caseIdHash]],
   ] as const) {
     await step(state, `A.${functionName}`, () => Boolean(caseA.txs[functionName]), async () => {
       caseA.txs[functionName] = await evmWrite(program, { address: registry, abi: registryAbi, functionName, args });
@@ -659,7 +659,7 @@ async function writeEvidence(
       acknowledgement: caseA.txs.acknowledgeCase?.hash,
       triage: caseA.txs.triageCase?.hash,
       escrowFunding: caseA.txs.fundBounty?.hash,
-      resolution: caseA.txs.resolveCase?.hash,
+      resolution: caseA.txs.approveAnonymousSeverity?.hash,
       severityApprovalAndRelease: caseA.txs.approveAnonymousSeverity?.hash,
       redactedDisclosure: caseA.txs.discloseCase?.hash,
       deadlineEscalation: caseB.txs.escalateMissedDeadline?.hash,

@@ -93,11 +93,11 @@ async function main(): Promise<void> {
     { status: deploymentV2.status, version: deploymentV2.version });
   const registryV2Code = await client.getCode({ address: registryV2 });
   const tokenV2Code = await client.getCode({ address: tokenV2 });
-  record("current v2 registry runtime bytecode matches artifacts/Patch3QRegistry.json (token immutable masked)",
-    maskImmutables(registryV2Code ?? "0x", [tokenV2]) === maskImmutables(currentRegistryArtifact.deployedBytecode, []),
+  record("v2 registry runtime bytecode matches its preserved masked hash",
+    keccak256(maskImmutables(registryV2Code ?? "0x", [tokenV2]) as Hex) === deploymentV2.artifacts.registryMaskedRuntimeBytecodeHash,
     { codeHash: keccak256(registryV2Code ?? "0x"), bytes: ((registryV2Code ?? "0x").length - 2) / 2 });
-  record("current v2 MockTUSDT runtime bytecode matches artifacts/MockTUSDT.json",
-    (tokenV2Code ?? "").toLowerCase() === currentTokenArtifact.deployedBytecode.toLowerCase());
+  record("v2 MockTUSDT runtime bytecode matches its preserved hash",
+    keccak256(tokenV2Code ?? "0x") === deploymentV2.artifacts.tokenRuntimeBytecodeHash);
   const boundTokenV2 = await client.readContract({
     address: registryV2, abi: currentRegistryArtifact.abi as Abi, functionName: "bountyToken",
   });

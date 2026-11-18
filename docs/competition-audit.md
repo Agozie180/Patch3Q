@@ -20,7 +20,7 @@ Q-Day) and a mechanism a judge can check (two ML-DSA-87 signatures verified on-c
   - size-bucket padding
   - salted rationale hashes
 - **Contract tests.** Tests cover relayer separation, payout redirection, an ECDSA-only reporter signature,
-  per-case key mismatch, deadline races, escalated-case closure and the disclosure rules. The suite now has 28 contract
+  per-case key mismatch, deadline races, escalated-case closure and the disclosure rules. The suite now has 29 contract
   tests.
 - **Crypto tests.** Six new tests cover anonymous bundles, the payout opening, bucket tampering and rationale salting,
   for 29 in total.
@@ -72,14 +72,18 @@ The deployment transaction is
 | 13 | The README said the contract forbids a relayer that is the program or the auditor | Corrected: the app refuses it, and the relayer holds no on-chain role either way | README "Contract roles" |
 | 14 | The hosted app had no route to Diana's REST API, which lacks CORS | Allowlisted `api/lcd-testnet.ts` proxy | `tests/lcd-proxy.test.ts` |
 | 15 | Unused WalletConnect packages retained an unpatched `picomatch` ReDoS advisory | Replaced wagmi/RainbowKit with a direct QoreX + injected EIP-1193 adapter and pinned patched `zod` | `pnpm audit --prod`: no known vulnerabilities |
+| 16 | A normal dual-PQ payout from `Triaged` still depended on the program sending a separate resolution transaction before disclosure | A valid dual-PQ payout now atomically marks both normal and escalated cases `Resolved` | `treats a normal dual-PQ payout as resolution and unlocks disclosure` |
+| 17 | Browser smoke coverage proved rendering but not the product's cryptographic journey | The self-starting Chrome smoke now seals, independently decrypts, opens the payout commitment, co-signs with two ML-DSA-87 keys and rejects both ECDSA-only forgeries | `pnpm smoke:browser`, `evidence/browser-smoke.json` |
+| 18 | Approval vault JSON could remain visible in form controls after signing | The UI labels signing as local-only and clears both secret form values immediately after the approval is created | Full browser journey plus source review |
+| 19 | The production entry chunk exceeded Vite's 500 kB warning | React, EVM, QoreChain and crypto code now build as separate cacheable chunks; the application entry is under 100 kB | `pnpm build` |
 
 ## Remaining (human-only)
 
 1. **Make the GitHub repository public.** The rules require a public repo, and `Agozie180/Patch3Q` is currently private.
 2. **Q-Day Drill registration** closes on 17 Nov 2026 at 23:59 UTC (18 Nov, 00:59 WAT).
 3. **Video.** Record it from `docs/demo-runbook.md`, keep it under 3 minutes, and add the link to the README.
-4. **Hosted demo.** Confirm the publish and choose **public** visibility, then add the URL to the README links table.
-5. **Submission form.** Choose **Encrypted Apps** and the Middle East & Africa region. Link the repo, the video and
+4. **Hosted demo.** Complete: [`https://patch3-q.vercel.app`](https://patch3-q.vercel.app) passes the full browser journey.
+5. **Submission form.** Choose **Encrypted Apps** and the Middle East & Africa region. Link the repo, hosted demo, video and
    `public/cover.png`.
 6. **Build-in-public.** Post the ready-made updates in `docs/build-in-public.md` from the project page.
 7. **Repository description.** Set it to: *Anonymous, post-quantum bug-bounty escrow on QoreChain: ML-KEM-1024 sealed

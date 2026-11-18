@@ -4,7 +4,8 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-const targetUrl = process.env.PATCH3Q_BROWSER_URL ?? "http://127.0.0.1:4173/";
+const defaultTargetUrl = "http://127.0.0.1:4173/";
+const targetUrl = process.env.PATCH3Q_BROWSER_URL ?? defaultTargetUrl;
 const outputDirectory = path.resolve(process.env.PATCH3Q_BROWSER_OUTPUT ?? "evidence");
 const viewportWidth = Number(process.env.PATCH3Q_BROWSER_WIDTH ?? 1440);
 const viewportHeight = Number(process.env.PATCH3Q_BROWSER_HEIGHT ?? 1400);
@@ -18,9 +19,36 @@ const chromeCandidates = [
   "/usr/bin/chromium-browser",
 ].filter(Boolean);
 const chromePath = chromeCandidates.find((candidate) => existsSync(candidate));
+const pause = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 if (!chromePath) {
   throw new Error("Chrome was not found. Set PATCH3Q_CHROME_PATH to an installed Chrome or Chromium executable.");
+}
+
+let preview;
+async function targetIsReady() {
+  try {
+    const response = await fetch(targetUrl, { signal: AbortSignal.timeout(1_000) });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+if (targetUrl === defaultTargetUrl && !(await targetIsReady())) {
+  preview = spawn(process.execPath, [
+    path.resolve("node_modules/vite/bin/vite.js"),
+    "preview",
+    "--host",
+    "127.0.0.1",
+    "--port",
+    "4173",
+  ], { stdio: "ignore" });
+  for (let attempt = 0; attempt < 100 && !(await targetIsReady()); attempt += 1) {
+    if (preview.exitCode !== null) throw new Error("Vite preview exited before the browser smoke test started.");
+    await pause(100);
+  }
+  if (!(await targetIsReady())) throw new Error("Patch3Q preview did not become ready at " + targetUrl);
 }
 
 await mkdir(outputDirectory, { recursive: true });
@@ -35,8 +63,6 @@ const chrome = spawn(chromePath, [
   `--window-size=${viewportWidth},${viewportHeight}`,
   targetUrl,
 ], { stdio: "ignore" });
-
-const pause = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 async function readDevToolsPort() {
   const portFile = path.join(profileDirectory, "DevToolsActivePort");
@@ -123,6 +149,14 @@ try {
     return result.result.value;
   }
 
+  async function waitFor(expression, label, attempts = 300) {
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+      if (await evaluate(expression)) return;
+      await pause(100);
+    }
+    throw new Error(`Timed out waiting for ${label}.`);
+  }
+
   async function capture(fileName) {
     const result = await command("Page.captureScreenshot", { format: "png", fromSurface: true });
     await writeFile(path.join(outputDirectory, fileName), Buffer.from(result.data, "base64"));
@@ -200,6 +234,94 @@ try {
   })()`);
   await pause(100);
 
+  const sealTabClicked = await evaluate(`(() => {
+    const tab = [...document.querySelectorAll('[role="tab"]')].find((element) => element.textContent.includes('Seal report'));
+    if (!tab) return false;
+    tab.click();
+    return true;
+  })()`);
+  await waitFor("Boolean(document.querySelector('#seal-title'))", "the seal workspace");
+  const scenarioLoaded = await evaluate(`(() => {
+    const button = [...document.querySelectorAll('button')].find((element) => element.textContent.includes('Load QoreChain synthetic customer scenario'));
+    if (!button) return false;
+    button.click();
+    return true;
+  })()`);
+  await pause(100);
+  const sealSubmitted = await evaluate(`(() => {
+    const form = document.querySelector('#seal-title')?.closest('section')?.querySelector('form');
+    if (!form) return false;
+    form.requestSubmit();
+    return true;
+  })()`);
+  await waitFor("Boolean(document.querySelector('#receipt-title'))", "a sealed disclosure receipt");
+  const sealed = await evaluate(`(() => ({
+    heading: document.querySelector('#receipt-title')?.textContent.trim() ?? '',
+    caseId: document.querySelector('.receipt-head strong')?.textContent.trim() ?? '',
+    payoutCommitmentVisible: document.body.innerText.includes('Sealed payout commitment'),
+  }))()`);
+  await capture("browser-sealed.png");
+
+  const auditorCheckOpened = await evaluate(`(() => {
+    const button = [...document.querySelectorAll('button')].find((element) => element.textContent.includes('Run the independent auditor check'));
+    if (!button) return false;
+    button.click();
+    return true;
+  })()`);
+  await waitFor("Boolean(document.querySelector('#verify-title'))", "the independent verification workspace");
+  const verificationStarted = await evaluate(`(() => {
+    const button = [...document.querySelectorAll('button')].find((element) => element.textContent.includes('Decrypt & verify evidence'));
+    if (!button) return false;
+    button.click();
+    return true;
+  })()`);
+  await waitFor(
+    "document.querySelector('.verification-result.verified h3')?.textContent.includes('Authentic Patch3Q disclosure') ?? false",
+    "successful independent decryption and verification",
+  );
+  const verified = await evaluate(`(() => ({
+    heading: document.querySelector('.verification-result.verified h3')?.textContent.trim() ?? '',
+    checks: [...document.querySelectorAll('.verification-result.verified .check-grid strong')].map((element) => element.textContent.trim()),
+    payoutOpened: Boolean(document.querySelector('.decrypted-report code')),
+  }))()`);
+
+  const loadedApprovalTabClicked = await evaluate(`(() => {
+    const tab = [...document.querySelectorAll('[role="tab"]')].find((element) => element.textContent.includes('Approve bounty'));
+    if (!tab) return false;
+    tab.click();
+    return true;
+  })()`);
+  await waitFor("Boolean(document.querySelector('#approval-title'))", "the loaded approval workspace");
+  const rationaleEntered = await evaluate(`(() => {
+    const field = document.querySelector('textarea[placeholder^="Why this impact"]');
+    if (!field) return false;
+    const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
+    setter?.call(field, 'Critical loss of escrowed funds; reproduced and independently verified.');
+    field.dispatchEvent(new Event('input', { bubbles: true }));
+    return true;
+  })()`);
+  await pause(100);
+  const approvalStarted = await evaluate(`(() => {
+    const button = [...document.querySelectorAll('button')].find((element) => element.textContent.includes('Co-sign severity approval'));
+    if (!button || button.disabled) return false;
+    button.click();
+    return true;
+  })()`);
+  await waitFor(
+    "document.querySelector('.verification-result.verified h3')?.textContent.includes('Payout instruction verified') ?? false",
+    "the dual-PQ severity approval",
+  );
+  const approved = await evaluate(`(() => ({
+    heading: document.querySelector('.verification-result.verified h3')?.textContent.trim() ?? '',
+    signatures: document.querySelector('.verification-result.verified .eyebrow')?.textContent.trim() ?? '',
+    classicalForgeriesRejected: [...document.querySelectorAll('.verification-result.verified .check-grid div')]
+      .filter((element) => element.textContent.includes('ECDSA-only forgery'))
+      .every((element) => element.textContent.includes('Rejected')),
+  }))()`);
+  await evaluate("document.querySelector('.verification-result.verified')?.scrollIntoView({ block: 'start' }); true");
+  await pause(100);
+  await capture("browser-journey.png");
+
   const report = {
     generatedAt: new Date().toISOString(),
     targetUrl,
@@ -216,12 +338,32 @@ try {
       injectedWalletButtonClicked,
       injectedWalletConnected,
       injectedWalletDisconnected,
+      sealTabClicked,
+      scenarioLoaded,
+      sealSubmitted,
+      disclosureSealed: sealed.heading.includes("sealed with post-quantum encryption"),
+      payoutCommitmentVisible: sealed.payoutCommitmentVisible,
+      auditorCheckOpened,
+      verificationStarted,
+      disclosureVerified: verified.heading === "Authentic Patch3Q disclosure",
+      payoutOpened: verified.payoutOpened,
+      loadedApprovalTabClicked,
+      rationaleEntered,
+      approvalStarted,
+      dualPqApprovalVerified: approved.heading === "Payout instruction verified",
+      classicalOnlyForgeriesRejected: approved.classicalForgeriesRejected,
       noPageErrors: pageErrors.length === 0,
     },
     home,
     approval,
+    journey: { sealed, verified, approved },
     pageErrors,
-    screenshots: ["evidence/browser-home.png", "evidence/browser-approval.png"],
+    screenshots: [
+      "evidence/browser-home.png",
+      "evidence/browser-approval.png",
+      "evidence/browser-sealed.png",
+      "evidence/browser-journey.png",
+    ],
   };
   await writeFile(path.join(outputDirectory, "browser-smoke.json"), `${JSON.stringify(report, null, 2)}\n`, "utf8");
 
@@ -237,6 +379,11 @@ try {
     const exited = new Promise((resolve) => chrome.once("exit", resolve));
     chrome.kill();
     await Promise.race([exited, pause(5000)]);
+  }
+  if (preview?.exitCode === null) {
+    const exited = new Promise((resolve) => preview.once("exit", resolve));
+    preview.kill();
+    await Promise.race([exited, pause(5_000)]);
   }
   for (let attempt = 0; attempt < 20; attempt += 1) {
     try {

@@ -12,3 +12,5 @@ coverage/
 *.log
 .env.testnet
 .patch3q-testnet/
+.vercel/
+.env.local
