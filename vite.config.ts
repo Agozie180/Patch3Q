@@ -20,4 +20,18 @@ export default defineConfig({
   test: { exclude: ["contract-tests/**", "node_modules/**"] },
   server: { port: 5173, proxy },
   preview: { proxy },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return undefined;
+          if (id.includes("react") || id.includes("scheduler")) return "react";
+          if (id.includes("viem") || id.includes("abitype") || id.includes("ox")) return "evm";
+          if (id.includes("@qorechain")) return "qorechain";
+          if (id.includes("@noble") || id.includes("@scure")) return "crypto";
+          return undefined;
+        },
+      },
+    },
+  },
 });

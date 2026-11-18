@@ -29,7 +29,7 @@ case on Diana.
 
 ## Reproduce without deployer keys
 
-These commands need only the public RPC, current v2 artifacts and committed v1 deployed artifacts:
+These commands need only the public RPC, the preserved v2 runtime hashes/source commit and committed v1 deployed artifacts:
 
 ```sh
 pnpm verify:evidence      # receipts, events, bytecode, balances, negative tests

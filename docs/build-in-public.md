@@ -5,7 +5,7 @@ Each one is backed by a public transaction.
 
 **1. Repaired v2 live on Diana**
 
-> Patch3Q v2 is live on QoreChain Diana. Its runtime bytecode matches the current artifact and closes the late-action
+> Patch3Q v2 is live on QoreChain Diana. Its runtime bytecode matches the preserved deployment hash/source commit and closes the late-action
 > deadline race plus escalated-case liveness gap found in the audit. The historical v1 lifecycle remains independently
 > reproducible; the app now targets v2.
 > https://dashboard.qorechain.io/explorer/tx/0xc526a2bf7fc32f22dc07e791277a477d0dee1e6cc6dcc9c6dc2f4b96a964eebb

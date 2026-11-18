@@ -1,6 +1,6 @@
 {
-  "verifiedAt": "2026-11-17T22:25:32.500Z",
-  "dianaBlock": "10280058",
+  "verifiedAt": "2026-11-18T17:52:05.863Z",
+  "dianaBlock": "10329083",
   "registry": "0xB6B92510Cd9cA5A1E7eAC761243B51D73F619962",
   "currentDeployment": {
     "registry": "0xA7C6fF9DB34aADB4301B183864D75d9a36C95b27",
@@ -48,7 +48,7 @@
       }
     },
     {
-      "check": "current v2 registry runtime bytecode matches artifacts/Patch3QRegistry.json (token immutable masked)",
+      "check": "v2 registry runtime bytecode matches its preserved masked hash",
       "ok": true,
       "detail": {
         "codeHash": "0xe4da56f7a1a4d7bdf468fd16afc80db4251cba578407527db6a4bfc1368a6b4e",
@@ -56,7 +56,7 @@
       }
     },
     {
-      "check": "current v2 MockTUSDT runtime bytecode matches artifacts/MockTUSDT.json",
+      "check": "v2 MockTUSDT runtime bytecode matches its preserved hash",
       "ok": true
     },
     {

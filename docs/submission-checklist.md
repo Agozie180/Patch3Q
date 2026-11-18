@@ -9,7 +9,7 @@ protocol, so judges score the repository and the live contract.
       nothing." See the README "The thesis, enforced" table.
 - [x] The features that top the rubric are built and demonstrated live: ML-KEM-1024 sealing to registered keys, and a
       payout gated by two on-chain ML-DSA-87 signatures.
-- [x] Reads like a product: 35 crypto/proxy tests, 28 contract tests, CI (`.github/workflows/ci.yml`), one design system, no API keys needed.
+- [x] Reads like a product: 35 crypto/proxy tests, 29 contract tests, CI (`.github/workflows/ci.yml`), one design system, no API keys needed.
 - [x] Prize surface: Encrypted Apps, plus Q-Day Survivor, Best AI-Native, People's Choice, Regional (Middle East &
       Africa) and Top-Quality. The Post-Quantum dApp bounty fits too, but projects enter only one category, and its
       QCAI requirement cannot be met on the public RPC.
@@ -17,11 +17,12 @@ protocol, so judges score the repository and the live contract.
 ## Verifiability
 
 - [x] The v1 lifecycle deploy has explorer links and bytecode matched to its preserved artifact.
-- [x] The repaired v2 registry and fresh MockTUSDT are deployed, funded, recorded in `evidence/deployment-v2.json`,
-      targeted by the app and matched to current artifacts by `pnpm verify:evidence`.
-- [ ] Zero-setup hosted demo. The proxy and config are ready; the owner still has to confirm the publish as **public**.
+- [x] The repaired v2 registry and fresh MockTUSDT are deployed, funded and recorded in `evidence/deployment-v2.json`;
+      `pnpm verify:evidence` checks its preserved masked runtime hash and source commit.
+- [ ] Deploy and rehearse the v3 lifecycle after funding the fresh program account printed by `pnpm testnet:status`.
+- [x] Zero-setup hosted demo at [`https://patch3-q.vercel.app`](https://patch3-q.vercel.app), verified through the complete browser journey.
 - [x] Every quantified claim has a reproduction command (README "Measured on Diana").
-- [x] Demo mode needs no wallet or network. The faucet link and the account flow are documented.
+- [x] Demo mode needs no wallet or network. `pnpm smoke:browser` now self-starts preview and completes seal → verify → dual-PQ approval.
 
 ## Presentation
 

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-17T22:20:28.723Z",
+  "generatedAt": "2026-11-18T17:52:14.355Z",
   "targetUrl": "http://127.0.0.1:4173/",
   "chromePath": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
   "viewport": {
@@ -17,6 +17,20 @@
     "injectedWalletButtonClicked": true,
     "injectedWalletConnected": true,
     "injectedWalletDisconnected": true,
+    "sealTabClicked": true,
+    "scenarioLoaded": true,
+    "sealSubmitted": true,
+    "disclosureSealed": true,
+    "payoutCommitmentVisible": true,
+    "auditorCheckOpened": true,
+    "verificationStarted": true,
+    "disclosureVerified": true,
+    "payoutOpened": true,
+    "loadedApprovalTabClicked": true,
+    "rationaleEntered": true,
+    "approvalStarted": true,
+    "dualPqApprovalVerified": true,
+    "classicalOnlyForgeriesRejected": true,
     "noPageErrors": true
   },
   "home": {
@@ -38,9 +52,36 @@
     "description": "The program and auditor sign normal payouts; an escalated case requires the reporter and auditor instead.",
     "emptyState": "No case loaded.\nSeal or verify a Patch3Q bundle before issuing a severity decision."
   },
+  "journey": {
+    "sealed": {
+      "heading": "Your disclosure is sealed with post-quantum encryption.",
+      "caseId": "P3Q-LBBRLNB3BXA-ETYK",
+      "payoutCommitmentVisible": true
+    },
+    "verified": {
+      "heading": "Authentic Patch3Q disclosure",
+      "checks": [
+        "Pass",
+        "Pass",
+        "Pass",
+        "Pass",
+        "Pass",
+        "Pass",
+        "Pass"
+      ],
+      "payoutOpened": true
+    },
+    "approved": {
+      "heading": "Payout instruction verified",
+      "signatures": "program + auditor · 2 × ML-DSA-87 hybrid signatures",
+      "classicalForgeriesRejected": true
+    }
+  },
   "pageErrors": [],
   "screenshots": [
     "evidence/browser-home.png",
-    "evidence/browser-approval.png"
+    "evidence/browser-approval.png",
+    "evidence/browser-sealed.png",
+    "evidence/browser-journey.png"
   ]
 }
