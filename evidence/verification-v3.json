@@ -1,0 +1,324 @@
+{
+  "verifiedAt": "2026-11-19T06:40:49.164Z",
+  "dianaBlock": "10361165",
+  "currentDeployment": {
+    "version": 3,
+    "registry": "0x9ec24151Dc741f0c65D708c9410fBAe2458F7863",
+    "bountyToken": "0x2D42CBe73384b8C492da8E0d706AA56141902eB1"
+  },
+  "passed": 50,
+  "failed": 0,
+  "checks": [
+    {
+      "check": "v3 evidence status and version are verified",
+      "ok": true,
+      "detail": {
+        "status": "verified",
+        "version": 3
+      }
+    },
+    {
+      "check": "v3 registry runtime matches the current compiled artifact (token immutable masked)",
+      "ok": true,
+      "detail": {
+        "codeHash": "0xb109b798f6395b2412d1b05acd3d4f1fa24031de2a40043d927ddd608f5c6090",
+        "bytes": 10187
+      }
+    },
+    {
+      "check": "v3 MockTUSDT runtime matches the current compiled artifact",
+      "ok": true,
+      "detail": {
+        "codeHash": "0xf0d169d88a39c1c3ebce4d89a90381222123e7fbe7806cd310b3e7d61c489182"
+      }
+    },
+    {
+      "check": "v3 registry is bound to the documented bounty token",
+      "ok": true
+    },
+    {
+      "check": "v3 MockTUSDT deployment 0x66aac10ace171593b43cb8f227a1a41e9a35580286a0c3252fafa34b95883011",
+      "ok": true
+    },
+    {
+      "check": "v3 Patch3QRegistry deployment 0xbc6da259b223a46a767ad1094d029f797469cd47cfb5f40da27f6fc514b76297",
+      "ok": true
+    },
+    {
+      "check": "v3 normal.submitAnonymousCase 0x79b9ea57e910117d2919d4c19f87848b664f93c55ed5f752702a04143d654ee5",
+      "ok": true,
+      "detail": [
+        "CaseSubmitted",
+        "AnonymousCaseSubmitted"
+      ]
+    },
+    {
+      "check": "v3 normal.acknowledgeCase 0xb32f32ad7ce49db495225ae2e59c40121ad8dededb96ec367f56d170fd17243a",
+      "ok": true,
+      "detail": [
+        "CaseAcknowledged"
+      ]
+    },
+    {
+      "check": "v3 normal.triageCase 0x68edd99a71f86ca6b994196b8497bc90669af2a122dc549012ce4edd8ccdddcd",
+      "ok": true,
+      "detail": [
+        "CaseTriaged"
+      ]
+    },
+    {
+      "check": "v3 normal.fundBounty 0xb2baf9388185ac392529b080d9bd3da43d287b3df5e42a1cc826de8223921a9b",
+      "ok": true,
+      "detail": [
+        "Transfer",
+        "BountyFunded"
+      ]
+    },
+    {
+      "check": "v3 normal.approveAnonymousSeverity 0x7a19b4ba453d50a846e97eb48a1a3484ca9a0abf885ae30b290b074d7becb4e1",
+      "ok": true,
+      "detail": [
+        "Transfer",
+        "SeverityApproved",
+        "BountyReleased",
+        "CaseResolved"
+      ]
+    },
+    {
+      "check": "v3 normal.discloseCase 0x7b97c6b525df661b94238c9c42986144f575706098ab332620439fd747e726a4",
+      "ok": true,
+      "detail": [
+        "CaseDisclosed"
+      ]
+    },
+    {
+      "check": "v3 normal: bundle hashes match the anchored commitments",
+      "ok": true,
+      "detail": "0xd30a2c4bcf9544bdad31ca1fb48bc68264d1ee4b33d551946e8fe0c66c2980bc"
+    },
+    {
+      "check": "v3 normal: reporter account is absent on-chain",
+      "ok": true
+    },
+    {
+      "check": "v3 normal: envelope uses the documented 16384-byte privacy bucket",
+      "ok": true
+    },
+    {
+      "check": "v3 normal: final on-chain status",
+      "ok": true,
+      "detail": "Disclosed"
+    },
+    {
+      "check": "v3 normal: privacy commitments and relayer binding match the bundle",
+      "ok": true
+    },
+    {
+      "check": "v3 normal: payout commitment rejects an unknown salt",
+      "ok": true
+    },
+    {
+      "check": "v3 normal: sealed payout recipient received the documented amount",
+      "ok": true,
+      "detail": "2500000000"
+    },
+    {
+      "check": "v3 normal: redacted report hashes to the disclosed on-chain commitment",
+      "ok": true
+    },
+    {
+      "check": "v3 normal: payout approval and resolution are the same atomic transaction",
+      "ok": true
+    },
+    {
+      "check": "v3 ghosted.submitAnonymousCase 0x832a76011ec1e09d7376540d1b68e7c9f9fd388d220106baed9459304a4f9a06",
+      "ok": true,
+      "detail": [
+        "CaseSubmitted",
+        "AnonymousCaseSubmitted"
+      ]
+    },
+    {
+      "check": "v3 ghosted.fundBounty 0x165a790701fdd05114074699fbc428ead18486f68e0d17b89f783b936e61b568",
+      "ok": true,
+      "detail": [
+        "Transfer",
+        "BountyFunded"
+      ]
+    },
+    {
+      "check": "v3 ghosted.escalateMissedDeadline 0xc764f928bc1e04039add0619157d0d869b703b294b26911b87048526835ced90",
+      "ok": true,
+      "detail": [
+        "DeadlineBreached",
+        "CaseEscalated"
+      ]
+    },
+    {
+      "check": "v3 ghosted.approveAnonymousSeverity 0x4408d550a83fd80eef544bac1216c0643af2d55fa0dbc9a2a3c47f6ad2d035d2",
+      "ok": true,
+      "detail": [
+        "Transfer",
+        "SeverityApproved",
+        "BountyReleased",
+        "CaseResolved"
+      ]
+    },
+    {
+      "check": "v3 ghosted: bundle hashes match the anchored commitments",
+      "ok": true,
+      "detail": "0xc2fc1438d85fce072c8a8029a91a462286653eb7211a595580251e2b69313674"
+    },
+    {
+      "check": "v3 ghosted: reporter account is absent on-chain",
+      "ok": true
+    },
+    {
+      "check": "v3 ghosted: envelope uses the documented 16384-byte privacy bucket",
+      "ok": true
+    },
+    {
+      "check": "v3 ghosted: final on-chain status",
+      "ok": true,
+      "detail": "Resolved"
+    },
+    {
+      "check": "v3 ghosted: acknowledgement breach is recorded",
+      "ok": true,
+      "detail": {
+        "slaBreaches": 1
+      }
+    },
+    {
+      "check": "v3 ghosted: privacy commitments and relayer binding match the bundle",
+      "ok": true
+    },
+    {
+      "check": "v3 ghosted: payout commitment rejects an unknown salt",
+      "ok": true
+    },
+    {
+      "check": "v3 ghosted: sealed payout recipient received the documented amount",
+      "ok": true,
+      "detail": "1000000000"
+    },
+    {
+      "check": "v3 ghosted: reporter/auditor payout atomically resolves the escalated case",
+      "ok": true
+    },
+    {
+      "check": "v3 case transactions were sent only by program, auditor or relayer",
+      "ok": true,
+      "detail": [
+        "0x4CaAd15999f650741547859092f8e89E8A9C93ED",
+        "0xa054dAd8B5D277206c7e9B8aD236dc75Bc6cCB48",
+        "0x9d9D2dA5B490Dd70d3135602ad377298FcD15769"
+      ]
+    },
+    {
+      "check": "v3 native pqc_program 53B289B303522CBB888FC2CA7BD6B6F8CFA2109C6EFD244590BE02EF78B8DC1E",
+      "ok": true,
+      "detail": {
+        "height": "10332241",
+        "pqcHybridVerify": "n/a"
+      }
+    },
+    {
+      "check": "v3 native fund_auditor 134ABB5ABA66F13322DB7DADAAB5840253A95AF62062C940840492F86515B559",
+      "ok": true,
+      "detail": {
+        "height": "10332248",
+        "pqcHybridVerify": "verified"
+      }
+    },
+    {
+      "check": "v3 native fund_relayer F725F6A727BFCEE9D7EAEDB76B373777B6C256E29EDDC8A5F18D72CB89D0AD75",
+      "ok": true,
+      "detail": {
+        "height": "10332255",
+        "pqcHybridVerify": "verified"
+      }
+    },
+    {
+      "check": "v3 native pqc_auditor AFEB1217BB869CE9377077BAC70542569B4F21171666DB27DB8B0AC7348444DE",
+      "ok": true,
+      "detail": {
+        "height": "10332261",
+        "pqcHybridVerify": "n/a"
+      }
+    },
+    {
+      "check": "v3 native pqc_relayer 68E7CCD40F7C55C111BB272EC185F126729527AC0FC11EF3C1F1F1DD83C54425",
+      "ok": true,
+      "detail": {
+        "height": "10332268",
+        "pqcHybridVerify": "n/a"
+      }
+    },
+    {
+      "check": "v3 native kem_program 0E259C91817259797D089D9A95765A56F28C2D70C252A71B12860805229E77F2",
+      "ok": true,
+      "detail": {
+        "height": "10332275",
+        "pqcHybridVerify": "verified"
+      }
+    },
+    {
+      "check": "v3 native kem_auditor A6B78908BE5C2A5B3C1B6EA23BC5B380DEE988636CF735DE455D21378C6E0F30",
+      "ok": true,
+      "detail": {
+        "height": "10332282",
+        "pqcHybridVerify": "verified"
+      }
+    },
+    {
+      "check": "v3 native window_program 24D3F58596E6845062165CD5C506EEEF9EE8FEEAC9F5ABA098AA59833A854FC7",
+      "ok": true,
+      "detail": {
+        "height": "10332288",
+        "pqcHybridVerify": "verified"
+      }
+    },
+    {
+      "check": "v3 native window_auditor 3A32162FB6177DF142853CE7ECDE7C9A4323E2C71E3AFD0C8D994AFBA1E73799",
+      "ok": true,
+      "detail": {
+        "height": "10332311",
+        "pqcHybridVerify": "verified"
+      }
+    },
+    {
+      "check": "v3 native window_relayer 2364C54AC8A8433D4ED43D7A9DB7443745EDAC88035880AFACAC9B0BA13DB08D",
+      "ok": true,
+      "detail": {
+        "height": "10332324",
+        "pqcHybridVerify": "verified"
+      }
+    },
+    {
+      "check": "v3 negative test ecdsaOnlyAuditorApproval",
+      "ok": true,
+      "detail": "InvalidPqSignature"
+    },
+    {
+      "check": "v3 negative test redirectedPayoutToAuditor",
+      "ok": true,
+      "detail": "PayoutCommitmentMismatch"
+    },
+    {
+      "check": "v3 negative test relayerCannotReleaseEscrow",
+      "ok": true,
+      "detail": "NotAuditor"
+    },
+    {
+      "check": "v3 negative test prematureEscalation",
+      "ok": true,
+      "detail": "DeadlineNotMissed"
+    },
+    {
+      "check": "v3 negative test scopedWindowBlocksTokenCall",
+      "ok": true,
+      "detail": "failed to broadcast transaction: the EVM authorisation window for qor1nkwjmfd5jrwhp5cn2cp26dmjnr7dz4mf0hdmey does not admit this transaction: the window does not list 0x2D42CBe73384b8C492da8E0d706AA56141902eB1 as an allowed recipient: EVM authorisation window exhausted: EVM authorisation window exhausted"
+    }
+  ]
+}

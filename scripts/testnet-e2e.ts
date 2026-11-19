@@ -647,6 +647,7 @@ async function writeEvidence(
   const evidence = {
     network: CHAIN_ID,
     evmChainId: 9800,
+    version: RUN_ID === "v3" ? 3 : 1,
     status: "verified",
     generatedAt: new Date().toISOString(),
     registryAddress: state.registryAddress,
@@ -670,7 +671,7 @@ async function writeEvidence(
     cases: Object.fromEntries(await Promise.all(Object.entries(state.cases).map(async ([name, entry]) => [name, {
       caseId: entry.caseId,
       caseIdHash: entry.caseIdHash,
-      bundle: entry.bundleFile,
+      bundle: entry.bundleFile.replaceAll(path.sep, "/"),
       envelopeHash: entry.bundle.envelopeHash,
       contentCommitment: entry.bundle.contentCommitment,
       sizeBucket: entry.bundle.privacy.sizeBucket,
@@ -684,7 +685,7 @@ async function writeEvidence(
     negativeTests: state.negativeTests,
     externalEvidence: {
       qcaiAuditArtifact: "evidence/qcai-audit.json",
-      demoVideoUrl: null,
+      demoVideoUrl: "https://patch3-q.vercel.app/demo.mp4",
       buildInPublicUrl: null,
     },
   };

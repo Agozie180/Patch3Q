@@ -24,8 +24,8 @@ Q-Day) and a mechanism a judge can check (two ML-DSA-87 signatures verified on-c
   tests.
 - **Crypto tests.** Six new tests cover anonymous bundles, the payout opening, bucket tampering and rationale salting,
   for 29 in total.
-- **UI.** The app has a privacy ledger showing exactly what the chain sees, a payout-wallet generator, a
-  **v2 Live on Diana** badge driven by `evidence/deployment-v2.json`, with the v1 lifecycle count labelled separately.
+- **UI.** The app has a privacy ledger showing exactly what the chain sees, a payout-wallet generator, and a
+  **v3 Live on Diana** badge driven by the current full-lifecycle evidence in `evidence/testnet-v3.json`.
 - **Testnet.** `pnpm testnet:e2e` is a one-command, resumable Diana run. It covers key registration, scoped windows,
   deployment, two anonymous cases (normal and ghosted), and Q-Day negative tests replayed with `eth_call`.
 - **Submission requirements.** The README has the credits section the rules require. The repo now has `AI_USAGE.md`,
@@ -41,7 +41,7 @@ The faucet was claimed for the program account, and `pnpm testnet:e2e` completed
 - 11 case transactions across a normal case and a ghosted case
 - 5 rejected Q-Day attacks
 
-`pnpm verify:evidence` re-checks the historical lifecycle plus the current v2 deployment against the live chain.
+`pnpm verify:evidence` re-checks the historical v1/v2 evidence plus the current v3 lifecycle against the live chain.
 The README and deployment manifests list every hash.
 
 ## Repaired deployment (17 Nov 2026)
@@ -52,6 +52,15 @@ bound to a fresh `MockTUSDT` at
 [`0x715a962d04391a0e308fd4fa36af63cec0df3bdc`](https://dashboard.qorechain.io/explorer/address/0x715a962d04391a0e308fd4fa36af63cec0df3bdc).
 The deployment transaction is
 [`0xc526a2bf…`](https://dashboard.qorechain.io/explorer/tx/0xc526a2bf7fc32f22dc07e791277a477d0dee1e6cc6dcc9c6dc2f4b96a964eebb).
+
+## Current full-lifecycle deployment (18 Nov 2026)
+
+`Patch3QRegistry` v3 is live at
+[`0x9ec24151dc741f0c65d708c9410fbae2458f7863`](https://dashboard.qorechain.io/explorer/address/0x9ec24151dc741f0c65d708c9410fbae2458f7863),
+bound to `MockTUSDT` at
+[`0x2d42cbe73384b8c492da8e0d706aa56141902eb1`](https://dashboard.qorechain.io/explorer/address/0x2d42cbe73384b8c492da8e0d706aa56141902eb1).
+The current source completed both anonymous lifecycle paths, including atomic resolution in the normal and escalated
+payout transactions. The independent verifier passes 50/50 current checks in addition to 62/62 preserved checks.
 
 ## Findings, fixes and the tests that pin them
 
@@ -66,7 +75,7 @@ The deployment transaction is
 | 7 | Envelope length revealed the PoC size | Padding to size buckets, with the bucket authenticated | `pads every report to a fixed size bucket so length does not leak the PoC` |
 | 8 | A short rationale could be guessed from its hash | Salted rationale hash | `salts the rationale so a short decision cannot be guessed from its hash` |
 | 9 | A fee-on-transfer token could create unbacked escrow | Exact before/after balance accounting | `rejects fee-on-transfer tokens instead of creating unbacked escrow` |
-| 10 | Testnet claims could not be checked | Every hash recorded, plus an independent verifier | `pnpm verify:evidence`, 62/62, run in CI |
+| 10 | Testnet claims could not be checked | Every hash recorded, plus independent historical and current verifiers | `pnpm verify:evidence`, 62/62 preserved + 50/50 v3, run in CI |
 | 11 | The scoped-window negative test recorded a vague RPC error | Record the node's exact refusal text | `negativeTests.scopedWindowBlocksTokenCall` |
 | 12 | The UI badge counted the deployment as a case transaction | Count only case transactions (11) | The production screenshot in `evidence/browser-home.png` |
 | 13 | The README said the contract forbids a relayer that is the program or the auditor | Corrected: the app refuses it, and the relayer holds no on-chain role either way | README "Contract roles" |
@@ -77,12 +86,12 @@ The deployment transaction is
 | 18 | Approval vault JSON could remain visible in form controls after signing | The UI labels signing as local-only and clears both secret form values immediately after the approval is created | Full browser journey plus source review |
 | 19 | The production entry chunk exceeded Vite's 500 kB warning | React, EVM, QoreChain and crypto code now build as separate cacheable chunks; the application entry is under 100 kB | `pnpm build` |
 
-## Remaining (human-only)
+## Remaining
 
 1. **Make the GitHub repository public.** The rules require a public repo, and `Agozie180/Patch3Q` is currently private.
 2. **Q-Day Drill registration** closes on 17 Nov 2026 at 23:59 UTC (18 Nov, 00:59 WAT).
-3. **Video.** Record it from `docs/demo-runbook.md`, keep it under 3 minutes, and add the link to the README.
-4. **Hosted demo.** Complete: [`https://patch3-q.vercel.app`](https://patch3-q.vercel.app) passes the full browser journey.
+3. **Video.** Complete: the README links an 84-second narrated demo and its transcript.
+4. **Hosted demo.** Complete: [`https://patch3-q.vercel.app`](https://patch3-q.vercel.app) passes the full browser journey and hosts the demo video.
 5. **Submission form.** Choose **Encrypted Apps** and the Middle East & Africa region. Link the repo, hosted demo, video and
    `public/cover.png`.
 6. **Build-in-public.** Post the ready-made updates in `docs/build-in-public.md` from the project page.
@@ -107,7 +116,7 @@ now has its own live Diana hashes plus an independent verifier.
 | Threat model and honesty | 9/10 | 10/10 | 10/10 |
 | Tests and reproducibility | 9/10 | 10/10 | 10/10 |
 | Testnet evidence | 0/15 | 15/15 | 15/15 |
-| Demo, customer and build-in-public | 2/10 | 4/10 | 8/10 |
-| **Total** | **70** | **93** | **97** |
+| Demo, customer and build-in-public | 2/10 | 7/10 | 8/10 |
+| **Total** | **70** | **96** | **97** |
 
-The top-quality award threshold is 70/100. Most of the remaining points come from the video.
+The top-quality award threshold is 70/100. The remaining point depends on the external Q-Day Drill/build-in-public record.

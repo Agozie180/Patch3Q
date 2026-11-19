@@ -19,7 +19,8 @@ protocol, so judges score the repository and the live contract.
 - [x] The v1 lifecycle deploy has explorer links and bytecode matched to its preserved artifact.
 - [x] The repaired v2 registry and fresh MockTUSDT are deployed, funded and recorded in `evidence/deployment-v2.json`;
       `pnpm verify:evidence` checks its preserved masked runtime hash and source commit.
-- [ ] Deploy and rehearse the v3 lifecycle after funding the fresh program account printed by `pnpm testnet:status`.
+- [x] The current v3 registry is deployed and fully rehearsed in `evidence/testnet-v3.json`; 50/50 current checks pass,
+      including atomic normal and escalated resolution.
 - [x] Zero-setup hosted demo at [`https://patch3-q.vercel.app`](https://patch3-q.vercel.app), verified through the complete browser journey.
 - [x] Every quantified claim has a reproduction command (README "Measured on Diana").
 - [x] Demo mode needs no wallet or network. `pnpm smoke:browser` now self-starts preview and completes seal → verify → dual-PQ approval.
@@ -30,7 +31,7 @@ protocol, so judges score the repository and the live contract.
       collapsed technical detail, badges, links table, Mermaid diagrams, requirement mapping, used/not-used table,
       measured table, limitations and disclosures.
 - [x] A scripted demo that opens on the guardrail: [`demo-runbook.md`](demo-runbook.md), 3 minutes plus a 90-second cut.
-- [ ] Video recorded (at least two takes) and linked.
+- [x] An 84-second narrated public demo is linked from the README, with a checked-in transcript and the verified browser journey as its source material.
 
 ## Honesty
 

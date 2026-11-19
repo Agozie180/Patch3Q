@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-18T17:52:14.355Z",
+  "generatedAt": "2026-11-19T06:49:47.768Z",
   "targetUrl": "http://127.0.0.1:4173/",
   "chromePath": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
   "viewport": {
@@ -55,7 +55,7 @@
   "journey": {
     "sealed": {
       "heading": "Your disclosure is sealed with post-quantum encryption.",
-      "caseId": "P3Q-LBBRLNB3BXA-ETYK",
+      "caseId": "P3Q-T6FT-ZY5NQNZN0-Z",
       "payoutCommitmentVisible": true
     },
     "verified": {

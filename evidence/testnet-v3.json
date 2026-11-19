@@ -1,0 +1,210 @@
+{
+  "network": "qorechain-diana",
+  "evmChainId": 9800,
+  "version": 3,
+  "status": "verified",
+  "generatedAt": "2026-11-18T19:24:29.752Z",
+  "registryAddress": "0x9ec24151dc741f0c65d708c9410fbae2458f7863",
+  "bountyTokenAddress": "0x2d42cbe73384b8c492da8e0d706aa56141902eb1",
+  "accounts": {
+    "program": {
+      "qor": "qor15p2d4k946fmjqmr7nw9dydkuwk7xej6grxu5z4",
+      "evm": "0xa054dAd8B5D277206c7e9B8aD236dc75Bc6cCB48"
+    },
+    "auditor": {
+      "qor": "qor1nkwjmfd5jrwhp5cn2cp26dmjnr7dz4mf0hdmey",
+      "evm": "0x9d9D2dA5B490Dd70d3135602ad377298FcD15769"
+    },
+    "relayer": {
+      "qor": "qor1fj4dzkve7eg8g928skgf978gn69feyldvw4ync",
+      "evm": "0x4CaAd15999f650741547859092f8e89E8A9C93ED"
+    }
+  },
+  "reporterAccount": "none — both cases are anonymous; the reporter never signed a transaction",
+  "transactions": {
+    "deployment": "0xbc6da259b223a46a767ad1094d029f797469cd47cfb5f40da27f6fc514b76297",
+    "caseSubmitted": "0x79b9ea57e910117d2919d4c19f87848b664f93c55ed5f752702a04143d654ee5",
+    "acknowledgement": "0xb32f32ad7ce49db495225ae2e59c40121ad8dededb96ec367f56d170fd17243a",
+    "triage": "0x68edd99a71f86ca6b994196b8497bc90669af2a122dc549012ce4edd8ccdddcd",
+    "escrowFunding": "0xb2baf9388185ac392529b080d9bd3da43d287b3df5e42a1cc826de8223921a9b",
+    "resolution": "0x7a19b4ba453d50a846e97eb48a1a3484ca9a0abf885ae30b290b074d7becb4e1",
+    "severityApprovalAndRelease": "0x7a19b4ba453d50a846e97eb48a1a3484ca9a0abf885ae30b290b074d7becb4e1",
+    "redactedDisclosure": "0x7b97c6b525df661b94238c9c42986144f575706098ab332620439fd747e726a4",
+    "deadlineEscalation": "0xc764f928bc1e04039add0619157d0d869b703b294b26911b87048526835ced90",
+    "escalatedApprovalAndRelease": "0x4408d550a83fd80eef544bac1216c0643af2d55fa0dbc9a2a3c47f6ad2d035d2"
+  },
+  "native": {
+    "pqc_program": {
+      "hash": "53B289B303522CBB888FC2CA7BD6B6F8CFA2109C6EFD244590BE02EF78B8DC1E",
+      "explorer": "https://dashboard.qorechain.io/explorer/tx/53B289B303522CBB888FC2CA7BD6B6F8CFA2109C6EFD244590BE02EF78B8DC1E",
+      "pqcHybridVerify": "classical (registration)"
+    },
+    "fund_auditor": {
+      "hash": "134ABB5ABA66F13322DB7DADAAB5840253A95AF62062C940840492F86515B559",
+      "explorer": "https://dashboard.qorechain.io/explorer/tx/134ABB5ABA66F13322DB7DADAAB5840253A95AF62062C940840492F86515B559",
+      "pqcHybridVerify": "verified"
+    },
+    "fund_relayer": {
+      "hash": "F725F6A727BFCEE9D7EAEDB76B373777B6C256E29EDDC8A5F18D72CB89D0AD75",
+      "explorer": "https://dashboard.qorechain.io/explorer/tx/F725F6A727BFCEE9D7EAEDB76B373777B6C256E29EDDC8A5F18D72CB89D0AD75",
+      "pqcHybridVerify": "verified"
+    },
+    "pqc_auditor": {
+      "hash": "AFEB1217BB869CE9377077BAC70542569B4F21171666DB27DB8B0AC7348444DE",
+      "explorer": "https://dashboard.qorechain.io/explorer/tx/AFEB1217BB869CE9377077BAC70542569B4F21171666DB27DB8B0AC7348444DE",
+      "pqcHybridVerify": "classical (registration)"
+    },
+    "pqc_relayer": {
+      "hash": "68E7CCD40F7C55C111BB272EC185F126729527AC0FC11EF3C1F1F1DD83C54425",
+      "explorer": "https://dashboard.qorechain.io/explorer/tx/68E7CCD40F7C55C111BB272EC185F126729527AC0FC11EF3C1F1F1DD83C54425",
+      "pqcHybridVerify": "classical (registration)"
+    },
+    "kem_program": {
+      "hash": "0E259C91817259797D089D9A95765A56F28C2D70C252A71B12860805229E77F2",
+      "explorer": "https://dashboard.qorechain.io/explorer/tx/0E259C91817259797D089D9A95765A56F28C2D70C252A71B12860805229E77F2",
+      "pqcHybridVerify": "verified"
+    },
+    "kem_auditor": {
+      "hash": "A6B78908BE5C2A5B3C1B6EA23BC5B380DEE988636CF735DE455D21378C6E0F30",
+      "explorer": "https://dashboard.qorechain.io/explorer/tx/A6B78908BE5C2A5B3C1B6EA23BC5B380DEE988636CF735DE455D21378C6E0F30",
+      "pqcHybridVerify": "verified"
+    },
+    "window_program": {
+      "hash": "24D3F58596E6845062165CD5C506EEEF9EE8FEEAC9F5ABA098AA59833A854FC7",
+      "explorer": "https://dashboard.qorechain.io/explorer/tx/24D3F58596E6845062165CD5C506EEEF9EE8FEEAC9F5ABA098AA59833A854FC7",
+      "pqcHybridVerify": "verified"
+    },
+    "window_auditor": {
+      "hash": "3A32162FB6177DF142853CE7ECDE7C9A4323E2C71E3AFD0C8D994AFBA1E73799",
+      "explorer": "https://dashboard.qorechain.io/explorer/tx/3A32162FB6177DF142853CE7ECDE7C9A4323E2C71E3AFD0C8D994AFBA1E73799",
+      "pqcHybridVerify": "verified"
+    },
+    "window_relayer": {
+      "hash": "2364C54AC8A8433D4ED43D7A9DB7443745EDAC88035880AFACAC9B0BA13DB08D",
+      "explorer": "https://dashboard.qorechain.io/explorer/tx/2364C54AC8A8433D4ED43D7A9DB7443745EDAC88035880AFACAC9B0BA13DB08D",
+      "pqcHybridVerify": "verified"
+    }
+  },
+  "evm": {
+    "tokenDeployment": {
+      "hash": "0x66aac10ace171593b43cb8f227a1a41e9a35580286a0c3252fafa34b95883011",
+      "explorer": "https://dashboard.qorechain.io/explorer/tx/0x66aac10ace171593b43cb8f227a1a41e9a35580286a0c3252fafa34b95883011",
+      "blockNumber": "10332300"
+    },
+    "registryDeployment": {
+      "hash": "0xbc6da259b223a46a767ad1094d029f797469cd47cfb5f40da27f6fc514b76297",
+      "explorer": "https://dashboard.qorechain.io/explorer/tx/0xbc6da259b223a46a767ad1094d029f797469cd47cfb5f40da27f6fc514b76297",
+      "blockNumber": "10332303"
+    },
+    "mint": {
+      "hash": "0xb959d0ad21d4e17e25ad3ebbfd9b2a86e0a3b345b88048b2198cf7cfcf57cc90",
+      "explorer": "https://dashboard.qorechain.io/explorer/tx/0xb959d0ad21d4e17e25ad3ebbfd9b2a86e0a3b345b88048b2198cf7cfcf57cc90",
+      "blockNumber": "10332306"
+    },
+    "approve": {
+      "hash": "0xd8e0f73c1bb9200f0fc222bdda420c66e614efaa97c0aab1d62c9023eed097f6",
+      "explorer": "https://dashboard.qorechain.io/explorer/tx/0xd8e0f73c1bb9200f0fc222bdda420c66e614efaa97c0aab1d62c9023eed097f6",
+      "blockNumber": "10332308"
+    }
+  },
+  "cases": {
+    "normal": {
+      "caseId": "P3Q-GFGIK-F6GWNL89HG",
+      "caseIdHash": "0x1e755152309fdad1b54e7b3cb9052a51a1576a9c1d00e15ac09081ce1c72b594",
+      "bundle": "evidence/cases-v3/case-a-normal.bundle.json",
+      "envelopeHash": "0xd30a2c4bcf9544bdad31ca1fb48bc68264d1ee4b33d551946e8fe0c66c2980bc",
+      "contentCommitment": "0x457e09ad55a5be3c80b2f37ce647e5b64fa8643832bddd2362972622851111c7",
+      "sizeBucket": 16384,
+      "reporterPqKeyHash": "0xefccbad9f7b3777a5c8c3abeccf3a27c8c9ca9bf4288b259bc755ce6871bdf48",
+      "payoutCommitment": "0x9705da1dc450d9ea1f9ea0391605143a1a10dbb6e94df1e44e7cdc4a702b0e1e",
+      "payoutRecipient": "0x3401d71ca8c423baf0B6074DC49047782018C651",
+      "payoutBalance": "2500000000",
+      "recipientsDecrypted": {
+        "programVerified": true,
+        "auditorVerified": true
+      },
+      "transactions": {
+        "submitAnonymousCase": {
+          "hash": "0x79b9ea57e910117d2919d4c19f87848b664f93c55ed5f752702a04143d654ee5",
+          "explorer": "https://dashboard.qorechain.io/explorer/tx/0x79b9ea57e910117d2919d4c19f87848b664f93c55ed5f752702a04143d654ee5",
+          "blockNumber": "10332339"
+        },
+        "acknowledgeCase": {
+          "hash": "0xb32f32ad7ce49db495225ae2e59c40121ad8dededb96ec367f56d170fd17243a",
+          "explorer": "https://dashboard.qorechain.io/explorer/tx/0xb32f32ad7ce49db495225ae2e59c40121ad8dededb96ec367f56d170fd17243a",
+          "blockNumber": "10332343"
+        },
+        "triageCase": {
+          "hash": "0x68edd99a71f86ca6b994196b8497bc90669af2a122dc549012ce4edd8ccdddcd",
+          "explorer": "https://dashboard.qorechain.io/explorer/tx/0x68edd99a71f86ca6b994196b8497bc90669af2a122dc549012ce4edd8ccdddcd",
+          "blockNumber": "10332345"
+        },
+        "fundBounty": {
+          "hash": "0xb2baf9388185ac392529b080d9bd3da43d287b3df5e42a1cc826de8223921a9b",
+          "explorer": "https://dashboard.qorechain.io/explorer/tx/0xb2baf9388185ac392529b080d9bd3da43d287b3df5e42a1cc826de8223921a9b",
+          "blockNumber": "10332347"
+        },
+        "approveAnonymousSeverity": {
+          "hash": "0x7a19b4ba453d50a846e97eb48a1a3484ca9a0abf885ae30b290b074d7becb4e1",
+          "explorer": "https://dashboard.qorechain.io/explorer/tx/0x7a19b4ba453d50a846e97eb48a1a3484ca9a0abf885ae30b290b074d7becb4e1",
+          "blockNumber": "10332353"
+        },
+        "discloseCase": {
+          "hash": "0x7b97c6b525df661b94238c9c42986144f575706098ab332620439fd747e726a4",
+          "explorer": "https://dashboard.qorechain.io/explorer/tx/0x7b97c6b525df661b94238c9c42986144f575706098ab332620439fd747e726a4",
+          "blockNumber": "10332972"
+        }
+      }
+    },
+    "ghosted": {
+      "caseId": "P3Q-FD-ASV0SYKNIDT3Y",
+      "caseIdHash": "0x2740fa3755dd889820ece351029b86e463db698c6d1d7947dfca17c31d185da7",
+      "bundle": "evidence/cases-v3/case-b-ghosted.bundle.json",
+      "envelopeHash": "0xc2fc1438d85fce072c8a8029a91a462286653eb7211a595580251e2b69313674",
+      "contentCommitment": "0xfe15c4ae1e11d03a503d0c35fea0b0abe8c1b8d1a19fb578296e3f7fd9b24dc5",
+      "sizeBucket": 16384,
+      "reporterPqKeyHash": "0x140b194da852a478180d8c59fbe3f96bcfd35a8d70521c19161fc767c817b3b4",
+      "payoutCommitment": "0x926dc2386e4485bf72c35d1adfb42b52edf31d1a93f4d6792955ea06dac93095",
+      "payoutRecipient": "0xf5bB005CB31A80E29b68F9022036aAA0b0103206",
+      "payoutBalance": "1000000000",
+      "recipientsDecrypted": {
+        "programVerified": true,
+        "auditorVerified": true
+      },
+      "transactions": {
+        "submitAnonymousCase": {
+          "hash": "0x832a76011ec1e09d7376540d1b68e7c9f9fd388d220106baed9459304a4f9a06",
+          "explorer": "https://dashboard.qorechain.io/explorer/tx/0x832a76011ec1e09d7376540d1b68e7c9f9fd388d220106baed9459304a4f9a06",
+          "blockNumber": "10332341"
+        },
+        "fundBounty": {
+          "hash": "0x165a790701fdd05114074699fbc428ead18486f68e0d17b89f783b936e61b568",
+          "explorer": "https://dashboard.qorechain.io/explorer/tx/0x165a790701fdd05114074699fbc428ead18486f68e0d17b89f783b936e61b568",
+          "blockNumber": "10332355"
+        },
+        "escalateMissedDeadline": {
+          "hash": "0xc764f928bc1e04039add0619157d0d869b703b294b26911b87048526835ced90",
+          "explorer": "https://dashboard.qorechain.io/explorer/tx/0xc764f928bc1e04039add0619157d0d869b703b294b26911b87048526835ced90",
+          "blockNumber": "10332425"
+        },
+        "approveAnonymousSeverity": {
+          "hash": "0x4408d550a83fd80eef544bac1216c0643af2d55fa0dbc9a2a3c47f6ad2d035d2",
+          "explorer": "https://dashboard.qorechain.io/explorer/tx/0x4408d550a83fd80eef544bac1216c0643af2d55fa0dbc9a2a3c47f6ad2d035d2",
+          "blockNumber": "10332429"
+        }
+      }
+    }
+  },
+  "negativeTests": {
+    "ecdsaOnlyAuditorApproval": "InvalidPqSignature",
+    "redirectedPayoutToAuditor": "PayoutCommitmentMismatch",
+    "relayerCannotReleaseEscrow": "NotAuditor",
+    "prematureEscalation": "DeadlineNotMissed",
+    "scopedWindowBlocksTokenCall": "failed to broadcast transaction: the EVM authorisation window for qor1nkwjmfd5jrwhp5cn2cp26dmjnr7dz4mf0hdmey does not admit this transaction: the window does not list 0x2D42CBe73384b8C492da8E0d706AA56141902eB1 as an allowed recipient: EVM authorisation window exhausted: EVM authorisation window exhausted"
+  },
+  "externalEvidence": {
+    "qcaiAuditArtifact": "evidence/qcai-audit.json",
+    "demoVideoUrl": "https://patch3-q.vercel.app/demo.mp4",
+    "buildInPublicUrl": null
+  }
+}

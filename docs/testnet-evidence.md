@@ -1,10 +1,9 @@
 # Testnet evidence
 
-**Status: verified on Diana.** The lifecycle run happened on 15 Nov 2026 between 00:32 and 00:50 WAT
-(23:32–23:50 UTC on 14 Nov), at EVM blocks 10101249–10101909. The repaired v2 contracts were deployed on 17 Nov 2026
-at blocks 10278631–10278637. `pnpm verify:evidence` checks both generations (62/62) and writes
-[`evidence/verification.json`](../evidence/verification.json). The hashes are in
-[`evidence/testnet.json`](../evidence/testnet.json) and [`evidence/deployment-v2.json`](../evidence/deployment-v2.json).
+**Status: verified on Diana.** The current v3 lifecycle ran on 18 Nov 2026 and is recorded in
+[`evidence/testnet-v3.json`](../evidence/testnet-v3.json). `pnpm verify:evidence` checks v3 (50/50) and the preserved
+v1/v2 generations (62/62), writing [`evidence/verification-v3.json`](../evidence/verification-v3.json) and
+[`evidence/verification.json`](../evidence/verification.json).
 
 | Evidence | Produced by | JSON path | Status |
 | --- | --- | --- | --- |
@@ -13,7 +12,7 @@ at blocks 10278631–10278637. `pnpm verify:evidence` checks both generations (6
 | ML-KEM-1024 recipient key publication | hybrid native tx | `native.kem_<role>` | Verified |
 | Role funding and scoped EVM authorization windows | hybrid native tx | `native.fund_<role>`, `native.window_<role>` | Verified |
 | MockTUSDT and registry deployment | EVM | `bountyTokenAddress`, `registryAddress`, `evm.*Deployment` | Verified |
-| Current v2 token + registry deployment, mint and allowance | EVM | `evidence/deployment-v2.json` | Verified |
+| Current v3 token + registry deployment, mint and allowance | EVM | `evidence/testnet-v3.json` | Verified |
 | Anonymous case anchored by a relayer | `submitAnonymousCase` | `transactions.caseSubmitted` | Verified |
 | Acknowledge, triage, fund, resolve | program | `transactions.{acknowledgement,triage,escrowFunding,resolution}` | Verified |
 | Dual-PQ release to the sealed payout address | `approveAnonymousSeverity` | `transactions.severityApprovalAndRelease` | Verified |
@@ -23,16 +22,15 @@ at blocks 10278631–10278637. `pnpm verify:evidence` checks both generations (6
 | ECDSA-only, redirected payout, relayer release, early escalation and out-of-scope window are all rejected | `eth_call` reverts + a broadcast refused by the node | `negativeTests.*` | Verified |
 | Live precompile self-test | `pnpm verify:precompile` | `evidence/precompile-selftest.txt` | Verified |
 | QCAI probe | `pnpm audit:qcai` | `evidence/qcai-audit.json`. The precompile returned empty data | Unavailable on public RPC |
-| Demo video | manual | README link | Pending |
+| Demo video | manual | README link and `docs/demo-video-transcript.md` | Complete: 84 seconds, hosted with the Vercel demo |
 
 ## Public artifacts
 
-- `evidence/testnet.json`: addresses, every transaction hash with its explorer link, case commitments and negative-test results.
-- `evidence/deployment-v2.json`: current registry/token addresses, deployment receipts, native authorization steps,
-  initial mint and allowance.
-- `evidence/verification.json`: output of the independent on-chain verifier.
-- `evidence/cases/*.bundle.json`: the two sealed bundles, ciphertext only. Each hashes to its anchored `envelopeHash`.
-- `evidence/cases/case-a-normal.redacted.md`: the disclosed redacted report. It hashes to the on-chain `redactedReportHash`.
+- `evidence/testnet-v3.json`: current addresses, every transaction hash, case commitments and negative-test results.
+- `evidence/verification-v3.json`: output of the current independent on-chain verifier.
+- `evidence/testnet.json`, `evidence/deployment-v2.json` and `evidence/verification.json`: preserved historical evidence.
+- `evidence/cases-v3/*.bundle.json`: the two current sealed bundles, ciphertext only. Each hashes to its anchored `envelopeHash`.
+- `evidence/cases-v3/case-a-normal.redacted.md`: the current disclosed redacted report.
 - `evidence/precompile-selftest.txt`: the live ML-DSA-87 precompile self-test.
 - `evidence/browser-home.png`: the production build showing the **Live on Diana** badge.
 

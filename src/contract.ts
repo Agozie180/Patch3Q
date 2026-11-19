@@ -1,7 +1,6 @@
 import { parseAbi } from "viem";
 
-import deploymentV2 from "../evidence/deployment-v2.json";
-import evidence from "../evidence/testnet.json";
+import evidence from "../evidence/testnet-v3.json";
 
 export const patch3qRegistryAbi = parseAbi([
   "function submitCase(address program, address auditor, bytes32 caseIdHash, bytes32 envelopeHash, bytes32 contentCommitment, bytes32 programRef, uint64 acknowledgeBy, uint64 triageBy, uint64 embargoUntil)",
@@ -39,13 +38,14 @@ export const patch3qRegistryAbi = parseAbi([
 
 export const testnetEvidence = evidence as {
   status: string;
+  version: number;
   registryAddress: `0x${string}` | null;
   bountyTokenAddress: `0x${string}` | null;
   transactions?: Record<string, unknown>;
   cases?: Record<string, { transactions?: Record<string, unknown> }>;
 };
 
-export const currentDeployment = deploymentV2 as {
+export const currentDeployment = evidence as {
   status: string;
   version: number;
   registryAddress: `0x${string}`;
@@ -53,7 +53,7 @@ export const currentDeployment = deploymentV2 as {
 };
 
 export const patch3qRegistryAddress = (
-  import.meta.env.VITE_PATCH3Q_REGISTRY_ADDRESS || currentDeployment.registryAddress || testnetEvidence.registryAddress || undefined
+  import.meta.env.VITE_PATCH3Q_REGISTRY_ADDRESS || currentDeployment.registryAddress || undefined
 ) as `0x${string}` | undefined;
 
 export const escrowTokenAbi = parseAbi([

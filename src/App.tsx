@@ -1570,7 +1570,7 @@ function LiveEvidence() {
       target="_blank"
       rel="noreferrer"
     >
-      <i /> v2 live on Diana · registry {shortHash(currentDeployment.registryAddress)} · {transactions} verified v1 case transactions ↗
+      <i /> v3 live on Diana · registry {shortHash(currentDeployment.registryAddress)} · {transactions} verified v3 case transactions ↗
     </a>
   );
 }

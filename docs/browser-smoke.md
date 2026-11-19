@@ -12,7 +12,7 @@ mobile assertion without overwriting the committed desktop captures.
 
 Verified through the real demo journey:
 
-- the hero and current v2 Diana testnet status rendered;
+- the hero and current v3 Diana testnet status rendered;
 - the four workspace tabs and reporter form rendered without layout collapse;
 - the QoreChain synthetic customer-scenario control was visible;
 - a synthetic report was populated and sealed into an ML-KEM-1024 envelope;

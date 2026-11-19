@@ -20,6 +20,7 @@ const chromeCandidates = [
 ].filter(Boolean);
 const chromePath = chromeCandidates.find((candidate) => existsSync(candidate));
 const pause = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+const outputPath = (fileName) => path.relative(process.cwd(), path.join(outputDirectory, fileName)).replaceAll("\\", "/");
 
 if (!chromePath) {
   throw new Error("Chrome was not found. Set PATCH3Q_CHROME_PATH to an installed Chrome or Chromium executable.");
@@ -359,10 +360,10 @@ try {
     journey: { sealed, verified, approved },
     pageErrors,
     screenshots: [
-      "evidence/browser-home.png",
-      "evidence/browser-approval.png",
-      "evidence/browser-sealed.png",
-      "evidence/browser-journey.png",
+      outputPath("browser-home.png"),
+      outputPath("browser-approval.png"),
+      outputPath("browser-sealed.png"),
+      outputPath("browser-journey.png"),
     ],
   };
   await writeFile(path.join(outputDirectory, "browser-smoke.json"), `${JSON.stringify(report, null, 2)}\n`, "utf8");

@@ -89,7 +89,7 @@ async function main(): Promise<void> {
     record(`${label} ${ref.hash}`, receipt.status === "success" && getAddress(receipt.contractAddress!) === address);
   }
 
-  record("current v2 deployment status is verified", deploymentV2.status === "verified" && deploymentV2.version === 2,
+  record("preserved v2 deployment status is verified", deploymentV2.status === "verified" && deploymentV2.version === 2,
     { status: deploymentV2.status, version: deploymentV2.version });
   const registryV2Code = await client.getCode({ address: registryV2 });
   const tokenV2Code = await client.getCode({ address: tokenV2 });
@@ -101,18 +101,18 @@ async function main(): Promise<void> {
   const boundTokenV2 = await client.readContract({
     address: registryV2, abi: currentRegistryArtifact.abi as Abi, functionName: "bountyToken",
   });
-  record("current v2 registry is bound to its deployed tUSDT token", getAddress(boundTokenV2 as Hex) === tokenV2);
+  record("preserved v2 registry is bound to its deployed tUSDT token", getAddress(boundTokenV2 as Hex) === tokenV2);
 
   for (const [label, ref, address] of [
-    ["current v2 MockTUSDT deployment", deploymentV2.evm.tokenDeployment, tokenV2],
-    ["current v2 Patch3QRegistry deployment", deploymentV2.evm.registryDeployment, registryV2],
+    ["preserved v2 MockTUSDT deployment", deploymentV2.evm.tokenDeployment, tokenV2],
+    ["preserved v2 Patch3QRegistry deployment", deploymentV2.evm.registryDeployment, registryV2],
   ] as [string, TxRef, Hex][]) {
     const receipt = await client.getTransactionReceipt({ hash: ref.hash as Hex });
     record(`${label} ${ref.hash}`, receipt.status === "success" && getAddress(receipt.contractAddress!) === address);
   }
   for (const [label, ref] of [
-    ["current v2 initial tUSDT mint", deploymentV2.evm.mint],
-    ["current v2 registry allowance", deploymentV2.evm.approve],
+    ["preserved v2 initial tUSDT mint", deploymentV2.evm.mint],
+    ["preserved v2 registry allowance", deploymentV2.evm.approve],
   ] as [string, TxRef][]) {
     const receipt = await client.getTransactionReceipt({ hash: ref.hash as Hex });
     const tx = await client.getTransaction({ hash: ref.hash as Hex });
@@ -123,14 +123,14 @@ async function main(): Promise<void> {
     client.readContract({ address: tokenV2, abi: currentTokenArtifact.abi as Abi, functionName: "balanceOf", args: [deployerV2] }) as Promise<bigint>,
     client.readContract({ address: tokenV2, abi: currentTokenArtifact.abi as Abi, functionName: "allowance", args: [deployerV2, registryV2] }) as Promise<bigint>,
   ]);
-  record("current v2 deployer received the documented initial tUSDT mint",
+  record("preserved v2 deployer received the documented initial tUSDT mint",
     deployerTokenBalance.toString() === deploymentV2.initialFunding.mintedTUsdtBaseUnits, deployerTokenBalance.toString());
-  record("current v2 registry has the documented tUSDT allowance",
+  record("preserved v2 registry has the documented tUSDT allowance",
     registryAllowance.toString() === deploymentV2.initialFunding.registryAllowanceBaseUnits, registryAllowance.toString());
   for (const [label, hash] of Object.entries<string>(deploymentV2.native)) {
     const response = await fetch(`${REST}/cosmos/tx/v1beta1/txs/${hash}`);
     const body = await response.json() as { tx_response?: { code: number; height: string } };
-    record(`current v2 native ${label} ${hash}`, body.tx_response?.code === 0, { height: body.tx_response?.height });
+    record(`preserved v2 native ${label} ${hash}`, body.tx_response?.code === 0, { height: body.tx_response?.height });
   }
 
   const expected: Record<string, Record<string, string[]>> = {
@@ -230,7 +230,7 @@ async function main(): Promise<void> {
     verifiedAt: new Date().toISOString(),
     dianaBlock: latest.toString(),
     registry,
-    currentDeployment: { registry: registryV2, bountyToken: tokenV2, version: deploymentV2.version },
+    preservedDeployment: { registry: registryV2, bountyToken: tokenV2, version: deploymentV2.version },
     passed: checks.length - failed.length,
     failed: failed.length,
     checks,

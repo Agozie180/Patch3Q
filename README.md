@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/Agozie180/Patch3Q/actions/workflows/ci.yml/badge.svg)](https://github.com/Agozie180/Patch3Q/actions/workflows/ci.yml)
 ![Live on Diana](https://img.shields.io/badge/QoreChain%20Diana-live-2ea44f)
-![On-chain checks](https://img.shields.io/badge/verify%3Aevidence-62%2F62-2ea44f)
+![On-chain checks](https://img.shields.io/badge/verify%3Aevidence-112%2F112-2ea44f)
 ![Tests](https://img.shields.io/badge/tests-35%20crypto%20%2B%2029%20contract-2ea44f)
 ![ML-KEM-1024](https://img.shields.io/badge/ML--KEM-1024-0b7285)
 ![ML-DSA-87](https://img.shields.io/badge/ML--DSA-87%20%C3%97%202%20on--chain-0b7285)
@@ -23,14 +23,14 @@ finding.
 
 Show these three beats in order (script: [`docs/demo-runbook.md`](docs/demo-runbook.md)):
 
-1. **Leaked storage is useless.** Open [`evidence/cases/`](evidence/cases/): only QoreSeal bundles and redacted
-   markdown. On Diana, the anchored fields are hashes and commitments—[`evidence/testnet.json`](evidence/testnet.json)
+1. **Leaked storage is useless.** Open [`evidence/cases-v3/`](evidence/cases-v3/): only QoreSeal bundles and redacted
+   markdown. On Diana, the anchored fields are hashes and commitments—[`evidence/testnet-v3.json`](evidence/testnet-v3.json)
    matches what explorers show for Cases A and B.
 2. **Classical-only approval dies on-chain.** Replay an ECDSA-only severity approval against the live registry; Diana
-   returns `InvalidPqSignature` (recorded under `negativeTests` in [`evidence/testnet.json`](evidence/testnet.json)).
+   returns `InvalidPqSignature` (recorded under `negativeTests` in [`evidence/testnet-v3.json`](evidence/testnet-v3.json)).
 3. **Missed deadline → escalation → payout.** In Case B the program funded escrow then missed acknowledgement; keeper
-   tx [`0x48ebd14d…`](https://dashboard.qorechain.io/explorer/tx/0x48ebd14d1e8c6effe361692adc2a4b021243db32e1510062ae4372d7acba743e)
-   escalates; release tx [`0x02b5dde0…`](https://dashboard.qorechain.io/explorer/tx/0x02b5dde043293fdf3db6f3dcfc13c22020adb8cfc680d9faf435c415cf430c07)
+   tx [`0xc764f928…`](https://dashboard.qorechain.io/explorer/tx/0xc764f928bc1e04039add0619157d0d869b703b294b26911b87048526835ced90)
+   escalates; release tx [`0x4408d550…`](https://dashboard.qorechain.io/explorer/tx/0x4408d550a83fd80eef544bac1216c0643af2d55fa0dbc9a2a3c47f6ad2d035d2)
    pays the sealed address with reporter + auditor ML-DSA-87 approvals.
 
 ## How Patch3Q compares
@@ -40,7 +40,7 @@ Facts below come from this repository or from Immunefi’s public program pages 
 | | Email / PGP | Vault-style bounty platform (e.g. Immunefi) | Patch3Q |
 | --- | --- | --- | --- |
 | **Report confidentiality** | Body can be PGP-encrypted; headers, routing, and mailbox custody are outside the ciphertext | Submissions are handled on-platform; programs set their own rules | ML-KEM-1024 multi-recipient envelopes in-browser; on-chain anchors are hashes and commitments ([`docs/threat-model.md`](docs/threat-model.md)) |
-| **Provable deadlines** | not verified | Immunefi publishes response-time SLAs between projects and researchers ([hacker guide](https://immunefi.com/blog/security-guides/a-hackers-guide-to-submitting-bugs-on-immunefi/)); enforcement is platform process, not a public chain record | Acknowledgement and triage deadlines are storage on Diana; `escalateMissedDeadline` is permissionless after expiry ([`contracts/Patch3QRegistry.sol`](contracts/Patch3QRegistry.sol), Case B in [`evidence/testnet.json`](evidence/testnet.json)) |
+| **Provable deadlines** | not verified | Immunefi publishes response-time SLAs between projects and researchers ([hacker guide](https://immunefi.com/blog/security-guides/a-hackers-guide-to-submitting-bugs-on-immunefi/)); enforcement is platform process, not a public chain record | Acknowledgement and triage deadlines are storage on Diana; `escalateMissedDeadline` is permissionless after expiry ([`contracts/Patch3QRegistry.sol`](contracts/Patch3QRegistry.sol), Case B in [`evidence/testnet-v3.json`](evidence/testnet-v3.json)) |
 | **Who decides severity** | Reporter and vendor negotiate off-channel | Project security team decides validity and payout tier (e.g. [Yearn program FAQ](https://immunefi.com/bug-bounty/yearnfinance/information/)) | Normal path: program + auditor ML-DSA-87 on the same digest. Escalated path: reporter per-case key + auditor ([`docs/threat-model.md`](docs/threat-model.md)) |
 | **Who can release funds** | not verified | Bounties are paid by the sponsoring project to a wallet you designate; some programs require KYC before payment ([Immunefi terms excerpt on program pages](https://immunefi.com/bug-bounty/immunefi/safe-harbor/)) | Registry transfers bounty token only after **two** ML-DSA-87 signatures pass in-contract precompile checks; ECDSA alone is rejected (live `InvalidPqSignature`) |
 
@@ -50,31 +50,30 @@ EVM access itself requires a [hybrid-signed authorization window](https://docs.q
 
 ## Proven on Diana (reproducible)
 
-The repaired `Patch3QRegistry` v2 was deployed on QoreChain Diana on 17 Nov 2026: registry
-[`0xa7c6ff9db34aadb4301b183864d75d9a36c95b27`](https://dashboard.qorechain.io/explorer/address/0xa7c6ff9db34aadb4301b183864d75d9a36c95b27),
-token [`0x715a962d04391a0e308fd4fa36af63cec0df3bdc`](https://dashboard.qorechain.io/explorer/address/0x715a962d04391a0e308fd4fa36af63cec0df3bdc).
-Its deployment, preserved masked runtime hash, source commit, token binding, initial 10,000 tUSDT mint and allowance are recorded in
-[`evidence/deployment-v2.json`](evidence/deployment-v2.json). The complete anonymous lifecycle rehearsal remains the
-preserved v1 run in [`evidence/testnet.json`](evidence/testnet.json): two cases, five rejected Q-Day attacks and 10
-native PQC/window transactions. Anyone can re-check both generations without keys:
+The current `Patch3QRegistry` v3 was deployed and fully rehearsed on QoreChain Diana on 18 Nov 2026: registry
+[`0x9ec24151dc741f0c65d708c9410fbae2458f7863`](https://dashboard.qorechain.io/explorer/address/0x9ec24151dc741f0c65d708c9410fbae2458f7863),
+token [`0x2d42cbe73384b8c492da8e0d706aa56141902eb1`](https://dashboard.qorechain.io/explorer/address/0x2d42cbe73384b8c492da8e0d706aa56141902eb1).
+[`evidence/testnet-v3.json`](evidence/testnet-v3.json) records the deployment, two anonymous lifecycle cases, atomic
+normal and escalated resolution, five rejected Q-Day attacks and 10 native PQC/window transactions. Historical v1/v2
+evidence remains preserved. Anyone can re-check all three generations without keys:
 
 ```sh
-pnpm verify:evidence   # 62/62: v2 deployment + v1 lifecycle → evidence/verification.json
+pnpm verify:evidence   # 62/62 historical + 50/50 v3 → evidence/verification*.json
 pnpm verify:precompile
 ```
 
 Row-by-row proof: [`docs/testnet-evidence.md`](docs/testnet-evidence.md). Independent verifier:
-[`scripts/verify-testnet-evidence.ts`](scripts/verify-testnet-evidence.ts).
+[`scripts/verify-testnet-evidence.ts`](scripts/verify-testnet-evidence.ts) and
+[`scripts/verify-v3-evidence.ts`](scripts/verify-v3-evidence.ts).
 
-## Still outstanding (not claimed)
+## Submission status
 
 | Item | Status |
 | --- | --- |
-| Public demo video (≤ 3 min) | Script in [`docs/demo-runbook.md`](docs/demo-runbook.md); URL not in README yet |
-| Zero-setup hosted demo | Live at [`https://patch3-q.vercel.app`](https://patch3-q.vercel.app); the production URL passes the complete browser journey |
+| Public demo video (≤ 3 min) | Complete: [84-second narrated demo](https://patch3-q.vercel.app/demo.mp4) · [transcript](docs/demo-video-transcript.md) · [runbook](docs/demo-runbook.md) |
+| Zero-setup hosted demo | Complete: live at [`https://patch3-q.vercel.app`](https://patch3-q.vercel.app); the production URL passes the complete browser journey |
 | QCAI risk / anomaly scores | [`evidence/qcai-audit.json`](evidence/qcai-audit.json): AI precompiles returned empty data on the public Diana RPC |
 | GitHub repo visibility | [`Agozie180/Patch3Q`](https://github.com/Agozie180/Patch3Q) is private; hackathon rules require public |
-| v3 Diana lifecycle | The source and 29 contract tests include atomic normal-path resolution; fund the fresh program account from `pnpm testnet:status`, then run `pnpm testnet:e2e:v3` |
 
 A fresh contract deployment accepts `PATCH3Q_DEPLOYER_PRIVATE_KEY` or a valid BIP-39
 `PATCH3Q_DEPLOYER_MNEMONIC` from `.env`; the unified Diana account must be funded, PQ-registered and have an open EVM
@@ -89,10 +88,10 @@ window. The preserved rehearsal is `pnpm testnet:e2e`; the isolated v3 run is `p
 | Event | [Build Before Q-Day: QoreChain Developer Fest](https://build.qorechain.io/) |
 | Category bounty | **Encrypted Apps** (1st $1,500 · 2nd $750) |
 | Special awards targeted | Q-Day Survivor (5 × $200) · Best AI-Native Build ($500, [`AI_USAGE.md`](AI_USAGE.md)) · People's Choice · Regional: Middle East & Africa ($200) · Top-Quality ($250) |
-| Live contract | [`Patch3QRegistry` v2 on Diana](https://dashboard.qorechain.io/explorer/address/0xa7c6ff9db34aadb4301b183864d75d9a36c95b27) |
-| Every transaction | [`evidence/testnet.json`](evidence/testnet.json) · independent check [`evidence/verification.json`](evidence/verification.json) |
+| Live contract | [`Patch3QRegistry` v3 on Diana](https://dashboard.qorechain.io/explorer/address/0x9ec24151dc741f0c65d708c9410fbae2458f7863) |
+| Every current transaction | [`evidence/testnet-v3.json`](evidence/testnet-v3.json) · independent check [`evidence/verification-v3.json`](evidence/verification-v3.json) |
 | Measured numbers | [`evidence/measurements.json`](evidence/measurements.json) |
-| Demo video (≤ 3 min) | *Added after recording*; script in [`docs/demo-runbook.md`](docs/demo-runbook.md) |
+| Demo video (≤ 3 min) | [84-second narrated demo](https://patch3-q.vercel.app/demo.mp4) · [transcript](docs/demo-video-transcript.md) |
 | Hosted demo | [`https://patch3-q.vercel.app`](https://patch3-q.vercel.app) · locally `pnpm dev` runs in demo mode with no wallet |
 | QoreChain docs | [Developer guide](https://docs.qorechain.io/developer-guide/) · [EVM precompiles](https://docs.qorechain.io/developer-guide/evm-precompiles/) · [Chain dev kit](https://docs.qorechain.io/developer-tools/chain-dev-sdk/) |
 
@@ -100,9 +99,9 @@ window. The preserved rehearsal is `pnpm testnet:e2e`; the isolated v3 run is `p
 
 | Requirement | Where Patch3Q meets it | Proof |
 | --- | --- | --- |
-| ML-KEM-1024 encryption | QoreSeal multi-recipient envelope for the maintainer and the auditor (`src/lib/patch3q.ts`) | Both bundles in [`evidence/cases/`](evidence/cases) were opened by both recipients during the live run |
-| Registered recipient keys | Recipients are qor1 addresses. Their ML-KEM-1024 keys are resolved from the chain's PQC key registry, never pasted in | `native.kem_program` and `native.kem_auditor` in [`evidence/testnet.json`](evidence/testnet.json) |
-| ML-DSA key binding | Each ML-KEM key is published by a hybrid-signed transaction from an account with a registered ML-DSA-87 key (`pqc_hybrid_verify: verified`). The bundle authenticates each signer's ML-DSA key fingerprint. The registry snapshots those keys at submission and verifies payouts against them | `native.pqc_*` transactions and the release transactions `0x1feed506…` and `0x02b5dde0…` |
+| ML-KEM-1024 encryption | QoreSeal multi-recipient envelope for the maintainer and the auditor (`src/lib/patch3q.ts`) | Both bundles in [`evidence/cases-v3/`](evidence/cases-v3) were opened by both recipients during the live run |
+| Registered recipient keys | Recipients are qor1 addresses. Their ML-KEM-1024 keys are resolved from the chain's PQC key registry, never pasted in | `native.kem_program` and `native.kem_auditor` in [`evidence/testnet-v3.json`](evidence/testnet-v3.json) |
+| ML-DSA key binding | Each ML-KEM key is published by a hybrid-signed transaction from an account with a registered ML-DSA-87 key (`pqc_hybrid_verify: verified`). The bundle authenticates each signer's ML-DSA key fingerprint. The registry snapshots those keys at submission and verifies payouts against them | `native.pqc_*` transactions and the release transactions `0x7a19b4ba…` and `0x4408d550…` |
 | Client-side encryption and decryption | Sealing and opening run in the browser and in the same library from Node. There is no server and no plaintext upload path | Test `exports only ciphertext and public metadata, never report or PoC plaintext` |
 
 ### The thesis, enforced (not asserted)
@@ -115,7 +114,7 @@ window. The preserved rehearsal is `pnpm testnet:e2e`; the isolated v3 run is `p
 | two named PQ parties release the escrow | a payout approved with ECDSA only | `pqcVerify` precompile, called twice in `approveAnonymousSeverity` | `requires both independent PQ signatures`. Live: `InvalidPqSignature` |
 | the release to pay the sealed address | anyone redirecting the bounty, even with both signatures | `payoutCommitment` opened at release, with the recipient inside the signed digest | `stops the program and auditor from redirecting the bounty`. Live: `PayoutCommitmentMismatch` |
 | a relayer anchor the case for an anonymous reporter | the relayer releasing funds or voting | `onlyAuditor` on release; the relayer is stored only as `relayer` and holds no role | `pays the sealed payout address, never the relayer`. Live: `NotAuditor` |
-| anyone escalate a missed deadline | early escalation, or a late vendor racing the keeper | Late acknowledgement and triage revert; `escalateMissedDeadline` remains permissionless after expiry; reporter + auditor approval resolves the escalated case | `does not let a late acknowledgement race permissionless escalation`, `does not let a late triage race permissionless escalation`; repaired bytecode is live in v2 |
+| anyone escalate a missed deadline | early escalation, or a late vendor racing the keeper | Late acknowledgement and triage revert; `escalateMissedDeadline` remains permissionless after expiry; reporter + auditor approval resolves the escalated case | `does not let a late acknowledgement race permissionless escalation`, `does not let a late triage race permissionless escalation`; current bytecode is live in v3 |
 | the auditor's EVM window call the registry | a stolen auditor key calling any other contract | A scoped EVM authorization window (`allowedTargets = [registry]`) | Live: the node refuses the transaction |
 | the chain see deadlines and amounts | the chain learning who reported, where the payout goes before release, or how large the PoC is | Relayer anchoring, per-case key hash, payout commitment, size buckets | `anchors without any reporter account…`, `pads every report to a fixed size bucket…` |
 
@@ -169,37 +168,37 @@ Account mode is still available for researchers who want public credit.
 
 ### Live on Diana
 
-Patch3Q v2 is deployed on QoreChain Diana (`qorechain-diana`, EVM chain 9800). The full lifecycle evidence was produced
-by the preserved v1 deployment on 15 Nov 2026; the repaired v2 bytecode was deployed and funded on 17 Nov 2026.
-`pnpm verify:evidence` independently re-reads both deployments, every historical lifecycle receipt, case state,
-balance and bytecode from the chain; **62/62 checks pass** ([`evidence/verification.json`](evidence/verification.json)).
+Patch3Q v3 is deployed on QoreChain Diana (`qorechain-diana`, EVM chain 9800). It carries the current contract source
+and completed both the normal and ghosted anonymous lifecycles on 18 Nov 2026. `pnpm verify:evidence` independently
+re-reads the current deployment, receipts, events, case state, balances, bundle commitments and bytecode; **50/50 v3
+checks pass** ([`evidence/verification-v3.json`](evidence/verification-v3.json)), in addition to 62/62 preserved v1/v2 checks.
 
 | Contract | Address |
 | --- | --- |
-| `Patch3QRegistry` v2 (current app target) | [`0xa7c6ff9db34aadb4301b183864d75d9a36c95b27`](https://dashboard.qorechain.io/explorer/address/0xa7c6ff9db34aadb4301b183864d75d9a36c95b27). Runtime bytecode matches the masked hash and source commit preserved in `evidence/deployment-v2.json` |
-| `MockTUSDT` v2 bounty token | [`0x715a962d04391a0e308fd4fa36af63cec0df3bdc`](https://dashboard.qorechain.io/explorer/address/0x715a962d04391a0e308fd4fa36af63cec0df3bdc). Runtime bytecode matches the preserved hash in `evidence/deployment-v2.json` |
+| `Patch3QRegistry` v3 (current app target) | [`0x9ec24151dc741f0c65d708c9410fbae2458f7863`](https://dashboard.qorechain.io/explorer/address/0x9ec24151dc741f0c65d708c9410fbae2458f7863). Runtime bytecode matches the current compiled artifact after immutable masking |
+| `MockTUSDT` v3 bounty token | [`0x2d42cbe73384b8c492da8e0d706aa56141902eb1`](https://dashboard.qorechain.io/explorer/address/0x2d42cbe73384b8c492da8e0d706aa56141902eb1). Runtime bytecode matches the current compiled artifact |
+| Preserved v2 registry | [`0xa7c6ff9db34aadb4301b183864d75d9a36c95b27`](https://dashboard.qorechain.io/explorer/address/0xa7c6ff9db34aadb4301b183864d75d9a36c95b27). Hashes and source commit are preserved in `evidence/deployment-v2.json` |
 | Preserved v1 lifecycle registry | [`0xb6b92510cd9ca5a1e7eac761243b51d73f619962`](https://dashboard.qorechain.io/explorer/address/0xb6b92510cd9ca5a1e7eac761243b51d73f619962). Exact artifact/source are preserved under `artifacts/deployed/` and `evidence/deployed/` |
 
 **Case A: normal lifecycle, anonymous reporter, 2,500 tUSDT**
 
 | Step | Who sent it | Transaction |
 | --- | --- | --- |
-| Anchor the sealed case (`submitAnonymousCase`) | Relayer | [`0xe70e5dfb…`](https://dashboard.qorechain.io/explorer/tx/0xe70e5dfbe514b04841689e37039928f8a8677280c23910c0bb023e7693b5821c) |
-| Acknowledge within the SLA | Program | [`0x23621e06…`](https://dashboard.qorechain.io/explorer/tx/0x23621e06e6359d027b5eda13aa3c279881cb07f14e29797f2e07724f674811af) |
-| Triage within the SLA | Program | [`0xba5a1900…`](https://dashboard.qorechain.io/explorer/tx/0xba5a190041942432ef03d5f7c87c3d3791bd85662fff5c9a909ad4251977bcc3) |
-| Fund the escrow | Program | [`0x3af1d051…`](https://dashboard.qorechain.io/explorer/tx/0x3af1d0513d263aeb2be08d41d2d5eda371c79d7f05c628febf686532422d9de3) |
-| Resolve | Program | [`0xa65ead98…`](https://dashboard.qorechain.io/explorer/tx/0xa65ead980316f04819248eeb7bfe2f65ef8ce17b6394abd8638eb695a3d24dc7) |
-| **Program + auditor ML-DSA-87 approvals verified by `0x…0A01`; payout to the sealed address** | Auditor | [`0x1feed506…`](https://dashboard.qorechain.io/explorer/tx/0x1feed50689a38db6df4244455a526685667f88a2868b3bb0b433023bbd76e755) |
-| Redacted disclosure after the embargo | Program | [`0x8709019e…`](https://dashboard.qorechain.io/explorer/tx/0x8709019e0c9ae3fbd6e2f8a58aadb578573ced3e3f68d3b35ce0d5eb1985d085) |
+| Anchor the sealed case (`submitAnonymousCase`) | Relayer | [`0x79b9ea57…`](https://dashboard.qorechain.io/explorer/tx/0x79b9ea57e910117d2919d4c19f87848b664f93c55ed5f752702a04143d654ee5) |
+| Acknowledge within the SLA | Program | [`0xb32f32ad…`](https://dashboard.qorechain.io/explorer/tx/0xb32f32ad7ce49db495225ae2e59c40121ad8dededb96ec367f56d170fd17243a) |
+| Triage within the SLA | Program | [`0x68edd99a…`](https://dashboard.qorechain.io/explorer/tx/0x68edd99a71f86ca6b994196b8497bc90669af2a122dc549012ce4edd8ccdddcd) |
+| Fund the escrow | Program | [`0xb2baf938…`](https://dashboard.qorechain.io/explorer/tx/0xb2baf9388185ac392529b080d9bd3da43d287b3df5e42a1cc826de8223921a9b) |
+| **Program + auditor ML-DSA-87 approvals atomically resolve the case and pay the sealed address** | Auditor | [`0x7a19b4ba…`](https://dashboard.qorechain.io/explorer/tx/0x7a19b4ba453d50a846e97eb48a1a3484ca9a0abf885ae30b290b074d7becb4e1) |
+| Redacted disclosure after the embargo | Auditor | [`0x7b97c6b5…`](https://dashboard.qorechain.io/explorer/tx/0x7b97c6b525df661b94238c9c42986144f575706098ab332620439fd747e726a4) |
 
 **Case B: the program ghosts the researcher, 1,000 tUSDT**
 
 | Step | Who sent it | Transaction |
 | --- | --- | --- |
-| Anchor the sealed case | Relayer | [`0xbe71ea75…`](https://dashboard.qorechain.io/explorer/tx/0xbe71ea756ca1d5ca6c3989bb6820de4a1d71d0587d021104a933f76d8e1d7f66) |
-| Fund the escrow, then miss the acknowledgement deadline | Program | [`0xdc3d579f…`](https://dashboard.qorechain.io/explorer/tx/0xdc3d579fa74dac4d49c548f0145a29f3d8bb8ba36af02fa64e7d45b875bb6865) |
-| **Permissionless escalation: the program loses its vote** | Relayer acting as keeper | [`0x48ebd14d…`](https://dashboard.qorechain.io/explorer/tx/0x48ebd14d1e8c6effe361692adc2a4b021243db32e1510062ae4372d7acba743e) |
-| **Reporter's per-case ML-DSA-87 key + auditor release the bounty** | Auditor | [`0x02b5dde0…`](https://dashboard.qorechain.io/explorer/tx/0x02b5dde043293fdf3db6f3dcfc13c22020adb8cfc680d9faf435c415cf430c07) |
+| Anchor the sealed case | Relayer | [`0x832a7601…`](https://dashboard.qorechain.io/explorer/tx/0x832a76011ec1e09d7376540d1b68e7c9f9fd388d220106baed9459304a4f9a06) |
+| Fund the escrow, then miss the acknowledgement deadline | Program | [`0x165a7907…`](https://dashboard.qorechain.io/explorer/tx/0x165a790701fdd05114074699fbc428ead18486f68e0d17b89f783b936e61b568) |
+| **Permissionless escalation: the program loses its vote** | Relayer acting as keeper | [`0xc764f928…`](https://dashboard.qorechain.io/explorer/tx/0xc764f928bc1e04039add0619157d0d869b703b294b26911b87048526835ced90) |
+| **Reporter's per-case ML-DSA-87 key + auditor release the bounty and resolve the case** | Auditor | [`0x4408d550…`](https://dashboard.qorechain.io/explorer/tx/0x4408d550a83fd80eef544bac1216c0643af2d55fa0dbc9a2a3c47f6ad2d035d2) |
 
 No reporter account signed any transaction. Both payouts went to fresh per-case addresses that were
 sealed inside the ciphertext and have never sent a transaction.
@@ -214,10 +213,10 @@ sealed inside the ciphertext and have never sent a transaction.
 | Escalation before the deadline | `DeadlineNotMissed` |
 | Auditor key used against another contract | The node refuses the transaction: the window "does not list [the token] as an allowed recipient" |
 
-The 10 native transactions are listed under `native` in [`evidence/testnet.json`](evidence/testnet.json): key
+The 10 current native transactions are listed under `native` in [`evidence/testnet-v3.json`](evidence/testnet-v3.json): key
 registration with proof of possession, ML-KEM-1024 key publication, role funding and scoped EVM windows. Every
 hybrid-signed one reports `pqc_hybrid_verify: verified`. The sealed bundles are published in
-[`evidence/cases/`](evidence/cases), and each one hashes to its anchored `envelopeHash`. They are ciphertext only.
+[`evidence/cases-v3/`](evidence/cases-v3), and each one hashes to its anchored `envelopeHash`. They are ciphertext only.
 
 Reproduce it:
 
@@ -229,7 +228,7 @@ pnpm verify:precompile  # live ML-DSA-87 precompile self-test
 pnpm deploy:testnet     # contracts only; reads private key or mnemonic from .env
 pnpm testnet:accounts   # writes .env.testnet (git-ignored)
 pnpm testnet:status     # prints qor1 addresses; claim the faucet for the program address
-pnpm testnet:e2e        # resumable: keys, windows, deployment, both cases, negative tests
+pnpm testnet:e2e:v3     # isolated/resumable: keys, windows, deployment, both cases, negative tests
 ```
 
 ### Measured on Diana
@@ -245,9 +244,9 @@ Every number below comes from a Diana receipt. Reproduce it with `pnpm measure:e
 | Delay from the missed deadline to on-chain escalation | 6 s | `pnpm measure:evidence` |
 | Normal case: from anchor to disclosure, including the 15-minute embargo | 7 transactions, 903 s, 1,096,307 gas | `pnpm measure:evidence` |
 | Ghosted case: from anchor to the reporter-approved release | 4 transactions, 125 s, 987,699 gas | `pnpm measure:evidence` |
-| Size of two different reports after padding | 54,971 B each (16 KiB bucket) | `ls -l evidence/cases/*.bundle.json` |
+| Size of two different reports after padding | 54,971 B each (16 KiB bucket) | `ls -l evidence/cases-v3/*.bundle.json` |
 | Registry runtime bytecode, matched against the committed artifact | 9,985 B | `pnpm verify:evidence` |
-| Independent on-chain checks passing | 62 / 62 | `pnpm verify:evidence` |
+| Independent on-chain checks passing | 62 / 62 preserved + 50 / 50 current | `pnpm verify:evidence` |
 | Local tests | 35 crypto/proxy + 29 contract | `pnpm check` |
 | Browser journey | Seal → independent decrypt → payout opening → 2 × ML-DSA-87 approval, with both ECDSA-only forgeries rejected | `pnpm smoke:browser` (self-starting) |
 

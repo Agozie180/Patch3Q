@@ -5,9 +5,9 @@ The Q-Day Drill gives the attacker the ECDSA key of a participating account. Reg
 
 ## What we enter
 
-The **program** account `qor1hfxnr2fr4camsk54qmvjjlkdfddgt9gpmu6fwv` (`0xBa4D31a923aE3Bb85A9506D9297ecd4B5a859501`).
-It owns both historical rehearsal cases on preserved v1 registry `0xb6b92510cd9ca5a1e7eac761243b51d73f619962`.
-The current v2 registry is `0xa7c6ff9db34aadb4301b183864d75d9a36c95b27`; a new drill case should target v2.
+The current **program** account is `qor15p2d4k946fmjqmr7nw9dydkuwk7xej6grxu5z4`
+(`0xa054dAd8B5D277206c7e9B8aD236dc75Bc6cCB48`). The current v3 registry is
+`0x9ec24151dc741f0c65d708c9410fbae2458f7863`; any new drill case should target v3.
 
 ## Why the attacker gets nothing
 
@@ -27,4 +27,4 @@ The current v2 registry is `0xa7c6ff9db34aadb4301b183864d75d9a36c95b27`; a new d
    an open classical window.
 3. Leave one funded, unresolved synthetic case live as bait. Both rehearsal cases are already paid out, so run one
    more case before the drill.
-4. Record the block height and the escrow balance before and after the drill in `evidence/testnet.json`.
+4. Record the block height and the escrow balance before and after the drill in a separate drill evidence file.
