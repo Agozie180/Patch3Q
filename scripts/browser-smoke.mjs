@@ -176,7 +176,14 @@ try {
   for (let attempt = 0; attempt < 100; attempt += 1) {
     const ready = await evaluate("document.readyState === 'complete' && Boolean(document.querySelector('#root')?.children.length)");
     if (ready) break;
-    if (attempt === 99) throw new Error("Patch3Q did not finish rendering.");
+    if (attempt === 99) {
+      const diagnostics = await evaluate(`({
+        readyState: document.readyState,
+        rootHtml: document.querySelector('#root')?.innerHTML ?? null,
+        bodyText: document.body?.innerText ?? '',
+      })`);
+      throw new Error(`Patch3Q did not finish rendering: ${JSON.stringify({ diagnostics, pageErrors })}`);
+    }
     await pause(100);
   }
 
