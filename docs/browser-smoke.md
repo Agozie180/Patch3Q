@@ -34,4 +34,4 @@ are recorded in [`evidence/browser-smoke.json`](../evidence/browser-smoke.json).
 
 The Codex sandbox-browser host was also retried and returned `browser access host is unavailable`, so this run did
 not claim interactive sandbox-browser coverage. The application and cryptographic behavior are covered separately by
-the 41 Vitest client/crypto/proxy cases and 42 contract-invariant tests run through `pnpm check`.
+the 42 Vitest client/crypto/proxy cases and 42 contract-invariant tests run through `pnpm check`.

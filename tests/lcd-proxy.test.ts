@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
 
 import { GET } from "../api/lcd-testnet";
 
@@ -7,6 +8,13 @@ const call = (path: string) => GET(new Request(`https://patch3q.example/api/lcd-
 
 describe("hosted Diana REST proxy", () => {
   afterEach(() => vi.unstubAllGlobals());
+
+  it("allows both Diana endpoints in the production connection policy", () => {
+    const config = JSON.parse(readFileSync(new URL("../vercel.json", import.meta.url), "utf8"));
+    const policy = config.headers[0].headers.find((header: { key: string }) => header.key === "Content-Security-Policy").value;
+    expect(policy).toContain("https://api-testnet.qore.host");
+    expect(policy).toContain("https://evm-testnet.qore.host");
+  });
 
   it("forwards ML-KEM and PQC account lookups to the fixed Diana upstream", async () => {
     const fetchMock = vi.fn(async () => new Response('{"found":true}', { status: 200 }));

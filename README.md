@@ -3,7 +3,7 @@
 [![CI](https://github.com/Agozie180/Patch3Q/actions/workflows/ci.yml/badge.svg)](https://github.com/Agozie180/Patch3Q/actions/workflows/ci.yml)
 ![Live on Diana](https://img.shields.io/badge/QoreChain%20Diana-live-2ea44f)
 ![On-chain checks](https://img.shields.io/badge/verify%3Aevidence-163%2F163-2ea44f)
-![Tests](https://img.shields.io/badge/tests-41%20client%20%2B%2042%20contract-2ea44f)
+![Tests](https://img.shields.io/badge/tests-42%20client%20%2B%2042%20contract-2ea44f)
 ![ML-KEM-1024](https://img.shields.io/badge/ML--KEM-1024-0b7285)
 ![ML-DSA-87](https://img.shields.io/badge/ML--DSA-87%20%C3%97%202%20on--chain-0b7285)
 ![License](https://img.shields.io/badge/license-MIT-blue)
@@ -287,7 +287,7 @@ Every number below comes from a Diana receipt. Reproduce it with `pnpm measure:e
 | Size of two different reports after padding | 54,971 B each (16 KiB bucket) | `ls -l evidence/cases-v3/*.bundle.json` |
 | Registry runtime bytecode, matched against the committed artifact | 9,985 B | `pnpm verify:evidence` |
 | Independent on-chain checks passing | 64 / 64 v1/v2 + 50 / 50 v3 + 49 / 49 v4 | `pnpm verify:evidence` |
-| Local tests | 41 client/crypto/proxy + 42 contract | `pnpm check` |
+| Local tests | 42 client/crypto/proxy + 42 contract | `pnpm check` |
 | Browser journey | Seal → independent decrypt → payout opening → 2 × ML-DSA-87 approval, with both ECDSA-only forgeries rejected | `pnpm smoke:browser` (self-starting) |
 
 ### What's used, and what's deliberately not

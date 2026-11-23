@@ -9,7 +9,7 @@ protocol, so judges score the repository and the live contract.
       nothing." See the README "The thesis, enforced" table.
 - [x] The features that top the rubric are built and demonstrated live: ML-KEM-1024 sealing to registered keys, and a
       payout gated by two on-chain ML-DSA-87 signatures.
-- [x] Reads like a product: 41 client/crypto/proxy tests, 42 contract tests, CI (`.github/workflows/ci.yml`), one design system, no API keys needed.
+- [x] Reads like a product: 42 client/crypto/proxy tests, 42 contract tests, CI (`.github/workflows/ci.yml`), one design system, no API keys needed.
 - [x] Prize surface: Encrypted Apps, plus Q-Day Survivor, Best AI-Native, People's Choice, Regional (Middle East &
       Africa) and Top-Quality. The Post-Quantum dApp bounty fits too, but projects enter only one category, and its
       QCAI requirement cannot be met on the public RPC.

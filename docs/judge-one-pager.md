@@ -36,7 +36,7 @@ the complete V4 funded-pool lifecycle are verifiable on Diana.
 
 ## Judge proof path
 
-1. Run `pnpm test` and `pnpm test:contract`: 41 client/crypto/app tests and 42 contract tests.
+1. Run `pnpm test` and `pnpm test:contract`: 42 client/crypto/app tests and 42 contract tests.
 2. Run `pnpm verify:evidence`: 163/163 checks re-read bytecode, receipts, balances, V4 policy and lifecycle state from Diana.
 3. Inspect the ghosted case: `0xc764f928…` removes the program vote; `0x4408d550…` releases 1,000 tUSDT with reporter
    + auditor ML-DSA-87 approvals.
