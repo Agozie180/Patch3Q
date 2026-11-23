@@ -10,7 +10,12 @@ const publicClient = createPublicClient({ chain: qorechainTestnet, transport: ht
 
 async function gzip(value: Uint8Array): Promise<Uint8Array> {
   const stream = new Blob([Uint8Array.from(value).buffer]).stream().pipeThrough(new CompressionStream("gzip"));
-  return new Uint8Array(await new Response(stream).arrayBuffer());
+  const compressed = new Uint8Array(await new Response(stream).arrayBuffer());
+  // CompressionStream writes the host OS into the gzip header. Normalize it to
+  // the NTFS value used by the live Diana bundle so hashes are identical on
+  // Windows, Linux, macOS and in browsers.
+  compressed[9] = 10;
+  return compressed;
 }
 
 async function gunzip(value: Uint8Array): Promise<Uint8Array> {

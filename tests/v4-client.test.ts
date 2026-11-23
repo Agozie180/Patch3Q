@@ -54,6 +54,7 @@ describe("Patch3Q V4 client quorum", () => {
     expect(first).toEqual(second);
     expect(first[0]).toBe(0x1f);
     expect(first[1]).toBe(0x8b);
+    expect(first[9]).toBe(10);
     expect(await parseV4BundleBytes(first)).toEqual(sealed.bundle);
   }, 60_000);
 
