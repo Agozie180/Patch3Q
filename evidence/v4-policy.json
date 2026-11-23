@@ -1,0 +1,46 @@
+{
+  "configuredAt": "2026-11-23T15:56:25.441Z",
+  "registry": "0xd3b5f8af4de51a33d4790a2cfb41231f825be9c3",
+  "token": "0x2D42CBe73384b8C492da8E0d706AA56141902eB1",
+  "program": "0x688604db30CcfF6C3BB16fb34D897209475d6bcb",
+  "auditors": [
+    "0xa054dAd8B5D277206c7e9B8aD236dc75Bc6cCB48",
+    "0x9d9D2dA5B490Dd70d3135602ad377298FcD15769",
+    "0x4347e777A7A5a6f36E0c004a7AdB36b3691AD1CC"
+  ],
+  "threshold": 2,
+  "relayers": [
+    "0x4CaAd15999f650741547859092f8e89E8A9C93ED"
+  ],
+  "reservePerCase": "2500000000",
+  "maxOpenCases": 10,
+  "transactions": {
+    "v2Window": {
+      "reused": true
+    },
+    "configurePolicy": "0x5325fb89a461edc13f3e13b8dce3e34d4bf1f26df0f9c2338af41590767130f3",
+    "v3ProgramWindow": {
+      "hash": "7E6727FDF925EFAC8AA6D107E6C42E7A4C694A6F381E4033A993B0080BB50404"
+    },
+    "mintPoolTokens": "0xe1c238de19a1ffceece969359265893ad00386ac52a5a40d0f813d1f46c3e5ac",
+    "approvePool": "0xd395d817db467afa0cff3c6070b7353f1ce437dc8c0474498c1869447c973837",
+    "depositPool": "0xe097e850ff5ba414eb14564d03a04a08412a8e369e8bdc8908c4297031153bfa"
+  },
+  "state": {
+    "exists": true,
+    "enabled": true,
+    "availablePool": "25000000000",
+    "reservePerCase": "2500000000",
+    "maxOpenCases": 10,
+    "openCases": 0,
+    "auditorThreshold": 2,
+    "auditors": [
+      "0xa054dAd8B5D277206c7e9B8aD236dc75Bc6cCB48",
+      "0x9d9D2dA5B490Dd70d3135602ad377298FcD15769",
+      "0x4347e777A7A5a6f36E0c004a7AdB36b3691AD1CC"
+    ],
+    "relayers": [
+      "0x4CaAd15999f650741547859092f8e89E8A9C93ED"
+    ]
+  }
+}

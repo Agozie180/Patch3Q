@@ -1,13 +1,13 @@
 {
-  "verifiedAt": "2026-11-19T06:40:34.409Z",
-  "dianaBlock": "10361155",
+  "verifiedAt": "2026-11-23T16:45:52.302Z",
+  "dianaBlock": "10623750",
   "registry": "0xB6B92510Cd9cA5A1E7eAC761243B51D73F619962",
   "preservedDeployment": {
     "registry": "0xA7C6fF9DB34aADB4301B183864D75d9a36C95b27",
     "bountyToken": "0x715a962d04391a0e308fD4fa36AF63CEC0Df3bdC",
     "version": 2
   },
-  "passed": 62,
+  "passed": 64,
   "failed": 0,
   "checks": [
     {
@@ -48,6 +48,22 @@
       }
     },
     {
+      "check": "preserved v2 qor and EVM deployer addresses encode the same unified account",
+      "ok": true,
+      "detail": {
+        "qor": "qor1dzrqfkesenlkcwa3d7e5mztjp9r4667tc9y5qt",
+        "evm": "0x688604db30CcfF6C3BB16fb34D897209475d6bcb"
+      }
+    },
+    {
+      "check": "preserved v2 funding qor and EVM addresses encode the same unified account",
+      "ok": true,
+      "detail": {
+        "qor": "qor1zyakukrv7p2nv2vrkky7kc3panansa32scyff4",
+        "evm": "0x113b6e586cf055362983b589eB6221ECfB38762a"
+      }
+    },
+    {
       "check": "v2 registry runtime bytecode matches its preserved masked hash",
       "ok": true,
       "detail": {
@@ -65,19 +81,35 @@
     },
     {
       "check": "preserved v2 MockTUSDT deployment 0x48ba18d9fb81b74151d85013636a1b083d310e92cca7d98691e1fd3b2b1a6c18",
-      "ok": true
+      "ok": true,
+      "detail": {
+        "contract": "0x715a962d04391a0e308fd4fa36af63cec0df3bdc",
+        "sender": "0x688604db30ccff6c3bb16fb34d897209475d6bcb"
+      }
     },
     {
       "check": "preserved v2 Patch3QRegistry deployment 0xc526a2bf7fc32f22dc07e791277a477d0dee1e6cc6dcc9c6dc2f4b96a964eebb",
-      "ok": true
+      "ok": true,
+      "detail": {
+        "contract": "0xa7c6ff9db34aadb4301b183864d75d9a36c95b27",
+        "sender": "0x688604db30ccff6c3bb16fb34d897209475d6bcb"
+      }
     },
     {
       "check": "preserved v2 initial tUSDT mint 0x72827d466da917dbaef0de8e4118e797765bdecacf652524053bc63d9902ef65",
-      "ok": true
+      "ok": true,
+      "detail": {
+        "target": "0x715a962d04391a0e308fd4fa36af63cec0df3bdc",
+        "sender": "0x688604db30ccff6c3bb16fb34d897209475d6bcb"
+      }
     },
     {
       "check": "preserved v2 registry allowance 0x8880850b19dc00d0248607f34dfd69516111401592bd79688bc3b1c5f415d8de",
-      "ok": true
+      "ok": true,
+      "detail": {
+        "target": "0x715a962d04391a0e308fd4fa36af63cec0df3bdc",
+        "sender": "0x688604db30ccff6c3bb16fb34d897209475d6bcb"
+      }
     },
     {
       "check": "preserved v2 deployer received the documented initial tUSDT mint",
@@ -93,7 +125,10 @@
       "check": "preserved v2 native fundUnifiedAccount 5814D7C45573AD5AEEDF6A82AAE218B42A925071AA80533E9DFEEB4D4DF95C77",
       "ok": true,
       "detail": {
-        "height": "10278614"
+        "height": "10278614",
+        "sender": "qor1zyakukrv7p2nv2vrkky7kc3panansa32scyff4",
+        "recipient": "qor1dzrqfkesenlkcwa3d7e5mztjp9r4667tc9y5qt",
+        "amount": "40000000uqor"
       }
     },
     {

@@ -1,6 +1,11 @@
 # Patch3Q competition audit — 2026-11-14
 
-This is a re-audit against https://build.qorechain.io/, judging the entry as one of about 2,000 submissions.
+This is a historical re-audit against https://build.qorechain.io/. The public gallery later showed a much smaller,
+stronger field, so the early submission-count assumption is no longer used.
+
+> Historical engineering audit, not an official or independent score. The field and rubric evidence changed after this
+> document was written. Do not present its self-assigned numeric score to judges; use
+> [`judge-one-pager.md`](judge-one-pager.md) for the current, claim-bounded submission framing.
 
 ## 10-second test
 
@@ -59,8 +64,12 @@ The deployment transaction is
 [`0x9ec24151dc741f0c65d708c9410fbae2458f7863`](https://dashboard.qorechain.io/explorer/address/0x9ec24151dc741f0c65d708c9410fbae2458f7863),
 bound to `MockTUSDT` at
 [`0x2d42cbe73384b8c492da8e0d706aa56141902eb1`](https://dashboard.qorechain.io/explorer/address/0x2d42cbe73384b8c492da8e0d706aa56141902eb1).
-The current source completed both anonymous lifecycle paths, including atomic resolution in the normal and escalated
-payout transactions. The independent verifier passes 50/50 current checks in addition to 62/62 preserved checks.
+I completed both anonymous V3 lifecycle paths, including atomic resolution in the normal and escalated payout
+transactions. The verifier passes 50/50 V3 checks in addition to 64/64 preserved v1/v2 checks.
+
+I then deployed V4 and ran its full funded lifecycle: an authorized relayer reserved 2,500 tUSDT from a 25,000 tUSDT
+pool, the program acknowledged and triaged the case, and the program plus two unique auditors released the bounty to
+the sealed recipient. The live pool now holds 22,500 tUSDT with zero open cases. The V4 verifier passes 49/49 checks.
 
 ## Findings, fixes and the tests that pin them
 
@@ -75,7 +84,7 @@ payout transactions. The independent verifier passes 50/50 current checks in add
 | 7 | Envelope length revealed the PoC size | Padding to size buckets, with the bucket authenticated | `pads every report to a fixed size bucket so length does not leak the PoC` |
 | 8 | A short rationale could be guessed from its hash | Salted rationale hash | `salts the rationale so a short decision cannot be guessed from its hash` |
 | 9 | A fee-on-transfer token could create unbacked escrow | Exact before/after balance accounting | `rejects fee-on-transfer tokens instead of creating unbacked escrow` |
-| 10 | Testnet claims could not be checked | Every hash recorded, plus independent historical and current verifiers | `pnpm verify:evidence`, 62/62 preserved + 50/50 v3, run in CI |
+| 10 | Testnet claims could not be checked | Every hash recorded, plus independent historical and current verifiers | `pnpm verify:evidence`, 64/64 v1/v2 + 50/50 v3 + 49/49 v4, run in CI |
 | 11 | The scoped-window negative test recorded a vague RPC error | Record the node's exact refusal text | `negativeTests.scopedWindowBlocksTokenCall` |
 | 12 | The UI badge counted the deployment as a case transaction | Count only case transactions (11) | The production screenshot in `evidence/browser-home.png` |
 | 13 | The README said the contract forbids a relayer that is the program or the auditor | Corrected: the app refuses it, and the relayer holds no on-chain role either way | README "Contract roles" |
@@ -85,18 +94,19 @@ payout transactions. The independent verifier passes 50/50 current checks in add
 | 17 | Browser smoke coverage proved rendering but not the product's cryptographic journey | The self-starting Chrome smoke now seals, independently decrypts, opens the payout commitment, co-signs with two ML-DSA-87 keys and rejects both ECDSA-only forgeries | `pnpm smoke:browser`, `evidence/browser-smoke.json` |
 | 18 | Approval vault JSON could remain visible in form controls after signing | The UI labels signing as local-only and clears both secret form values immediately after the approval is created | Full browser journey plus source review |
 | 19 | The production entry chunk exceeded Vite's 500 kB warning | React, EVM, QoreChain and crypto code now build as separate cacheable chunks; the application entry is under 100 kB | `pnpm build` |
+| 20 | Case-specific funding meant the guarantee could still disappear before deposit | V4 program pools reserve the bounty atomically when an authorized relayer submits a case | 13 V4 contract tests |
+| 21 | One auditor was a liveness bottleneck | Configurable, snapshotted auditor sets and unique threshold signatures; the client rehearses 2-of-3 | `tests/v4-client.test.ts` + V4 contract quorum tests |
+| 22 | Ciphertext delivery was manual and could disappear | V4 emits the exact encrypted bundle bytes and SHA-256; the UI recovers and verifies them by case ID | `EncryptedBundlePublished`, `src/lib/v4-bundle.ts` |
+| 23 | Anyone could otherwise drain a pre-funded pool with fabricated submissions | Only configured, PQ-registered relayers can submit, with a maximum open-case capacity | `lets only an authorized…`, `enforces…capacity` |
+| 24 | The UI stopped at V3 even after the protocol upgrade | Fifth workspace configures policy/funding, publishes/recovers bundles, collects quorum, and releases reserve | browser smoke `v4*` assertions |
 
-## Remaining
+## Submission and operating choices
 
-1. **Make the GitHub repository public.** The rules require a public repo, and `Agozie180/Patch3Q` is currently private.
-2. **Q-Day Drill registration** closes on 17 Nov 2026 at 23:59 UTC (18 Nov, 00:59 WAT).
-3. **Video.** Complete: the README links an 84-second narrated demo and its transcript.
-4. **Hosted demo.** Complete: [`https://patch3-q.vercel.app`](https://patch3-q.vercel.app) passes the full browser journey and hosts the demo video.
-5. **Submission form.** Choose **Encrypted Apps** and the Middle East & Africa region. Link the repo, hosted demo, video and
-   `public/cover.png`.
-6. **Build-in-public.** Post the ready-made updates in `docs/build-in-public.md` from the project page.
-7. **Repository description.** Set it to: *Anonymous, post-quantum bug-bounty escrow on QoreChain: ML-KEM-1024 sealed
-   reports, 2 × ML-DSA-87 verified on-chain, live on Diana.*
+1. I am keeping the GitHub repository private unless I deliberately change that submission choice.
+2. The 84-second demo and hosted app are already complete; I am leaving the video unchanged.
+3. For the submission form, I will use **Encrypted Apps** and the Middle East & Africa region, with the repository,
+   hosted demo, video and `public/cover.png` links.
+4. The ready-to-post project updates are in `docs/build-in-public.md`.
 
 ## Competitive position
 
@@ -105,18 +115,8 @@ beats it on three points. It has money at stake (escrow with dual-PQ release), i
 protocol (ghosting leads to permissionless escalation), and its anonymity goes further than encrypting content. Patch3Q
 now has its own live Diana hashes plus an independent verifier.
 
-## Score
+## Scoring note
 
-| Criterion | Before | Now (live on Diana) | With video + drill |
-| --- | --- | --- | --- |
-| Problem and story | 9/10 | 10/10 | 10/10 |
-| Encrypted-app fit | 14/15 | 15/15 | 15/15 |
-| Cryptographic implementation | 14/15 | 14/15 | 14/15 |
-| Smart-contract core | 13/15 | 15/15 | 15/15 |
-| Threat model and honesty | 9/10 | 10/10 | 10/10 |
-| Tests and reproducibility | 9/10 | 10/10 | 10/10 |
-| Testnet evidence | 0/15 | 15/15 | 15/15 |
-| Demo, customer and build-in-public | 2/10 | 7/10 | 8/10 |
-| **Total** | **70** | **96** | **97** |
-
-The top-quality award threshold is 70/100. The remaining point depends on the external Q-Day Drill/build-in-public record.
+Do not self-score this project in the submission. The official jury weights are: works as described 25%, verified
+QoreChain usage 25%, post-quantum correctness and security 20%, originality 15%, and clarity/UX/documentation 15%.
+The evidence in this document supports those criteria; it does not determine the jury's score.

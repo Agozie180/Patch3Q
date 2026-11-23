@@ -6,7 +6,7 @@ report, a mailbox that leaks, or a disclosure platform that doxxes researchers.
 
 ## Protected
 
-- **Report confidentiality.** The report is a QoreSeal ML-KEM-1024 envelope for the maintainer and the auditor. ECDSA
+- **Report confidentiality.** The report is a QoreSeal ML-KEM-1024 envelope for the maintainer and every bound auditor. ECDSA
   keys cannot decrypt it.
 - **Researcher anonymity (anonymous mode).** No reporter account exists on-chain. A relayer anchors the case, and the
   reporter is known only by `keccak256` of a fresh per-case ML-DSA-87 public key.
@@ -17,9 +17,10 @@ report, a mailbox that leaks, or a disclosure platform that doxxes researchers.
   length reveals only a bucket. The bucket is authenticated, and a mismatch fails verification.
 - **Rationale privacy.** The severity rationale is committed as `keccak256(salt ‖ rationale)`, so common phrases cannot
   be confirmed by guessing.
-- **Payout authorization.** Every release requires two ML-DSA-87 signatures, verified in-contract by the QorePQC
-  precompile. Normal cases need the program and the auditor. Escalated cases need the reporter and the auditor. A
-  stolen ECDSA key, the auditor alone, or the relayer cannot release funds.
+- **Payout authorization.** V4 requires the program plus threshold-many unique auditor ML-DSA-87 signatures; after
+  escalation the reporter replaces the program. Duplicate, unauthorized or rotated auditors do not count. A stolen
+  ECDSA key, one sub-threshold auditor group, or the relayer cannot release funds.
+- **Availability.** V4 publishes the exact encrypted bundle bytes in event logs and verifies their SHA-256 on recovery.
 - **Payout integrity.** The signed digest includes the payout recipient, and the contract checks it against the sealed
   commitment. Redirecting the payout invalidates both the signatures and the commitment.
 - **Replay protection** across cases, registry deployments and chains.
@@ -40,6 +41,10 @@ public at release. Use a fresh address, which is the default.
 
 ## Residual limits
 
+- **Funding is opt-in.** Patch3Q cannot force a program to configure or fund a pool. V4 rejects new reports if the
+  pool cannot reserve the promised amount.
+- **Auditor trust remains.** V4 removes a single signer as the liveness bottleneck, but a threshold can still collude,
+  refuse a valid report or disappear. There is no appeal court or timeout-based automatic payout.
 - A relayer can refuse to relay or delay relaying. It cannot read, redirect or approve anything, and the researcher can
   use another relayer.
 - Deadline enforcement is permissionless but not autonomous. Someone has to send the transaction. If the program never
@@ -56,7 +61,7 @@ The following are out of scope:
 - stolen recipient vaults
 - malicious recipients
 - unsafe redaction
-- loss of ciphertext availability
+- loss of V3/off-chain ciphertext availability (V4 publishes the bundle durably)
 - failure of the chain or the precompile
 - timestamp manipulation within normal block-production bounds
 - bugs in unaudited dependencies, including pre-1.0 QoreSeal

@@ -2,6 +2,7 @@ import fs from "node:fs";
 
 import { envelopeFromText } from "@qorechain/qoreseal";
 import { qorechainTestnet } from "@qorechain/evm";
+import { qorToEvm } from "@qorechain/sdk";
 import {
   createPublicClient,
   decodeEventLog,
@@ -91,6 +92,13 @@ async function main(): Promise<void> {
 
   record("preserved v2 deployment status is verified", deploymentV2.status === "verified" && deploymentV2.version === 2,
     { status: deploymentV2.status, version: deploymentV2.version });
+  const deployerV2 = getAddress(deploymentV2.deployer.evm);
+  record("preserved v2 qor and EVM deployer addresses encode the same unified account",
+    getAddress(qorToEvm(deploymentV2.deployer.qor)) === deployerV2,
+    { qor: deploymentV2.deployer.qor, evm: deployerV2 });
+  record("preserved v2 funding qor and EVM addresses encode the same unified account",
+    getAddress(qorToEvm(deploymentV2.funder.qor)) === getAddress(deploymentV2.funder.evm),
+    { qor: deploymentV2.funder.qor, evm: getAddress(deploymentV2.funder.evm) });
   const registryV2Code = await client.getCode({ address: registryV2 });
   const tokenV2Code = await client.getCode({ address: tokenV2 });
   record("v2 registry runtime bytecode matches its preserved masked hash",
@@ -108,7 +116,10 @@ async function main(): Promise<void> {
     ["preserved v2 Patch3QRegistry deployment", deploymentV2.evm.registryDeployment, registryV2],
   ] as [string, TxRef, Hex][]) {
     const receipt = await client.getTransactionReceipt({ hash: ref.hash as Hex });
-    record(`${label} ${ref.hash}`, receipt.status === "success" && getAddress(receipt.contractAddress!) === address);
+    const tx = await client.getTransaction({ hash: ref.hash as Hex });
+    record(`${label} ${ref.hash}`,
+      receipt.status === "success" && getAddress(receipt.contractAddress!) === address && getAddress(tx.from) === deployerV2,
+      { contract: receipt.contractAddress, sender: tx.from });
   }
   for (const [label, ref] of [
     ["preserved v2 initial tUSDT mint", deploymentV2.evm.mint],
@@ -116,9 +127,10 @@ async function main(): Promise<void> {
   ] as [string, TxRef][]) {
     const receipt = await client.getTransactionReceipt({ hash: ref.hash as Hex });
     const tx = await client.getTransaction({ hash: ref.hash as Hex });
-    record(`${label} ${ref.hash}`, receipt.status === "success" && getAddress(tx.to!) === tokenV2);
+    record(`${label} ${ref.hash}`,
+      receipt.status === "success" && getAddress(tx.to!) === tokenV2 && getAddress(tx.from) === deployerV2,
+      { target: tx.to, sender: tx.from });
   }
-  const deployerV2 = getAddress(deploymentV2.deployer.evm);
   const [deployerTokenBalance, registryAllowance] = await Promise.all([
     client.readContract({ address: tokenV2, abi: currentTokenArtifact.abi as Abi, functionName: "balanceOf", args: [deployerV2] }) as Promise<bigint>,
     client.readContract({ address: tokenV2, abi: currentTokenArtifact.abi as Abi, functionName: "allowance", args: [deployerV2, registryV2] }) as Promise<bigint>,
@@ -129,8 +141,29 @@ async function main(): Promise<void> {
     registryAllowance.toString() === deploymentV2.initialFunding.registryAllowanceBaseUnits, registryAllowance.toString());
   for (const [label, hash] of Object.entries<string>(deploymentV2.native)) {
     const response = await fetch(`${REST}/cosmos/tx/v1beta1/txs/${hash}`);
-    const body = await response.json() as { tx_response?: { code: number; height: string } };
-    record(`preserved v2 native ${label} ${hash}`, body.tx_response?.code === 0, { height: body.tx_response?.height });
+    const body = await response.json() as {
+      tx?: { body?: { messages?: Array<{ "@type"?: string; from_address?: string; to_address?: string; amount?: Array<{ denom?: string; amount?: string }> }> } };
+      tx_response?: { code: number; height: string };
+    };
+    let ok = body.tx_response?.code === 0;
+    let detail: unknown = { height: body.tx_response?.height };
+    if (label === "fundUnifiedAccount") {
+      const message = body.tx?.body?.messages?.[0];
+      const coin = message?.amount?.[0];
+      ok = ok && message?.["@type"] === "/cosmos.bank.v1beta1.MsgSend"
+        && message.from_address === deploymentV2.funder.qor
+        && message.to_address === deploymentV2.deployer.qor
+        && coin?.denom === deploymentV2.nativeFunding.denom
+        && coin.amount === deploymentV2.nativeFunding.amount
+        && body.tx_response?.height === deploymentV2.nativeFunding.blockHeight;
+      detail = {
+        height: body.tx_response?.height,
+        sender: message?.from_address,
+        recipient: message?.to_address,
+        amount: `${coin?.amount ?? "?"}${coin?.denom ?? ""}`,
+      };
+    }
+    record(`preserved v2 native ${label} ${hash}`, ok, detail);
   }
 
   const expected: Record<string, Record<string, string[]>> = {

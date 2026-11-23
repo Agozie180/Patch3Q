@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-19T06:49:47.768Z",
+  "generatedAt": "2026-11-23T16:45:29.825Z",
   "targetUrl": "http://127.0.0.1:4173/",
   "chromePath": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
   "viewport": {
@@ -8,12 +8,19 @@
   },
   "assertions": {
     "homeRendered": true,
-    "fourWorkspaceTabsRendered": true,
+    "fiveWorkspaceTabsRendered": true,
     "qoreChainScenarioVisible": true,
     "dianaVisible": true,
+    "guaranteeBoundaryVisible": true,
     "noHorizontalOverflow": true,
     "approvalTabClicked": true,
     "dualPartyApprovalVisible": true,
+    "auditorTrustBoundaryVisible": true,
+    "approvalEmptyStateVisible": true,
+    "v4TabClicked": true,
+    "v4PolicyVisible": true,
+    "v4DurableDeliveryVisible": true,
+    "v4QuorumVisible": true,
     "injectedWalletButtonClicked": true,
     "injectedWalletConnected": true,
     "injectedWalletDisconnected": true,
@@ -40,22 +47,31 @@
       "01Seal report",
       "02Verify & open",
       "03Anchor & escrow",
-      "04Approve bounty"
+      "04Approve bounty",
+      "05V4 pool & quorum"
     ],
     "qoreChainScenarioVisible": true,
     "dianaVisible": true,
+    "guaranteeVisible": true,
     "horizontalOverflow": false
   },
   "approval": {
     "selectedTab": "04Approve bounty",
     "heading": "Approve severity with two PQ parties",
     "description": "The program and auditor sign normal payouts; an escalated case requires the reporter and auditor instead.",
+    "auditorTrust": "This workspace targets the verified V3 deployment.\nV3 requires its single bound auditor. Use V4 pool & quorum for a snapshotted 2-of-3 auditor set and automatic reserve.",
     "emptyState": "No case loaded.\nSeal or verify a Patch3Q bundle before issuing a severity decision."
+  },
+  "v4": {
+    "heading": "Pre-funded pools, durable delivery, and auditor quorum",
+    "policyVisible": true,
+    "deliveryVisible": true,
+    "quorumVisible": true
   },
   "journey": {
     "sealed": {
       "heading": "Your disclosure is sealed with post-quantum encryption.",
-      "caseId": "P3Q-T6FT-ZY5NQNZN0-Z",
+      "caseId": "P3Q-G0OCKCGJUQAR1_CY",
       "payoutCommitmentVisible": true
     },
     "verified": {
@@ -81,6 +97,7 @@
   "screenshots": [
     "evidence/browser-home.png",
     "evidence/browser-approval.png",
+    "evidence/browser-v4.png",
     "evidence/browser-sealed.png",
     "evidence/browser-journey.png"
   ]

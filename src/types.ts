@@ -97,6 +97,9 @@ export interface Patch3QBundle {
     reporter: ApprovalAuthority;
     program: ApprovalAuthority;
     auditor: ApprovalAuthority;
+    /** Full ordered auditor set for V4. `auditor` remains the V3-compatible primary. */
+    auditors?: ApprovalAuthority[];
+    auditorThreshold?: number;
   };
 }
 
@@ -158,6 +161,56 @@ export interface SeverityApproval {
     auditor: MessageSignature;
   };
   approvalHash: `0x${string}`;
+}
+
+export interface V4SeverityApprovalStatement extends Omit<SeverityApprovalStatement, "type" | "version"> {
+  type: "patch3q.v4-severity-approval-statement";
+  version: 1;
+  bundleHash: `0x${string}`;
+  auditorSetHash: `0x${string}`;
+  auditorThreshold: number;
+}
+
+export interface V4AuditorSignature {
+  signer: string;
+  evmAddress: `0x${string}`;
+  signature: MessageSignature;
+}
+
+export interface V4SeverityApproval {
+  type: "patch3q.v4-severity-approval";
+  version: 1;
+  statement: V4SeverityApprovalStatement;
+  participantRole: "reporter" | "program";
+  participant: {
+    signer: string;
+    signature: MessageSignature;
+  };
+  auditors: V4AuditorSignature[];
+  approvalHash: `0x${string}`;
+}
+
+export interface V4ApprovalChecks {
+  statementShape: boolean;
+  caseBinding: boolean;
+  evidenceBinding: boolean;
+  registryBinding: boolean;
+  participantBinding: boolean;
+  participantKeyBinding: boolean;
+  participantHybridSignature: boolean;
+  auditorSetBinding: boolean;
+  auditorUniqueness: boolean;
+  auditorQuorum: boolean;
+  auditorKeyBindings: boolean;
+  auditorHybridSignatures: boolean;
+  rationaleBinding: boolean;
+  payoutBinding: boolean;
+  approvalHash: boolean;
+}
+
+export interface V4ApprovalVerificationResult {
+  checks: V4ApprovalChecks;
+  verified: boolean;
 }
 
 export interface SealResult {

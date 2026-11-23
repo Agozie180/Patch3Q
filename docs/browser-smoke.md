@@ -13,7 +13,8 @@ mobile assertion without overwriting the committed desktop captures.
 Verified through the real demo journey:
 
 - the hero and current v3 Diana testnet status rendered;
-- the four workspace tabs and reporter form rendered without layout collapse;
+- all five workspace tabs and reporter form rendered without layout collapse;
+- the V4 policy, durable-delivery and quorum sections rendered without page errors;
 - the QoreChain synthetic customer-scenario control was visible;
 - a synthetic report was populated and sealed into an ML-KEM-1024 envelope;
 - the auditor vault independently opened it and passed every integrity check;
@@ -26,10 +27,11 @@ Verified through the real demo journey:
 
 The captures are [`evidence/browser-home.png`](../evidence/browser-home.png),
 [`evidence/browser-approval.png`](../evidence/browser-approval.png),
+[`evidence/browser-v4.png`](../evidence/browser-v4.png),
 [`evidence/browser-sealed.png`](../evidence/browser-sealed.png) and
 [`evidence/browser-journey.png`](../evidence/browser-journey.png). Machine-readable journey assertions and page errors
 are recorded in [`evidence/browser-smoke.json`](../evidence/browser-smoke.json).
 
 The Codex sandbox-browser host was also retried and returned `browser access host is unavailable`, so this run did
 not claim interactive sandbox-browser coverage. The application and cryptographic behavior are covered separately by
-the 35 Vitest crypto/proxy cases and 29 contract-invariant tests run through `pnpm check`.
+the 41 Vitest client/crypto/proxy cases and 42 contract-invariant tests run through `pnpm check`.

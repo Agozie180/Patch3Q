@@ -8,7 +8,7 @@ shows the guardrails before the happy path.
 | Time | Screen | Voice-over |
 | --- | --- | --- |
 | 0:00–0:15 | `evidence/testnet-v3.json` → `negativeTests`, then the case A release on the explorer | "This bounty escrow is live on QoreChain. I signed a payout with the auditor's ECDSA key only. The contract rejected it with `InvalidPqSignature`. On Q-Day, that ECDSA key is all an attacker has. Here's the real payout, which needed two ML-DSA-87 signatures." |
-| 0:15–0:30 | Cover → app hero | "Patch3Q: report a bug anonymously, get paid only when two post-quantum signatures agree, and if the vendor ghosts you, the chain takes their vote away." |
+| 0:15–0:30 | Cover → app hero | "Patch3Q is pre-funded disclosure escrow: report anonymously, and if a participating vendor misses its SLA, the chain permanently replaces its vote with the reporter's. The independent auditor still co-signs." |
 | 0:30–0:55 | Load the synthetic scenario. Anonymous mode is on and a payout wallet is generated → **Seal report** | "No wallet. The report is padded and sealed with ML-KEM-1024 to the maintainer and an independent auditor, whose keys come from QoreChain's key registry. The payout address is sealed inside the ciphertext too." |
 | 0:55–1:10 | Privacy ledger panel | "This is everything the chain will ever see: hashes, deadlines, an amount. No reporter, no payout address, no report size." |
 | 1:10–1:25 | **Verify & open** as the maintainer, then as the auditor | "Two independent recoveries. Change one byte and every check fails." |

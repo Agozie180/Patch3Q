@@ -6,7 +6,8 @@ Each one is backed by a public transaction.
 **1. Current v3 lifecycle live on Diana**
 
 > Patch3Q v3 is live on QoreChain Diana. Its runtime bytecode matches the current artifact, and its full normal and
-> ghosted lifecycles prove that dual-PQ payouts atomically resolve cases. The app now targets this deployment.
+> ghosted lifecycles prove that pre-funded dual-PQ payouts atomically resolve cases. If the program misses its SLA,
+> its vote is permanently replaced by the reporter's; the independent auditor remains required.
 > https://dashboard.qorechain.io/explorer/tx/0xbc6da259b223a46a767ad1094d029f797469cd47cfb5f40da27f6fc514b76297
 
 **2. Anonymous reporter**
@@ -39,4 +40,12 @@ Each one is backed by a public transaction.
 > - an early escalation was rejected with `DeadlineNotMissed`;
 > - a stolen auditor key outside its scoped EVM window was refused by the node.
 >
-> Anyone can re-check v3 plus the preserved deployments with `pnpm verify:evidence` (50/50 current + 62/62 preserved).
+> Anyone can re-check every deployment with `pnpm verify:evidence` (64/64 v1/v2 + 50/50 v3 + 49/49 v4).
+
+**6. Pre-funded V4 quorum payout**
+
+> I completed Patch3Q V4's full funded lifecycle on Diana. Submission atomically reserved 2,500 tUSDT from the
+> program pool, and the program plus two unique auditors released it to the sealed payout address. The case closed,
+> capacity returned to zero open cases, and 22,500 tUSDT remains backed in the pool.
+> https://dashboard.qorechain.io/explorer/tx/0x87351ae1fa8c26cd0b68b21e198734087516eba2b0bdd8cedd6a65d2355dba8b
+> https://dashboard.qorechain.io/explorer/tx/0xbbcd7b33038fb729ab5f5a0b5db18d7805f871b41df271cb799a4425b2421575

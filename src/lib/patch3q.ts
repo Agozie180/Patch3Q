@@ -48,6 +48,11 @@ export interface SealReportOptions {
   reporterAddress?: string;
   maintainerAddress?: string;
   auditorAddress?: string;
+  /** Ordered V4 auditor set. When omitted, `auditorAddress` remains the only auditor. */
+  auditorAddresses?: string[];
+  /** Demo-only auditor count. Use three to rehearse a 2-of-3 quorum. */
+  demoAuditorCount?: number;
+  auditorThreshold?: number;
   now?: Date;
   /** Testnet rehearsals only: shorter public deadlines than the default 24-hour / 7-day SLA. */
   deadlines?: { acknowledgeBy: Date; triageBy: Date; embargoUntil: Date };
@@ -119,45 +124,62 @@ export async function sealReport(options: SealReportOptions): Promise<SealResult
   const payout = reporterMode === "anonymous" ? sealedPayout(options.payoutAddress ?? "") : undefined;
   let approvalAuthorities: Patch3QBundle["approvalAuthorities"];
   let approvalVaults: SealResult["approvalVaults"];
+  const requestedAuditorAddresses = (options.auditorAddresses?.length
+    ? options.auditorAddresses
+    : options.auditorAddress ? [options.auditorAddress] : [])
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const requestedDemoAuditors = options.demoAuditorCount ?? 1;
+  if (!Number.isInteger(requestedDemoAuditors) || requestedDemoAuditors < 1 || requestedDemoAuditors > 5) {
+    throw new Error("Choose between one and five demo auditors.");
+  }
+  const requestedThreshold = options.auditorThreshold ?? (requestedAuditorAddresses.length > 1 || requestedDemoAuditors > 1 ? 2 : 1);
+
   if (options.mode === "testnet" && reporterMode === "anonymous") {
-    if (!options.maintainerAddress?.trim() || !options.auditorAddress?.trim()) {
-      throw new Error("Enter both program and auditor QoreChain testnet addresses.");
+    if (!options.maintainerAddress?.trim() || requestedAuditorAddresses.length === 0) {
+      throw new Error("Enter the program and at least one auditor QoreChain testnet address.");
     }
-    const [reporterKey, program, auditor] = await Promise.all([
+    const [reporterKey, program, ...auditors] = await Promise.all([
       createDemoApprovalAuthority(caseId, "reporter", "per-case"),
       resolveApprovalAuthority(options.maintainerAddress, "program", rest),
-      resolveApprovalAuthority(options.auditorAddress, "auditor", rest),
+      ...requestedAuditorAddresses.map((address) => resolveApprovalAuthority(address, "auditor", rest)),
     ]);
-    if (program.evmAddress.toLowerCase() === auditor.evmAddress.toLowerCase()) {
-      throw new Error("Program and auditor must be two distinct QoreChain accounts.");
+    const unique = new Set([program.evmAddress, ...auditors.map((entry) => entry.evmAddress)].map((value) => value.toLowerCase()));
+    if (unique.size !== auditors.length + 1) {
+      throw new Error("Program and every auditor must be distinct QoreChain accounts.");
     }
-    approvalAuthorities = { reporter: reporterKey.authority, program, auditor };
+    if (requestedThreshold < 1 || requestedThreshold > auditors.length) throw new Error("Auditor threshold exceeds the configured auditor set.");
+    approvalAuthorities = { reporter: reporterKey.authority, program, auditor: auditors[0], auditors, auditorThreshold: requestedThreshold };
     approvalVaults = [reporterKey.vault];
   } else if (options.mode === "demo") {
-    const [reporterApproval, programApproval, auditorApproval] = await Promise.all([
+    const [reporterApproval, programApproval, ...auditorApprovals] = await Promise.all([
       createDemoApprovalAuthority(caseId, "reporter", reporterMode === "anonymous" ? "per-case" : "embedded-demo"),
       createDemoApprovalAuthority(caseId, "program"),
-      createDemoApprovalAuthority(caseId, "auditor"),
+      ...Array.from({ length: requestedDemoAuditors }, () => createDemoApprovalAuthority(caseId, "auditor")),
     ]);
+    if (requestedThreshold < 1 || requestedThreshold > auditorApprovals.length) throw new Error("Auditor threshold exceeds the configured auditor set.");
     approvalAuthorities = {
       reporter: reporterApproval.authority,
       program: programApproval.authority,
-      auditor: auditorApproval.authority,
+      auditor: auditorApprovals[0].authority,
+      auditors: auditorApprovals.map((entry) => entry.authority),
+      auditorThreshold: requestedThreshold,
     };
-    approvalVaults = [reporterApproval.vault, programApproval.vault, auditorApproval.vault];
+    approvalVaults = [reporterApproval.vault, programApproval.vault, ...auditorApprovals.map((entry) => entry.vault)];
   } else {
-    if (!options.reporterAddress?.trim() || !options.maintainerAddress?.trim() || !options.auditorAddress?.trim()) {
-      throw new Error("Connect the reporter wallet and enter both program and auditor QoreChain testnet addresses.");
+    if (!options.reporterAddress?.trim() || !options.maintainerAddress?.trim() || requestedAuditorAddresses.length === 0) {
+      throw new Error("Connect the reporter wallet and enter the program plus at least one auditor address.");
     }
-    const [reporter, program, auditor] = await Promise.all([
+    const [reporter, program, ...auditors] = await Promise.all([
       resolveApprovalAuthority(options.reporterAddress, "reporter", rest),
       resolveApprovalAuthority(options.maintainerAddress, "program", rest),
-      resolveApprovalAuthority(options.auditorAddress, "auditor", rest),
+      ...requestedAuditorAddresses.map((address) => resolveApprovalAuthority(address, "auditor", rest)),
     ]);
-    if (new Set([reporter.evmAddress, program.evmAddress, auditor.evmAddress].map((value) => value.toLowerCase())).size !== 3) {
-      throw new Error("Reporter, program, and auditor must be three distinct QoreChain accounts.");
+    if (new Set([reporter.evmAddress, program.evmAddress, ...auditors.map((entry) => entry.evmAddress)].map((value) => value.toLowerCase())).size !== auditors.length + 2) {
+      throw new Error("Reporter, program, and every auditor must be distinct QoreChain accounts.");
     }
-    approvalAuthorities = { reporter, program, auditor };
+    if (requestedThreshold < 1 || requestedThreshold > auditors.length) throw new Error("Auditor threshold exceeds the configured auditor set.");
+    approvalAuthorities = { reporter, program, auditor: auditors[0], auditors, auditorThreshold: requestedThreshold };
   }
   const publicMetadata: PublicMetadata = {
     acknowledgeBy,
@@ -166,27 +188,31 @@ export async function sealReport(options: SealReportOptions): Promise<SealResult
   };
   let vaults: Patch3QKeyVault[] = [];
   let recipients: Patch3QBundle["recipients"];
-  let demoKeys: { maintainer: SealKeyPair; auditor: SealKeyPair } | undefined;
+  let demoKeys: { maintainer: SealKeyPair; auditors: SealKeyPair[] } | undefined;
   let testnetAddresses: Array<{ role: "maintainer" | "auditor"; label: string; address: string }> | undefined;
   if (options.mode === "demo") {
     const maintainer = generateSealKeys();
-    const auditor = generateSealKeys();
-    demoKeys = { maintainer, auditor };
+    const auditors = Array.from({ length: requestedDemoAuditors }, () => generateSealKeys());
+    demoKeys = { maintainer, auditors };
     vaults = [
       makeVault(caseId, "maintainer", "Program security team", maintainer),
-      makeVault(caseId, "auditor", "Independent disclosure auditor", auditor),
+      ...auditors.map((keys, index) => makeVault(caseId, "auditor", `Independent disclosure auditor ${index + 1}`, keys)),
     ];
     recipients = [
       { role: "maintainer", label: "Program security team", keyFingerprint: await keyFingerprint(maintainer) },
-      { role: "auditor", label: "Independent disclosure auditor", keyFingerprint: await keyFingerprint(auditor) },
+      ...await Promise.all(auditors.map(async (keys, index) => ({
+        role: "auditor" as const,
+        label: `Independent disclosure auditor ${index + 1}`,
+        keyFingerprint: await keyFingerprint(keys),
+      }))),
     ];
   } else {
     testnetAddresses = [
       { role: "maintainer" as const, label: "Program security team", address: options.maintainerAddress?.trim() ?? "" },
-      { role: "auditor" as const, label: "Independent disclosure auditor", address: options.auditorAddress?.trim() ?? "" },
+      ...requestedAuditorAddresses.map((address, index) => ({ role: "auditor" as const, label: `Independent disclosure auditor ${index + 1}`, address })),
     ];
     if (testnetAddresses.some(({ address }) => !address)) {
-      throw new Error("Enter both maintainer and auditor QoreChain testnet addresses.");
+      throw new Error("Enter the maintainer and every auditor QoreChain testnet address.");
     }
     recipients = testnetAddresses;
   }
@@ -235,7 +261,7 @@ export async function sealReport(options: SealReportOptions): Promise<SealResult
     envelope = seal({
       chainId: PATCH3Q_CHAIN_ID,
       purpose: PATCH3Q_PURPOSE,
-      recipients: [recipientOf(demoKeys.maintainer), recipientOf(demoKeys.auditor)],
+      recipients: [recipientOf(demoKeys.maintainer), ...demoKeys.auditors.map(recipientOf)],
       plaintext,
       aad: aadBytes,
       mode: "hybrid",

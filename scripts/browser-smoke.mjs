@@ -193,6 +193,7 @@ try {
     workspaceTabs: [...document.querySelectorAll('[role="tab"]')].map((element) => element.textContent.trim()),
     qoreChainScenarioVisible: document.body.innerText.includes('Load QoreChain synthetic customer scenario'),
     dianaVisible: Boolean(document.querySelector('[aria-label="Diana testnet"]')),
+    guaranteeVisible: document.body.innerText.includes('Pre-funded case + missed SLA'),
     horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth,
   }))()`);
   await capture("browser-home.png");
@@ -208,9 +209,27 @@ try {
     selectedTab: document.querySelector('[role="tab"][aria-selected="true"]')?.textContent.trim() ?? '',
     heading: document.querySelector('#approval-title')?.innerText ?? '',
     description: document.querySelector('#approval-title')?.nextElementSibling?.innerText ?? '',
-    emptyState: document.querySelector('.warning-callout')?.innerText ?? '',
+    auditorTrust: [...document.querySelectorAll('.warning-callout')]
+      .find((element) => element.textContent.includes('verified V3 deployment'))?.innerText ?? '',
+    emptyState: [...document.querySelectorAll('.warning-callout')]
+      .find((element) => element.textContent.includes('No case loaded'))?.innerText ?? '',
   }))()`);
   await capture("browser-approval.png");
+
+  const v4TabClicked = await evaluate(`(() => {
+    const tab = [...document.querySelectorAll('[role="tab"]')].find((element) => element.textContent.includes('V4 pool & quorum'));
+    if (!tab) return false;
+    tab.click();
+    return true;
+  })()`);
+  await waitFor("Boolean(document.querySelector('#v4-title'))", "the V4 pool and quorum workspace");
+  const v4 = await evaluate(`(() => ({
+    heading: document.querySelector('#v4-title')?.innerText ?? '',
+    policyVisible: document.body.innerText.includes('Program policy and pool'),
+    deliveryVisible: document.body.innerText.includes('Publish or recover encrypted delivery'),
+    quorumVisible: document.body.innerText.includes('Collect quorum and release'),
+  }))()`);
+  await capture("browser-v4.png");
 
   const injectedWalletButtonClicked = await evaluate(`(() => {
     const provider = {
@@ -337,12 +356,19 @@ try {
     viewport: { width: viewportWidth, height: viewportHeight },
     assertions: {
       homeRendered: home.heading.includes("Report the flaw"),
-      fourWorkspaceTabsRendered: home.workspaceTabs.length === 4,
+      fiveWorkspaceTabsRendered: home.workspaceTabs.length === 5,
       qoreChainScenarioVisible: home.qoreChainScenarioVisible,
       dianaVisible: home.dianaVisible,
+      guaranteeBoundaryVisible: home.guaranteeVisible,
       noHorizontalOverflow: !home.horizontalOverflow,
       approvalTabClicked,
       dualPartyApprovalVisible: approval.heading === "Approve severity with two PQ parties",
+      auditorTrustBoundaryVisible: approval.auditorTrust.includes("verified V3 deployment"),
+      approvalEmptyStateVisible: approval.emptyState.includes("No case loaded"),
+      v4TabClicked,
+      v4PolicyVisible: v4.policyVisible,
+      v4DurableDeliveryVisible: v4.deliveryVisible,
+      v4QuorumVisible: v4.quorumVisible,
       injectedWalletButtonClicked,
       injectedWalletConnected,
       injectedWalletDisconnected,
@@ -364,11 +390,13 @@ try {
     },
     home,
     approval,
+    v4,
     journey: { sealed, verified, approved },
     pageErrors,
     screenshots: [
       outputPath("browser-home.png"),
       outputPath("browser-approval.png"),
+      outputPath("browser-v4.png"),
       outputPath("browser-sealed.png"),
       outputPath("browser-journey.png"),
     ],

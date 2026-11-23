@@ -8,6 +8,15 @@
     "qor": "qor1dzrqfkesenlkcwa3d7e5mztjp9r4667tc9y5qt",
     "evm": "0x688604db30CcfF6C3BB16fb34D897209475d6bcb"
   },
+  "funder": {
+    "qor": "qor1zyakukrv7p2nv2vrkky7kc3panansa32scyff4",
+    "evm": "0x113b6e586cf055362983b589eb6221ecfb38762a"
+  },
+  "nativeFunding": {
+    "denom": "uqor",
+    "amount": "40000000",
+    "blockHeight": "10278614"
+  },
   "registryAddress": "0xa7c6ff9db34aadb4301b183864d75d9a36c95b27",
   "bountyTokenAddress": "0x715a962d04391a0e308fd4fa36af63cec0df3bdc",
   "native": {

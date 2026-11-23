@@ -1,0 +1,119 @@
+{
+  "schemaVersion": 1,
+  "status": "verified",
+  "completedAt": "2026-11-23T16:28:26.716Z",
+  "network": "qorechain-diana",
+  "chainId": 9800,
+  "registryAddress": "0xd3b5F8Af4De51a33d4790a2cfB41231f825be9c3",
+  "bountyTokenAddress": "0x2D42CBe73384b8C492da8E0d706AA56141902eB1",
+  "program": {
+    "qor": "qor1dzrqfkesenlkcwa3d7e5mztjp9r4667tc9y5qt",
+    "evm": "0x688604db30CcfF6C3BB16fb34D897209475d6bcb"
+  },
+  "relayer": {
+    "qor": "qor1fj4dzkve7eg8g928skgf978gn69feyldvw4ync",
+    "evm": "0x4CaAd15999f650741547859092f8e89E8A9C93ED"
+  },
+  "auditors": [
+    "0xa054dAd8B5D277206c7e9B8aD236dc75Bc6cCB48",
+    "0x9d9D2dA5B490Dd70d3135602ad377298FcD15769",
+    "0x4347e777A7A5a6f36E0c004a7AdB36b3691AD1CC"
+  ],
+  "auditorThreshold": 2,
+  "caseId": "P3Q-H6T_OJM96TXNQI6B",
+  "caseIdHash": "0x961874cfa226109dcbe474b3d1158d41081faceb006af7dc2760c93e0f7e4a94",
+  "bundleFile": "evidence/cases-v4/funded-quorum.bundle.json",
+  "bundleHash": "0xee9e87f6c2c856ec5edb86c2547595ddbf6313a39800ae74d0108fc63f9a94a9",
+  "recoveredBundleHash": "0xee9e87f6c2c856ec5edb86c2547595ddbf6313a39800ae74d0108fc63f9a94a9",
+  "recoveredFromTransaction": "0x87351ae1fa8c26cd0b68b21e198734087516eba2b0bdd8cedd6a65d2355dba8b",
+  "programDecryptionVerified": true,
+  "approvalFile": "evidence/cases-v4/funded-quorum.approval.json",
+  "approvalHash": "0x92c81c318986610d72d301c7855405cc7a5530761ab4c9838e24933f8df90433",
+  "approvalVerification": {
+    "statementShape": true,
+    "caseBinding": true,
+    "evidenceBinding": true,
+    "registryBinding": true,
+    "participantBinding": true,
+    "participantKeyBinding": true,
+    "participantHybridSignature": true,
+    "auditorSetBinding": true,
+    "auditorUniqueness": true,
+    "auditorQuorum": true,
+    "auditorKeyBindings": true,
+    "auditorHybridSignatures": true,
+    "rationaleBinding": true,
+    "payoutBinding": true,
+    "approvalHash": true
+  },
+  "payout": {
+    "recipient": "0x81b29ef77de8B6A997faF611B49189433BE16d93",
+    "amount": "2500000000",
+    "balance": "2500000000"
+  },
+  "transactions": {
+    "programKem": {
+      "hash": "8842B9CEBD6B9E5B5DB1487A524B98856D05D96886F64B0B4DDBF21A8215618D",
+      "explorer": "https://dashboard.qorechain.io/explorer/tx/8842B9CEBD6B9E5B5DB1487A524B98856D05D96886F64B0B4DDBF21A8215618D"
+    },
+    "programWindow": {
+      "hash": "3D959F22D6A5F7AEA7B25283A03C35C66C94D72D65BE40AB7D085E4E4846837A",
+      "explorer": "https://dashboard.qorechain.io/explorer/tx/3D959F22D6A5F7AEA7B25283A03C35C66C94D72D65BE40AB7D085E4E4846837A"
+    },
+    "relayerWindow": {
+      "hash": "42922DDDEFD3DDD6C1E3FE102091F4D25CE13B79495764D5CFA2C4481E02062F",
+      "explorer": "https://dashboard.qorechain.io/explorer/tx/42922DDDEFD3DDD6C1E3FE102091F4D25CE13B79495764D5CFA2C4481E02062F"
+    },
+    "submit": {
+      "hash": "0x87351ae1fa8c26cd0b68b21e198734087516eba2b0bdd8cedd6a65d2355dba8b",
+      "blockNumber": "10623335",
+      "explorer": "https://dashboard.qorechain.io/explorer/tx/0x87351ae1fa8c26cd0b68b21e198734087516eba2b0bdd8cedd6a65d2355dba8b"
+    },
+    "acknowledge": {
+      "hash": "0x7987b4e27e8a592a1277cae823cd231164518f569d74b0ce5ff58cd8030696cc",
+      "blockNumber": "10623339",
+      "explorer": "https://dashboard.qorechain.io/explorer/tx/0x7987b4e27e8a592a1277cae823cd231164518f569d74b0ce5ff58cd8030696cc"
+    },
+    "triage": {
+      "hash": "0x4a15918de95ed913841f82edcef97bf4ee1fe868bdf83d9582f7b30e014b2234",
+      "blockNumber": "10623341",
+      "explorer": "https://dashboard.qorechain.io/explorer/tx/0x4a15918de95ed913841f82edcef97bf4ee1fe868bdf83d9582f7b30e014b2234"
+    },
+    "release": {
+      "hash": "0xbbcd7b33038fb729ab5f5a0b5db18d7805f871b41df271cb799a4425b2421575",
+      "blockNumber": "10623343",
+      "explorer": "https://dashboard.qorechain.io/explorer/tx/0xbbcd7b33038fb729ab5f5a0b5db18d7805f871b41df271cb799a4425b2421575"
+    }
+  },
+  "reservation": {
+    "poolBefore": "25000000000",
+    "poolAfterSubmission": "22500000000",
+    "openCasesBefore": 0,
+    "openCasesAfterSubmission": 1,
+    "reservedAmount": "2500000000"
+  },
+  "finalState": {
+    "status": 3,
+    "severity": 5,
+    "escrowedAmount": "0",
+    "availablePool": "22500000000",
+    "openCases": 0,
+    "registryTokenBalance": "22500000000",
+    "approvalHash": "0x92c81c318986610d72d301c7855405cc7a5530761ab4c9838e24933f8df90433",
+    "onchainDeadlines": {
+      "acknowledgeBy": "1795537681",
+      "triageBy": "1796056081",
+      "embargoUntil": "1798043281"
+    },
+    "bundleDeadlines": {
+      "acknowledgeBy": "2026-11-24T16:25:30.000Z",
+      "triageBy": "2026-11-30T16:25:30.000Z",
+      "embargoUntil": "2026-12-23T16:25:30.000Z"
+    },
+    "caseAuditors": [
+      "0xa054dAd8B5D277206c7e9B8aD236dc75Bc6cCB48",
+      "0x9d9D2dA5B490Dd70d3135602ad377298FcD15769",
+      "0x4347e777A7A5a6f36E0c004a7AdB36b3691AD1CC"
+    ]
+  }
+}

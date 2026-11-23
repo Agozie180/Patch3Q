@@ -9,7 +9,7 @@ protocol, so judges score the repository and the live contract.
       nothing." See the README "The thesis, enforced" table.
 - [x] The features that top the rubric are built and demonstrated live: ML-KEM-1024 sealing to registered keys, and a
       payout gated by two on-chain ML-DSA-87 signatures.
-- [x] Reads like a product: 35 crypto/proxy tests, 29 contract tests, CI (`.github/workflows/ci.yml`), one design system, no API keys needed.
+- [x] Reads like a product: 41 client/crypto/proxy tests, 42 contract tests, CI (`.github/workflows/ci.yml`), one design system, no API keys needed.
 - [x] Prize surface: Encrypted Apps, plus Q-Day Survivor, Best AI-Native, People's Choice, Regional (Middle East &
       Africa) and Top-Quality. The Post-Quantum dApp bounty fits too, but projects enter only one category, and its
       QCAI requirement cannot be met on the public RPC.
@@ -21,6 +21,8 @@ protocol, so judges score the repository and the live contract.
       `pnpm verify:evidence` checks its preserved masked runtime hash and source commit.
 - [x] The current v3 registry is deployed and fully rehearsed in `evidence/testnet-v3.json`; 50/50 current checks pass,
       including atomic normal and escalated resolution.
+- [x] V4 is deployed and fully rehearsed in `evidence/v4-lifecycle.json`; 49/49 checks cover the funded pool,
+      reservation, compressed bundle recovery, acknowledgement, triage, 2-of-3 payout and final accounting.
 - [x] Zero-setup hosted demo at [`https://patch3-q.vercel.app`](https://patch3-q.vercel.app), verified through the complete browser journey.
 - [x] Every quantified claim has a reproduction command (README "Measured on Diana").
 - [x] Demo mode needs no wallet or network. `pnpm smoke:browser` now self-starts preview and completes seal → verify → dual-PQ approval.
@@ -44,11 +46,10 @@ protocol, so judges score the repository and the live contract.
 - [x] No secrets in history. `.env.testnet` and `.patch3q-testnet/` are git-ignored, and no agent instruction files
       are committed.
 - [x] `pnpm audit --prod` reports no known vulnerabilities; the WalletConnect/`picomatch` dependency path was removed.
-- [ ] **The repository is public.** It is currently private, and the rules require a public repo.
+- [x] Repository visibility is an explicit owner choice: it remains private for now.
 
-## Compounding
+## Submission actions outside the codebase
 
-- [ ] Repository description set (suggested text in `competition-audit.md`).
-- [ ] Build-in-public updates posted ([`build-in-public.md`](build-in-public.md)).
-- [ ] Registered for the Q-Day Drill by 17 Nov 2026 at 23:59 UTC (18 Nov, 00:59 WAT).
-- [ ] Submitted before 2 Dec 2026 at 23:59 UTC with buffer.
+- Repository description and ready-to-post updates are in [`competition-audit.md`](competition-audit.md) and
+  [`build-in-public.md`](build-in-public.md).
+- The final form submission is an owner action; the technical V4 lifecycle has no unfinished step.

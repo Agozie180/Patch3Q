@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "status": "lifecycle-verified",
+  "deployedAt": "2026-11-23T15:48:14.031Z",
+  "network": "qorechain-diana",
+  "chainId": 9800,
+  "deployer": "0x688604db30CcfF6C3BB16fb34D897209475d6bcb",
+  "bountyTokenAddress": "0x2D42CBe73384b8C492da8E0d706AA56141902eB1",
+  "registryAddress": "0xd3b5f8af4de51a33d4790a2cfb41231f825be9c3",
+  "deploymentHash": "0x56e3e07c9a590baee56f1e04fe0a67c93b360180328d9dfe37b734bb1584a848",
+  "deploymentBlock": "10622404",
+  "artifact": "artifacts/Patch3QRegistryV4.json",
+  "policyEvidence": "evidence/v4-policy.json",
+  "lifecycleEvidence": "evidence/v4-lifecycle.json"
+}

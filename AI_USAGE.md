@@ -12,7 +12,7 @@ as a feature claim pasted onto the product.
 | Protocol design | Propose invariants and failure cases before implementation | Approved the dual-party authority model and lifecycle semantics | `Patch3QRegistry.sol` and 29 contract tests |
 | Pair programming | Draft TypeScript, Solidity, tests, scripts and documentation under review | Reviewed diffs, ran the code and retained responsibility for every merge | `pnpm check`, browser evidence and Diana evidence |
 | Adversarial QA | Judge the finished entry end to end, compare it with the live event field and find claims unsupported by evidence | Chose and implemented the fixes; kept unresolved items explicit | Findings 1–19 in the competition audit |
-| Evidence verification | Build independent scripts that re-read receipts, bytecode, balances and event logs instead of trusting prose | Supplied the testnet accounts and approved broadcasts | `pnpm verify:evidence`: 62/62 preserved + 50/50 v3 checks |
+| Evidence verification | Build independent scripts that re-read receipts, bytecode, balances and event logs instead of trusting prose | Supplied the testnet accounts and approved broadcasts | `pnpm verify:evidence`: 64/64 v1/v2 + 50/50 v3 + 49/49 v4 checks |
 
 The agents used during development included Cursor and OpenAI Codex. The latest Codex audit led directly to:
 

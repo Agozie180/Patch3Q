@@ -1,0 +1,248 @@
+{
+  "schemaVersion": 1,
+  "verifiedAt": "2026-11-23T16:46:16.783Z",
+  "registryAddress": "0xd3b5f8af4de51a33d4790a2cfb41231f825be9c3",
+  "deploymentHash": "0x56e3e07c9a590baee56f1e04fe0a67c93b360180328d9dfe37b734bb1584a848",
+  "passed": 49,
+  "total": 49,
+  "checks": [
+    {
+      "check": "Diana chain ID is 9800",
+      "passed": true,
+      "actual": "9800"
+    },
+    {
+      "check": "deployment receipt succeeded",
+      "passed": true,
+      "actual": "success"
+    },
+    {
+      "check": "receipt contract matches manifest",
+      "passed": true,
+      "actual": "0xd3b5f8af4de51a33d4790a2cfb41231f825be9c3"
+    },
+    {
+      "check": "deployment block matches manifest",
+      "passed": true,
+      "actual": "10622404"
+    },
+    {
+      "check": "deployment sender is the verified V2 wallet",
+      "passed": true,
+      "actual": "0x688604db30ccff6c3bb16fb34d897209475d6bcb"
+    },
+    {
+      "check": "creation bytecode and constructor argument match",
+      "passed": true,
+      "actual": "0x8c9a02d91ec08b8ea0bd8373ec8818df0406c6f8dab78ceb36697b446e3cfb11"
+    },
+    {
+      "check": "deployed runtime is non-empty",
+      "passed": true,
+      "actual": "11040"
+    },
+    {
+      "check": "immutable bounty token matches manifest",
+      "passed": true,
+      "actual": "0x2D42CBe73384b8C492da8E0d706AA56141902eB1"
+    },
+    {
+      "check": "runtime bytecode matches compiled V4 artifact after immutable masking",
+      "passed": true,
+      "actual": "0x55765cfebf12cd958ed6041c01980fc870077cde66c6f140f746a7b8f1ccaefb"
+    },
+    {
+      "check": "V4 program policy exists and is enabled",
+      "passed": true
+    },
+    {
+      "check": "available pool matches current evidence",
+      "passed": true,
+      "actual": "22500000000"
+    },
+    {
+      "check": "reserve per case matches policy",
+      "passed": true,
+      "actual": "2500000000"
+    },
+    {
+      "check": "open-case capacity matches policy",
+      "passed": true,
+      "actual": "10"
+    },
+    {
+      "check": "open case count matches current evidence",
+      "passed": true,
+      "actual": "0"
+    },
+    {
+      "check": "auditor threshold is 2-of-3",
+      "passed": true,
+      "actual": "2-of-3"
+    },
+    {
+      "check": "ordered auditor snapshot policy matches evidence",
+      "passed": true
+    },
+    {
+      "check": "authorized relayer policy matches evidence",
+      "passed": true
+    },
+    {
+      "check": "registry token balance backs available pool",
+      "passed": true,
+      "actual": "22500000000"
+    },
+    {
+      "check": "policy transaction configurePolicy succeeded",
+      "passed": true,
+      "actual": "0x5325fb89a461edc13f3e13b8dce3e34d4bf1f26df0f9c2338af41590767130f3"
+    },
+    {
+      "check": "policy transaction mintPoolTokens succeeded",
+      "passed": true,
+      "actual": "0xe1c238de19a1ffceece969359265893ad00386ac52a5a40d0f813d1f46c3e5ac"
+    },
+    {
+      "check": "policy transaction approvePool succeeded",
+      "passed": true,
+      "actual": "0xd395d817db467afa0cff3c6070b7353f1ce437dc8c0474498c1869447c973837"
+    },
+    {
+      "check": "policy transaction depositPool succeeded",
+      "passed": true,
+      "actual": "0xe097e850ff5ba414eb14564d03a04a08412a8e369e8bdc8908c4297031153bfa"
+    },
+    {
+      "check": "V4 lifecycle evidence is marked verified",
+      "passed": true,
+      "actual": "verified"
+    },
+    {
+      "check": "lifecycle registry matches deployment",
+      "passed": true,
+      "actual": "0xd3b5F8Af4De51a33d4790a2cfB41231f825be9c3"
+    },
+    {
+      "check": "lifecycle token matches deployment",
+      "passed": true,
+      "actual": "0x2D42CBe73384b8C492da8E0d706AA56141902eB1"
+    },
+    {
+      "check": "lifecycle case ID hashes to the committed case ID",
+      "passed": true,
+      "actual": "0x961874cfa226109dcbe474b3d1158d41081faceb006af7dc2760c93e0f7e4a94"
+    },
+    {
+      "check": "compressed bundle hashes to the on-chain bundle commitment",
+      "passed": true,
+      "actual": "0xee9e87f6c2c856ec5edb86c2547595ddbf6313a39800ae74d0108fc63f9a94a9"
+    },
+    {
+      "check": "recovered bundle hash matches submitted bundle hash",
+      "passed": true,
+      "actual": "0xee9e87f6c2c856ec5edb86c2547595ddbf6313a39800ae74d0108fc63f9a94a9"
+    },
+    {
+      "check": "program independently decrypted and verified the recovered bundle",
+      "passed": true
+    },
+    {
+      "check": "lifecycle submit transaction succeeded",
+      "passed": true,
+      "actual": "0x87351ae1fa8c26cd0b68b21e198734087516eba2b0bdd8cedd6a65d2355dba8b"
+    },
+    {
+      "check": "lifecycle submit sender and target match",
+      "passed": true,
+      "actual": "0x4caad15999f650741547859092f8e89e8a9c93ed -> 0xd3b5f8af4de51a33d4790a2cfb41231f825be9c3"
+    },
+    {
+      "check": "lifecycle acknowledge transaction succeeded",
+      "passed": true,
+      "actual": "0x7987b4e27e8a592a1277cae823cd231164518f569d74b0ce5ff58cd8030696cc"
+    },
+    {
+      "check": "lifecycle acknowledge sender and target match",
+      "passed": true,
+      "actual": "0x688604db30ccff6c3bb16fb34d897209475d6bcb -> 0xd3b5f8af4de51a33d4790a2cfb41231f825be9c3"
+    },
+    {
+      "check": "lifecycle triage transaction succeeded",
+      "passed": true,
+      "actual": "0x4a15918de95ed913841f82edcef97bf4ee1fe868bdf83d9582f7b30e014b2234"
+    },
+    {
+      "check": "lifecycle triage sender and target match",
+      "passed": true,
+      "actual": "0x688604db30ccff6c3bb16fb34d897209475d6bcb -> 0xd3b5f8af4de51a33d4790a2cfb41231f825be9c3"
+    },
+    {
+      "check": "lifecycle release transaction succeeded",
+      "passed": true,
+      "actual": "0xbbcd7b33038fb729ab5f5a0b5db18d7805f871b41df271cb799a4425b2421575"
+    },
+    {
+      "check": "lifecycle release sender and target match",
+      "passed": true,
+      "actual": "0x4caad15999f650741547859092f8e89e8a9c93ed -> 0xd3b5f8af4de51a33d4790a2cfb41231f825be9c3"
+    },
+    {
+      "check": "submission emitted the funded reservation and durable bundle events",
+      "passed": true
+    },
+    {
+      "check": "published bytes hash to the lifecycle bundle commitment",
+      "passed": true,
+      "actual": "0xee9e87f6c2c856ec5edb86c2547595ddbf6313a39800ae74d0108fc63f9a94a9"
+    },
+    {
+      "check": "published compressed bytes recover the exact case",
+      "passed": true,
+      "actual": "P3Q-H6T_OJM96TXNQI6B"
+    },
+    {
+      "check": "release emitted quorum approval and bounty payment",
+      "passed": true
+    },
+    {
+      "check": "case resolved at Critical severity with no escrow left",
+      "passed": true,
+      "actual": "3/5/0"
+    },
+    {
+      "check": "case approval hash matches the verified quorum approval",
+      "passed": true,
+      "actual": "0x92c81c318986610d72d301c7855405cc7a5530761ab4c9838e24933f8df90433"
+    },
+    {
+      "check": "case snapshots the configured ordered 2-of-3 auditor set",
+      "passed": true
+    },
+    {
+      "check": "full 2,500 tUSDT reserve reached the sealed payout address",
+      "passed": true,
+      "actual": "2500000000"
+    },
+    {
+      "check": "pool decreased from 25,000 to 22,500 tUSDT and capacity was released",
+      "passed": true,
+      "actual": "22500000000/0/22500000000"
+    },
+    {
+      "check": "bundle SLA schedule and authoritative on-chain deadlines use one consistent submission offset",
+      "passed": true,
+      "actual": "151,151,151"
+    },
+    {
+      "check": "program plus two unique auditors independently verify against live PQ keys",
+      "passed": true,
+      "actual": "all checks pass"
+    },
+    {
+      "check": "V2 program published its ML-KEM-1024 key with a successful native transaction",
+      "passed": true,
+      "actual": "8842B9CEBD6B9E5B5DB1487A524B98856D05D96886F64B0B4DDBF21A8215618D"
+    }
+  ]
+}

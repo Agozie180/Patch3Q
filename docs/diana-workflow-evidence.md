@@ -20,7 +20,21 @@ The public Diana EVM RPC (`https://evm-testnet.qore.host`, chain ID `9800`) carr
 
 Canonical record: [`evidence/testnet-v3.json`](../evidence/testnet-v3.json). Independent re-read:
 [`evidence/verification-v3.json`](../evidence/verification-v3.json) via `pnpm verify:evidence`; **50/50 current checks
-pass**, plus 62/62 preserved v1/v2 checks.
+pass**, plus 64/64 preserved v1/v2 checks.
+
+## V4 funded-pool lifecycle
+
+I completed the separate V4 lifecycle on 23 Nov 2026 against
+[`0xd3b5f8af4de51a33d4790a2cfb41231f825be9c3`](https://dashboard.qorechain.io/explorer/address/0xd3b5f8af4de51a33d4790a2cfb41231f825be9c3):
+
+- the relayer submitted the compressed encrypted bundle and reserved 2,500 tUSDT: [`0x87351ae1…dba8b`](https://dashboard.qorechain.io/explorer/tx/0x87351ae1fa8c26cd0b68b21e198734087516eba2b0bdd8cedd6a65d2355dba8b)
+- the program acknowledged it: [`0x7987b4e2…696cc`](https://dashboard.qorechain.io/explorer/tx/0x7987b4e27e8a592a1277cae823cd231164518f569d74b0ce5ff58cd8030696cc)
+- the program triaged it: [`0x4a15918d…b2234`](https://dashboard.qorechain.io/explorer/tx/0x4a15918de95ed913841f82edcef97bf4ee1fe868bdf83d9582f7b30e014b2234)
+- the program and two unique auditors released 2,500 tUSDT to the sealed recipient: [`0xbbcd7b33…21575`](https://dashboard.qorechain.io/explorer/tx/0xbbcd7b33038fb729ab5f5a0b5db18d7805f871b41df271cb799a4425b2421575)
+
+The final state is 22,500 tUSDT available, zero open cases and no case escrow left. The canonical record is
+[`evidence/v4-lifecycle.json`](../evidence/v4-lifecycle.json), and [`evidence/v4-verification.json`](../evidence/v4-verification.json)
+passes 49/49 checks.
 
 Sealed bundles (ciphertext only): [`evidence/cases-v3/`](../evidence/cases-v3/). Each `envelopeHash` matches the anchored
 case on Diana.
