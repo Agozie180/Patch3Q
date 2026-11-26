@@ -24,6 +24,8 @@ Patch3Q is a post-quantum bug bounty escrow for security researchers and partici
 
 If the program misses an acknowledgement, triage, or final decision deadline, anyone can submit an escalation transaction. The researcher takes the program’s place as a payout signer. The live policy still requires two of three auditors to co-sign, and the registry pays the address committed at submission.
 
+**Who appoints the auditors:** the program names its own auditors when it opts in. The registry snapshots that set when it accepts each case, so the program cannot swap them afterwards. Escalation removes the program’s vote, not this trust assumption: a program whose auditors refuse to sign can still stall a payout.
+
 ## Live on Diana
 
 QoreChain Diana testnet (`qorechain-diana`, EVM chain ID `9800`). The hosted app defaults to V5 and retains V4 in the registry selector.
