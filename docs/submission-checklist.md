@@ -39,7 +39,7 @@ protocol, so judges score the repository and the live contract.
 
 ## Honesty
 
-- [x] Limitations and negative scoping, a self-audit with 15 findings, and fixes pinned by tests
+- [x] Limitations and negative scoping, a self-audit with 24 findings, and fixes pinned by tests
       ([`competition-audit.md`](competition-audit.md)).
 - [x] No simulated numbers. The QCAI score is explicitly not claimed. The single-operator rehearsal is disclosed.
 
