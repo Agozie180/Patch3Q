@@ -270,7 +270,8 @@ More detail: [threat model](docs/threat-model.md), [architecture](docs/architect
 ## Disclosures
 
 Patch3Q is a testnet prototype and holds no real funds. All vulnerability content in the repository and the live
-cases is synthetic. It is not legal advice on disclosure obligations. AI assistance is documented in
+cases is synthetic. It is not legal advice on disclosure obligations. Cursor and OpenAI Codex assisted the
+build, and Claude Code ran one final audit session on 26 Nov. What each did is documented in
 [`AI_USAGE.md`](AI_USAGE.md).
 
 ## Built with (credits)
