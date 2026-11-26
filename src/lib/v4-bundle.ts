@@ -42,15 +42,20 @@ export async function fetchV4Bundle(options: {
   fromBlock?: bigint;
 }): Promise<{ bundle: Patch3QBundle; bundleHash: `0x${string}`; transactionHash?: `0x${string}` }> {
   const caseIdHash = await hashText(options.caseId);
-  const events = await publicClient.getContractEvents({
-    address: options.registryAddress,
-    abi: patch3qRegistryV4Abi,
-    eventName: "EncryptedBundlePublished",
-    args: { caseIdHash },
-    fromBlock: options.fromBlock ?? 0n,
-    toBlock: "latest",
-  });
-  const event = events.at(-1);
+  const latest = await publicClient.getBlockNumber({ cacheTime: 0 });
+  const earliest = options.fromBlock ?? 0n;
+  let event;
+  // Diana caps eth_getLogs ranges at 10,000 blocks. Scan newest batches first.
+  for (let to = latest; to >= earliest;) {
+    const from = to - earliest < 8999n ? earliest : to - 8999n;
+    const events = await publicClient.getContractEvents({
+      address: options.registryAddress, abi: patch3qRegistryV4Abi,
+      eventName: "EncryptedBundlePublished", args: { caseIdHash }, fromBlock: from, toBlock: to,
+    });
+    event = events.at(-1);
+    if (event || from === earliest) break;
+    to = from - 1n;
+  }
   if (!event?.args.encryptedBundle || !event.args.bundleHash) throw new Error("No V4 encrypted bundle event was found for this case.");
   const actualHash = viemSha256(event.args.encryptedBundle);
   if (actualHash !== event.args.bundleHash) throw new Error("The published bundle bytes do not match their on-chain SHA-256.");
