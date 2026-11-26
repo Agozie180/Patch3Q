@@ -6,13 +6,14 @@ protocol, so judges score the repository and the live contract.
 ## The thing
 
 - [x] One defensible thesis, enforced in code, with tests that prove it: "ECDSA-only signatures cannot authorize an
-      escrow payout or decrypt a sealed report." See the README "The thesis, enforced" table.
-- [x] The features that top the rubric are built and demonstrated live: ML-KEM-1024 sealing to registered keys, and a
-      payout gated by two on-chain ML-DSA-87 signatures.
+      escrow payout or decrypt a sealed report." See the README [V3 security checks](../README.md#v3-security-checks)
+      and the [V5 verification report](../evidence/v5-verification.json).
+- [x] Live V5 cases use browser ML-KEM-1024 sealing to registered keys and on-chain ML-DSA-87 checks for the
+      required participant and two of three auditors.
 - [x] Local checks cover 54 client/crypto/proxy cases and 78 contract cases. CI runs without API keys.
-- [x] Prize surface: Encrypted Apps, plus Q-Day Survivor, Best AI-Native, People's Choice, Regional (Middle East &
-      Africa) and Top-Quality. The Post-Quantum dApp bounty fits too, but projects enter only one category, and its
-      QCAI requirement cannot be met on the public RPC.
+- [x] Prize surface: Encrypted Apps, plus Best AI-Native, People's Choice, Regional (Middle East &
+      Africa) and Top-Quality. The rules allow one category per project. The recorded Diana QCAI probe returned empty
+      data. [Event rules](https://build.qorechain.io/rules) · [Probe results](../evidence/qcai-audit.json)
 
 ## Verifiability
 

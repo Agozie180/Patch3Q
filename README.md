@@ -2,7 +2,19 @@
 
 **Anonymous bug reports. Bounties reserved upfront. If the program misses a deadline, the researcher takes over its payout vote.**
 
+[![CI](https://github.com/Agozie180/Patch3Q/actions/workflows/ci.yml/badge.svg)](https://github.com/Agozie180/Patch3Q/actions/workflows/ci.yml)
+[![Live on Diana](https://img.shields.io/badge/QoreChain%20Diana-V5%20live-2ea44f)](https://dashboard.qorechain.io/explorer/address/0xba42c59f3982202dbe2358a0d238de098eaf1ddb)
+[![On-chain checks](https://img.shields.io/badge/Diana%20checks-359%2F359-2ea44f)](docs/testnet-evidence.md)
+[![Tests](https://img.shields.io/badge/tests-54%20client%20%2B%2078%20contract-2ea44f)](https://github.com/Agozie180/Patch3Q/actions/runs/45842509500)
+![ML-KEM-1024](https://img.shields.io/badge/ML--KEM-1024-0b7285)
+![ML-DSA-87](https://img.shields.io/badge/ML--DSA-87%20on--chain-0b7285)
+[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+
 [**Open the missed-deadline case**](https://patch3-q.vercel.app/#missed-deadline) · [**Watch the V5 demo**](https://patch3-q.vercel.app/demo-v5.mp4) · [QoreChain project entry](https://build.qorechain.io/p/patch3q)
+
+Build Before Q-Day · Encrypted Apps · [$1,500 first prize and $750 second prize](https://build.qorechain.io/prizes#encrypted_apps)
+
+![Patch3Q cover for Build Before Q-Day](public/cover.png)
 
 Patch3Q is a post-quantum bug bounty app for QoreChain. The browser encrypts each report to the participating program and its auditors. An accepted case reserves its bounty from a funded pool. If the program misses a response or final decision deadline, anyone can escalate. The researcher takes the program’s place as a payout signer. Two of three auditors still have to co-sign in the live policy.
 
@@ -17,7 +29,11 @@ On Diana testnet, a program accepted a synthetic report, reserved **2,500 tUSDT*
 | Final decision deadline passed and the case escalated | [Escalation](https://dashboard.qorechain.io/explorer/tx/0x1fd093ec19d8c1905f7215172f6737ceea14b69bf1f10a3afb1992ec18aeaac7) |
 | Researcher and two auditors authorized the payout | [Payout](https://dashboard.qorechain.io/explorer/tx/0x9e48cc90a6585c7759daf6c5ebad2d05f6ffa8e9869ea52464a32146ab5464c2) |
 
+The V5 verifier also replays a late program payout against Diana and checks that the contract returns `DeadlineExpired`. [Recorded check](https://github.com/Agozie180/Patch3Q/blob/6fe92f3/evidence/v5-verification.json#L765)
+
 The demo checks these four receipts directly against Diana. **Try signing in your browser** runs a separate wallet-free exercise with real cryptography and sends no transaction. [V5 registry](https://dashboard.qorechain.io/explorer/address/0xba42c59f3982202dbe2358a0d238de098eaf1ddb) · [Five completed testnet cases](evidence/v5-lifecycle.json) · [V5 verification report](evidence/v5-verification.json)
+
+[![Hosted V5 demo showing the four confirmed Diana receipts](evidence/browser-v5-deadline.png)](https://patch3-q.vercel.app/#missed-deadline)
 
 ## Why it fits Encrypted Apps
 
@@ -34,10 +50,10 @@ Run `pnpm verify:evidence:v5` for **196 live checks** or `pnpm check` for the lo
 | --- | --- |
 | Event | [Build Before Q-Day: QoreChain Developer Fest](https://build.qorechain.io/) |
 | Judge brief | [`docs/judge-one-pager.md`](docs/judge-one-pager.md) |
-| Category bounty | **Encrypted Apps** (1st $1,500 · 2nd $750) |
-| Special awards targeted | Q-Day Survivor (5 × $200) · Best AI-Native Build ($500, [`AI_USAGE.md`](AI_USAGE.md)) · People's Choice · Regional: Middle East & Africa ($200) · Top-Quality ($250) |
+| Special awards | Best AI-Native Build ($500, [`AI_USAGE.md`](AI_USAGE.md)) · People's Choice · Regional: Middle East & Africa ($200) · Top-Quality ($250) |
 | Current live contract | [Patch3QRegistryV5 on Diana](https://dashboard.qorechain.io/explorer/address/0xba42c59f3982202dbe2358a0d238de098eaf1ddb) |
 | Every current transaction | [V5 lifecycle](evidence/v5-lifecycle.json) · [independent verification](evidence/v5-verification.json) |
+| Earlier material | [V4 funded-pool receipts](docs/diana-workflow-evidence.md#v4-funded-pool-lifecycle) · [Submitted YouTube video](https://youtu.be/RBpziQWC418) · [Original comparison table and V3 walkthrough](https://github.com/Agozie180/Patch3Q/blob/c3a28e0/README.md#how-patch3q-compares) |
 | Measured numbers | [`evidence/measurements.json`](evidence/measurements.json) |
 | Demo video (≤ 3 min) | [V5 walkthrough](https://patch3-q.vercel.app/demo-v5.mp4) · [transcript](docs/demo-video-transcript.md) |
 | Hosted demo | [`https://patch3-q.vercel.app`](https://patch3-q.vercel.app) · locally `pnpm dev` runs in demo mode with no wallet |
@@ -52,7 +68,7 @@ Run `pnpm verify:evidence:v5` for **196 live checks** or `pnpm check` for the lo
 | ML-DSA key binding | Each ML-KEM key is published by a hybrid-signed transaction from an account with a registered ML-DSA-87 key (`pqc_hybrid_verify: verified`). The bundle authenticates each signer's ML-DSA key fingerprint. The registry snapshots those keys at submission and verifies payouts against them | `native.pqc_*` transactions and the release transactions `0x7a19b4ba…` and `0x4408d550…` |
 | Client-side encryption and decryption | Sealing and opening run in the browser and in the same library from Node. There is no server and no plaintext upload path | Test `exports only ciphertext and public metadata, never report or PoC plaintext` |
 
-### The thesis, enforced (not asserted)
+### V3 security checks
 
 **ECDSA-only signatures cannot authorize an escrow payout or decrypt a sealed report.**
 
