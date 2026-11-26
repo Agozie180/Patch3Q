@@ -38,4 +38,26 @@ describe("V4 encrypted delivery recovery", () => {
       fromBlock, toBlock: 10_631_403n,
     }));
   });
+
+  it("stops at the registry deployment block when a case has no delivery", async () => {
+    rpc.getBlockNumber.mockResolvedValue(fromBlock + 2n);
+    rpc.getContractEvents.mockResolvedValue([]);
+
+    await expect(fetchV4Bundle({ registryAddress, caseId: bundle.caseId, fromBlock }))
+      .rejects.toThrow("No V4 encrypted bundle event");
+    expect(rpc.getContractEvents).toHaveBeenCalledTimes(1);
+    expect(rpc.getContractEvents).toHaveBeenCalledWith(expect.objectContaining({
+      fromBlock, toBlock: fromBlock + 2n,
+    }));
+  });
+
+  it("rejects a delivery whose published bytes do not match its commitment", async () => {
+    rpc.getBlockNumber.mockResolvedValue(fromBlock);
+    rpc.getContractEvents.mockResolvedValue([{
+      args: { encryptedBundle: "0x01", bundleHash: sha256("0x02") }, transactionHash,
+    }]);
+
+    await expect(fetchV4Bundle({ registryAddress, caseId: bundle.caseId, fromBlock }))
+      .rejects.toThrow("do not match their on-chain SHA-256");
+  });
 });
