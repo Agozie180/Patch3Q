@@ -56,6 +56,8 @@ await mkdir(outputDirectory, { recursive: true });
 const profileDirectory = await mkdtemp(path.join(tmpdir(), "patch3q-browser-smoke-"));
 const chrome = spawn(chromePath, [
   "--headless=new",
+  "--disable-background-mode",
+  "--disable-extensions",
   "--disable-gpu",
   "--no-first-run",
   "--no-default-browser-check",
@@ -63,7 +65,7 @@ const chrome = spawn(chromePath, [
   `--user-data-dir=${profileDirectory}`,
   `--window-size=${viewportWidth},${viewportHeight}`,
   targetUrl,
-], { stdio: "ignore" });
+], { stdio: "ignore", windowsHide: true });
 
 async function readDevToolsPort() {
   const portFile = path.join(profileDirectory, "DevToolsActivePort");
@@ -80,6 +82,7 @@ async function readDevToolsPort() {
 }
 
 let socket;
+let closeBrowser;
 try {
   const port = await readDevToolsPort();
   let page;
@@ -149,6 +152,8 @@ try {
     if (result.exceptionDetails) throw new Error(result.exceptionDetails.text);
     return result.result.value;
   }
+
+  closeBrowser = () => command("Browser.close");
 
   async function waitFor(expression, label, attempts = 300) {
     for (let attempt = 0; attempt < attempts; attempt += 1) {
@@ -410,24 +415,29 @@ try {
     console.log(JSON.stringify(report, null, 2));
   }
 } finally {
+  const browserExited = chrome.exitCode === null && chrome.signalCode === null
+    ? new Promise((resolve) => chrome.once("exit", resolve))
+    : Promise.resolve();
+  if (closeBrowser) await Promise.race([closeBrowser().catch(() => {}), pause(2_000)]);
   socket?.close();
-  if (chrome.exitCode === null) {
-    const exited = new Promise((resolve) => chrome.once("exit", resolve));
+  await Promise.race([browserExited, pause(3_000)]);
+  if (chrome.exitCode === null && chrome.signalCode === null) {
     chrome.kill();
-    await Promise.race([exited, pause(5000)]);
+    await Promise.race([browserExited, pause(5_000)]);
   }
   if (preview?.exitCode === null) {
     const exited = new Promise((resolve) => preview.once("exit", resolve));
     preview.kill();
     await Promise.race([exited, pause(5_000)]);
   }
-  for (let attempt = 0; attempt < 20; attempt += 1) {
-    try {
-      await rm(profileDirectory, { recursive: true, force: true });
-      break;
-    } catch (error) {
-      if (attempt === 19) throw error;
-      await pause(100);
-    }
+  const absoluteProfileDirectory = path.resolve(profileDirectory);
+  if (path.dirname(absoluteProfileDirectory) !== path.resolve(tmpdir()) || !path.basename(absoluteProfileDirectory).startsWith("patch3q-browser-smoke-")) {
+    throw new Error("Refusing to remove a browser profile outside the task's temporary directory.");
+  }
+  try {
+    await rm(absoluteProfileDirectory, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
+  } catch (error) {
+    if (process.platform !== "win32" || !["EBUSY", "EPERM", "ENOTEMPTY"].includes(error.code)) throw error;
+    console.warn(`Windows retained a lock on the temporary browser profile (${error.code}): ${absoluteProfileDirectory}`);
   }
 }
