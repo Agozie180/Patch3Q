@@ -2057,7 +2057,13 @@ export function App() {
               bundle={anchorBundle}
               initialVaults={latestResult?.approvalVaults}
               payout={latestPayout}
-              onRecovered={(bundle) => { setVerifyBundle(bundle); setLatestApproval(undefined); }}
+              onRecovered={(bundle) => {
+                setLatestResult(undefined);
+                setLatestPayout(undefined);
+                setVerifyVault(undefined);
+                setVerifyBundle(bundle);
+                setLatestApproval(undefined);
+              }}
             />
           )}
         </section>
