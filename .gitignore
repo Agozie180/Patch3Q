@@ -15,3 +15,7 @@ coverage/
 .vercel/
 .tmp/
 .local/
+CLAUDE.md
+CLAUDE.local.md
+AGENTS.md
+.claude/
