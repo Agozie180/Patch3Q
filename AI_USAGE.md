@@ -42,9 +42,9 @@ Each accepted finding has a code change and a named regression test in [`docs/co
 AI output is not treated as evidence. Changes must pass:
 
 ```sh
-pnpm check              # typecheck, 35 crypto/proxy tests, 29 contract tests, production build
+pnpm check              # typecheck, 54 client/crypto/proxy tests, 78 contract tests, production build
 pnpm smoke:browser      # complete local browser cryptographic journey
-pnpm verify:evidence    # 62 independent live-chain checks
+pnpm verify:evidence    # 359 checks across V1–V5; includes recorded recipient guard evidence
 pnpm verify:precompile  # exact QoreSign domain accepted by Diana
 pnpm audit --prod       # dependency advisory check
 ```
@@ -59,8 +59,9 @@ true; reproducible tests and chain receipts did.
 
 ## Data boundary
 
-AI never receives real vulnerability reports, recipient vaults, approval vaults, wallet secrets or testnet recovery
-codes. Reports are encrypted locally in the browser. All repository examples and live cases use synthetic content.
+Real vulnerability reports must never be provided to the assistant. The user authorized local testnet key use
+for V5 deployment; scripts read ignored environment/recovery files in memory without printing them. Private vaults,
+recipient keys and recovery material remain ignored and are excluded from hosted uploads. Reports are encrypted locally in the browser. All repository examples and live cases use synthetic content.
 
 ## QCAI disclosure
 

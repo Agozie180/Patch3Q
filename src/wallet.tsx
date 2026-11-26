@@ -32,7 +32,7 @@ declare global {
   }
 }
 
-const publicClient = createPublicClient({
+export const publicClient = createPublicClient({
   chain: qorechainTestnet,
   transport: http(qorechainTestnet.rpcUrls.default.http[0]),
 });

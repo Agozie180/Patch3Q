@@ -2,6 +2,7 @@ import { parseAbi } from "viem";
 
 import evidence from "../evidence/testnet-v3.json";
 import v4Evidence from "../evidence/v4-deployment.json";
+import v5Evidence from "../evidence/v5-deployment.json";
 
 const viteEnv = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env ?? {};
 
@@ -98,3 +99,22 @@ export const currentV4Deployment = v4Evidence as {
   deploymentBlock: string;
   deployer: `0x${string}`;
 };
+
+export const patch3qRegistryV5Abi = [
+  ...patch3qRegistryV4Abi,
+  ...parseAbi([
+    "function configureProgramPolicyWithDecisionGrace(address[] auditors, uint8 auditorThreshold, address[] relayers, uint256 reservePerCase, uint16 maxOpenCases, uint64 acknowledgePeriod, uint64 triagePeriod, uint64 embargoPeriod, uint64 decisionGracePeriod)",
+    "function programDecisionGracePeriod(address program) view returns (uint64)",
+    "function decisionState(bytes32 caseIdHash) view returns (uint64 decisionBy, bool decisionMissed)",
+    "function rejectAnonymousCase(bytes32 caseIdHash, bytes32 rationaleHash, address[] auditorSigners, bytes[] auditorPqSignatures)",
+    "function rejectionDigest(bytes32 caseIdHash, bytes32 rationaleHash) view returns (bytes32)",
+    "event CaseRejected(bytes32 indexed caseIdHash, uint256 returnedReserve, uint8 auditorApprovals, bytes32 rejectionHash, bytes32 rationaleHash, uint64 timestamp)",
+    "event DecisionDeadlineSet(bytes32 indexed caseIdHash, uint64 decisionBy)",
+    "event CaseTriaged(bytes32 indexed caseIdHash, uint64 timestamp)",
+    "event CaseEscalated(bytes32 indexed caseIdHash, uint8 indexed breach, uint64 timestamp)",
+    "event QuorumApprovalRecorded(bytes32 indexed caseIdHash, uint8 severity, uint256 payoutAmount, uint8 auditorApprovals, bytes32 approvalHash, bytes32 rationaleHash)",
+    "event BountyReleased(bytes32 indexed caseIdHash, address indexed recipient, uint256 amount)",
+  ]),
+];
+export const patch3qRegistryV5Address = (viteEnv.VITE_PATCH3Q_V5_REGISTRY_ADDRESS || v5Evidence.registryAddress) as `0x${string}`;
+export const currentV5Deployment = v5Evidence;

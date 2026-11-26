@@ -1,50 +1,13 @@
-# Patch3Q judge one-pager
+# Patch3Q · Encrypted Apps
 
-## Category
+**Anonymous bug reports. Bounties reserved upfront. If the program misses a deadline, the researcher takes over its payout vote.**
 
-Encrypted Apps
+[Open the completed case](https://patch3-q.vercel.app/#missed-deadline) · [Watch the V5 demo](https://patch3-q.vercel.app/demo-v5.mp4)
 
-## Title
+On Diana, a program accepted and triaged a synthetic report on time, then missed its final decision deadline. The report stayed encrypted. A transaction escalated the case, the researcher and two auditors signed, and the contract paid **2,500 testnet tUSDT** to the committed address. The demo reads four receipts directly from Diana. [Escalation transaction](https://dashboard.qorechain.io/explorer/tx/0x1fd093ec19d8c1905f7215172f6737ceea14b69bf1f10a3afb1992ec18aeaac7) · [Payout transaction](https://dashboard.qorechain.io/explorer/tx/0x9e48cc90a6585c7759daf6c5ebad2d05f6ffa8e9869ea52464a32146ab5464c2)
 
-Patch3Q — pre-funded bug bounties with enforceable anti-ghosting rules
+The browser seals the report with ML-KEM-1024 to registered QoreChain recipients and binds each approval authority's ML-DSA-87 fingerprint. The registry verifies signatures on-chain. The five-case V5 run covers normal payout, two missed deadlines, rejection with reserve return, and escalation after a case was marked resolved without payment. [V5 registry](https://dashboard.qorechain.io/explorer/address/0xba42c59f3982202dbe2358a0d238de098eaf1ddb) · [Evidence](../evidence/v5-lifecycle.json)
 
-## Gallery tagline
+Programs opt in and fund their pools. A transaction is required to escalate. Two of three auditors can co-sign a payout or reject a case under the live policy. The cases used synthetic reports, test tokens, and one operator in multiple roles. [Threat model](threat-model.md)
 
-Seal a vulnerability anonymously. If a funded program misses its SLA, it permanently loses its payout vote.
-
-## Ten-second pitch
-
-Patch3Q encrypts a vulnerability report in the browser for the program and an independent auditor quorum. V4 accepts
-cases only against a pre-funded program pool, publishes the ciphertext durably, and reserves the bounty atomically. A
-program that misses its SLA loses its vote: the reporter's one-off ML-DSA-87 key replaces it while any configured
-threshold of snapshotted auditors can co-sign.
-
-## Why it is different
-
-- Sealed Disclosure and DeadDrop protect the report; Patch3Q also makes a funded SLA breach change payout authority.
-- Postmark provides PQ bounty verdicts; Patch3Q additionally hides the report, reporter account and payout address.
-- The payout address is committed at submission, so even both legitimate signers cannot redirect the bounty.
-- Live Diana evidence covers a normal case, a ghosted case, permissionless escalation, dual-PQ payout and rejected
-  classical-only approval.
-- I ran the separate V4 registry with a 25,000 tUSDT pool, ten-case capacity and a live 2-of-3 payout.
-
-## Honest boundary
-
-Patch3Q cannot force an unregistered program to fund a bounty. The auditor threshold must still remain honest and
-available; quorum removes one signer as a liveness bottleneck but is not an appeal court. Both the V3 lifecycles and
-the complete V4 funded-pool lifecycle are verifiable on Diana.
-
-## Judge proof path
-
-1. Run `pnpm test` and `pnpm test:contract`: 42 client/crypto/app tests and 42 contract tests.
-2. Run `pnpm verify:evidence`: 163/163 checks re-read bytecode, receipts, balances, V4 policy and lifecycle state from Diana.
-3. Inspect the ghosted case: `0xc764f928…` removes the program vote; `0x4408d550…` releases 1,000 tUSDT with reporter
-   + auditor ML-DSA-87 approvals.
-4. Inspect the V4 lifecycle: `0x87351ae1…` reserves 2,500 tUSDT; `0xbbcd7b33…` completes the 2-of-3 payout and returns
-   capacity to zero open cases with 22,500 tUSDT left in the pool.
-5. Open the hosted app and complete the local seal → independent open → dual-PQ approval journey.
-
-## Honest operating boundaries
-
-- define an external auditor appeal/governance process beyond the on-chain quorum;
-- operate a production relayer/keeper network instead of the user-supplied hackathon infrastructure.
+Run `pnpm verify:evidence:v5` for 196 live checks. **Try signing in your browser** works without a wallet and sends no transaction.

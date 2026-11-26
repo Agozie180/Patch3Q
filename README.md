@@ -1,122 +1,31 @@
-# Patch3Q: pre-funded bug bounties with enforceable anti-ghosting rules
+# Patch3Q
 
-[![CI](https://github.com/Agozie180/Patch3Q/actions/workflows/ci.yml/badge.svg)](https://github.com/Agozie180/Patch3Q/actions/workflows/ci.yml)
-![Live on Diana](https://img.shields.io/badge/QoreChain%20Diana-live-2ea44f)
-![On-chain checks](https://img.shields.io/badge/verify%3Aevidence-163%2F163-2ea44f)
-![Tests](https://img.shields.io/badge/tests-42%20client%20%2B%2042%20contract-2ea44f)
-![ML-KEM-1024](https://img.shields.io/badge/ML--KEM-1024-0b7285)
-![ML-DSA-87](https://img.shields.io/badge/ML--DSA-87%20%C3%97%202%20on--chain-0b7285)
-![License](https://img.shields.io/badge/license-MIT-blue)
+**Anonymous bug reports. Bounties reserved upfront. If the program misses a deadline, the researcher takes over its payout vote.**
 
-![Patch3Q: anonymous, post-quantum bug-bounty escrow on QoreChain](public/cover.png)
+[**Open the missed-deadline case**](https://patch3-q.vercel.app/#missed-deadline) · [**Watch the V5 demo**](https://patch3-q.vercel.app/demo-v5.mp4) · [QoreChain project entry](https://build.qorechain.io/p/patch3q)
 
-Patch3Q V4 moves the guarantee before the report: a participating program configures a funded pool, authorized
-relayers, case capacity, and an auditor quorum. Accepting a case atomically reserves its bounty. If the program then
-misses acknowledgement or triage, **anyone** can call `escalateMissedDeadline`; the program’s vote is permanently
-replaced by the **reporter’s per-case ML-DSA-87 key**, while any configured auditor quorum can co-sign. V3 proves the
-original single-auditor lifecycle; V4 is deployed separately on Diana and independently verified against its compiled
-artifact.
-The report itself is sealed **client-side** into ML-KEM-1024 ciphertext before anything touches the network;
-**QoreChain** stores envelope hashes, deadlines, escrow, and lifecycle—not the researcher’s identity or the plaintext
-finding.
+Patch3Q is a post-quantum bug bounty app for QoreChain. The browser encrypts each report to the participating program and its auditors. An accepted case reserves its bounty from a funded pool. If the program misses a response or final decision deadline, anyone can escalate. The researcher takes the program’s place as a payout signer. Two of three auditors still have to co-sign in the live policy.
 
-> **Scope of the guarantee:** Patch3Q cannot force a non-participating program to fund a pool. V4 removes one auditor as
-> a liveness bottleneck, not auditor trust altogether: the configured threshold can approve or refuse a payout. Once a
-> case is accepted, however, its reserve and authority snapshots cannot be withdrawn or rewritten by the program.
+## The case to judge
 
-## Demo in 90 seconds
+On Diana testnet, a program accepted a synthetic report, reserved **2,500 tUSDT**, and reviewed it on time. Then it missed the final decision deadline. The case escalated, the reporter and two auditors signed, and the contract paid the committed recipient.
 
-Show these three beats in order (script: [`docs/demo-runbook.md`](docs/demo-runbook.md)):
-
-1. **Leaked storage is useless.** Open [`evidence/cases-v3/`](evidence/cases-v3/): only QoreSeal bundles and redacted
-   markdown. On Diana, the anchored fields are hashes and commitments—[`evidence/testnet-v3.json`](evidence/testnet-v3.json)
-   matches what explorers show for Cases A and B.
-2. **Classical-only approval dies on-chain.** Replay an ECDSA-only severity approval against the live registry; Diana
-   returns `InvalidPqSignature` (recorded under `negativeTests` in [`evidence/testnet-v3.json`](evidence/testnet-v3.json)).
-3. **Missed deadline → escalation → payout.** In Case B the program funded escrow then missed acknowledgement; keeper
-   tx [`0xc764f928…`](https://dashboard.qorechain.io/explorer/tx/0xc764f928bc1e04039add0619157d0d869b703b294b26911b87048526835ced90)
-   escalates; release tx [`0x4408d550…`](https://dashboard.qorechain.io/explorer/tx/0x4408d550a83fd80eef544bac1216c0643af2d55fa0dbc9a2a3c47f6ad2d035d2)
-   pays the sealed address with reporter + auditor ML-DSA-87 approvals.
-
-## How Patch3Q compares
-
-Facts below come from this repository or from Immunefi’s public program pages and policies unless marked otherwise.
-
-| | Email / PGP | Vault-style bounty platform (e.g. Immunefi) | Patch3Q |
-| --- | --- | --- | --- |
-| **Report confidentiality** | Body can be PGP-encrypted; headers, routing, and mailbox custody are outside the ciphertext | Submissions are handled on-platform; programs set their own rules | ML-KEM-1024 multi-recipient envelopes in-browser; on-chain anchors are hashes and commitments ([`docs/threat-model.md`](docs/threat-model.md)) |
-| **Provable deadlines** | not verified | Immunefi publishes response-time SLAs between projects and researchers ([hacker guide](https://immunefi.com/blog/security-guides/a-hackers-guide-to-submitting-bugs-on-immunefi/)); enforcement is platform process, not a public chain record | Acknowledgement and triage deadlines are storage on Diana; `escalateMissedDeadline` is permissionless after expiry ([`contracts/Patch3QRegistry.sol`](contracts/Patch3QRegistry.sol), Case B in [`evidence/testnet-v3.json`](evidence/testnet-v3.json)) |
-| **Who decides severity** | Reporter and vendor negotiate off-channel | Project security team decides validity and payout tier (e.g. [Yearn program FAQ](https://immunefi.com/bug-bounty/yearnfinance/information/)) | V4 normal path: program + auditor quorum. Escalated path: reporter per-case key + quorum ([`docs/threat-model.md`](docs/threat-model.md)) |
-| **Who can release funds** | not verified | Bounties are paid by the sponsoring project to a wallet you designate; some programs require KYC before payment ([Immunefi terms excerpt on program pages](https://immunefi.com/bug-bounty/immunefi/safe-harbor/)) | Registry transfers only after the participant and threshold-many ML-DSA-87 signatures pass in-contract precompile checks; duplicate auditors and ECDSA-only approvals are rejected |
-
-Patch3Q is built for the researcher who has done the work but faces **silent vendors**: escalation is a protocol rule,
-not a support ticket. PQ signing is not decorative—it is the gate on payout in the EVM contract, on a chain where routine
-EVM access itself requires a [hybrid-signed authorization window](https://docs.qorechain.io/developer-guide/evm-window-reference/).
-
-## Proven on Diana (reproducible)
-
-The current `Patch3QRegistry` v3 was deployed and fully rehearsed on QoreChain Diana on 18 Nov 2026: registry
-[`0x9ec24151dc741f0c65d708c9410fbae2458f7863`](https://dashboard.qorechain.io/explorer/address/0x9ec24151dc741f0c65d708c9410fbae2458f7863),
-token [`0x2d42cbe73384b8c492da8e0d706aa56141902eb1`](https://dashboard.qorechain.io/explorer/address/0x2d42cbe73384b8c492da8e0d706aa56141902eb1).
-[`evidence/testnet-v3.json`](evidence/testnet-v3.json) records the deployment, two anonymous lifecycle cases, atomic
-normal and escalated resolution, five rejected Q-Day attacks and 10 native PQC/window transactions. I have kept the
-historical v1/v2 evidence as well. Anyone can re-check all three generations without keys:
-
-```sh
-pnpm verify:evidence   # 64/64 v1/v2 + 50/50 v3 + 49/49 v4 = 163/163
-pnpm verify:precompile
-```
-
-My row-by-row proof is in [`docs/testnet-evidence.md`](docs/testnet-evidence.md). The independent verifiers are:
-[`scripts/verify-testnet-evidence.ts`](scripts/verify-testnet-evidence.ts) and
-[`scripts/verify-v3-evidence.ts`](scripts/verify-v3-evidence.ts), plus
-[`scripts/verify-v4-evidence.ts`](scripts/verify-v4-evidence.ts).
-
-## V4 resilience upgrade (live on Diana)
-
-[`Patch3QRegistryV4.sol`](contracts/Patch3QRegistryV4.sol) and the **V4 pool & quorum** workspace add the four missing
-production mechanics without changing the verified V3 deployment:
-
-- program-level pre-funded pools with automatic per-case reservation and open-case capacity
-- ordered multi-auditor snapshots with configurable threshold (the UI rehearses 2-of-3)
-- authorized multi-relayer submission, preventing arbitrary pool-draining spam
-- exact encrypted bundle bytes emitted in `EncryptedBundlePublished`, with SHA-256 verification on recovery
-
-V4 approvals bind the chain, registry, case, ciphertext commitment, exact bundle SHA-256, auditor-set hash, severity,
-payout, salted rationale and sealed recipient. Run `pnpm test` and `pnpm test:contract` for the 6 client quorum and 13
-V4 contract cases. The deployment is
-[`0xd3b5f8af…e9c3`](https://dashboard.qorechain.io/explorer/address/0xd3b5f8af4de51a33d4790a2cfb41231f825be9c3),
-created by the verified V2 deployer in
-[`0x56e3e07c…4a848`](https://dashboard.qorechain.io/explorer/tx/0x56e3e07c9a590baee56f1e04fe0a67c93b360180328d9dfe37b734bb1584a848).
-The live policy is enabled with a 25,000 tUSDT pool, 2,500 tUSDT reserve per case, ten-case capacity, three auditors,
-a 2-of-3 threshold and a distinct authorized relayer. [`evidence/v4-verification.json`](evidence/v4-verification.json)
-passes 49/49 deployment, bytecode, policy, backing, bundle-recovery and lifecycle checks.
-
-I also ran the complete funded V4 path on Diana. The authorized relayer submitted the compressed encrypted bundle and
-atomically reserved 2,500 tUSDT
-([`0x87351ae1…dba8b`](https://dashboard.qorechain.io/explorer/tx/0x87351ae1fa8c26cd0b68b21e198734087516eba2b0bdd8cedd6a65d2355dba8b));
-the program acknowledged
-([`0x7987b4e2…696cc`](https://dashboard.qorechain.io/explorer/tx/0x7987b4e27e8a592a1277cae823cd231164518f569d74b0ce5ff58cd8030696cc))
-and triaged it
-([`0x4a15918d…b2234`](https://dashboard.qorechain.io/explorer/tx/0x4a15918de95ed913841f82edcef97bf4ee1fe868bdf83d9582f7b30e014b2234));
-then the program and two unique auditors authorized the payout
-([`0xbbcd7b33…21575`](https://dashboard.qorechain.io/explorer/tx/0xbbcd7b33038fb729ab5f5a0b5db18d7805f871b41df271cb799a4425b2421575)).
-The sealed recipient received 2,500 tUSDT, the pool now holds 22,500 tUSDT, and the open-case count returned to zero.
-The full record is [`evidence/v4-lifecycle.json`](evidence/v4-lifecycle.json).
-
-## Submission status
-
-| Item | Status |
+| Step | Diana receipt |
 | --- | --- |
-| Public demo video (≤ 3 min) | Complete: [84-second narrated demo](https://patch3-q.vercel.app/demo.mp4) · [transcript](docs/demo-video-transcript.md) · [runbook](docs/demo-runbook.md) |
-| Zero-setup hosted demo | Complete: live at [`https://patch3-q.vercel.app`](https://patch3-q.vercel.app); the production URL passes the complete browser journey |
-| QCAI risk / anomaly scores | [`evidence/qcai-audit.json`](evidence/qcai-audit.json): AI precompiles returned empty data on the public Diana RPC |
-| GitHub repo visibility | [`Agozie180/Patch3Q`](https://github.com/Agozie180/Patch3Q) is private; hackathon rules require public |
+| Case accepted and 2,500 tUSDT reserved | [Reserve](https://dashboard.qorechain.io/explorer/tx/0x124d9492488506123bfd67fe05cc0143fd79d808a6516b274e8771a196dd20f1) |
+| Program triaged on time | [Triage](https://dashboard.qorechain.io/explorer/tx/0x2feffbd3cc5175d9159f547202bf83bd875dc81ca5047c4546709637b349ae50) |
+| Final decision deadline passed and the case escalated | [Escalation](https://dashboard.qorechain.io/explorer/tx/0x1fd093ec19d8c1905f7215172f6737ceea14b69bf1f10a3afb1992ec18aeaac7) |
+| Researcher and two auditors authorized the payout | [Payout](https://dashboard.qorechain.io/explorer/tx/0x9e48cc90a6585c7759daf6c5ebad2d05f6ffa8e9869ea52464a32146ab5464c2) |
 
-A fresh contract deployment accepts `PATCH3Q_DEPLOYER_PRIVATE_KEY` or a valid BIP-39
-`PATCH3Q_DEPLOYER_MNEMONIC` from `.env`; the unified Diana account must be funded, PQ-registered and have an open EVM
-window. The preserved rehearsal is `pnpm testnet:e2e`; the isolated v3 run is `pnpm testnet:e2e:v3` and writes
-`evidence/testnet-v3.json` without overwriting the historical v1 evidence.
+The demo checks these four receipts directly against Diana. **Try signing in your browser** runs a separate wallet-free exercise with real cryptography and sends no transaction. [V5 registry](https://dashboard.qorechain.io/explorer/address/0xba42c59f3982202dbe2358a0d238de098eaf1ddb) · [Five completed testnet cases](evidence/v5-lifecycle.json) · [V5 verification report](evidence/v5-verification.json)
+
+## Why it fits Encrypted Apps
+
+- The browser encrypts and decrypts reports with QoreSeal and **ML-KEM-1024**. Live recipients resolve their keys from QoreChain’s registry, and the authenticated bundle binds the **ML-DSA-87** fingerprints for the signing authorities.
+- The contract checks post-quantum signatures at settlement. The other V5 cases cover normal payment, rejection and reserve return, an unanswered report, and a case marked resolved without payment.
+- Programs opt in and fund the pool. Someone submits escalation, and an auditor quorum can reject a claim or become unavailable. The testnet used synthetic reports, test tokens, and one operator in multiple roles.
+
+Run `pnpm verify:evidence:v5` for **196 live checks** or `pnpm check` for the local build and tests. [Judge brief](docs/judge-one-pager.md) · [V5 review](docs/v5-review.md) · [Threat model](docs/threat-model.md)
 
 <details>
 <summary><strong>More details</strong> — live evidence, cryptography map, architecture, measurements, tooling</summary>
@@ -127,10 +36,10 @@ window. The preserved rehearsal is `pnpm testnet:e2e`; the isolated v3 run is `p
 | Judge brief | [`docs/judge-one-pager.md`](docs/judge-one-pager.md) |
 | Category bounty | **Encrypted Apps** (1st $1,500 · 2nd $750) |
 | Special awards targeted | Q-Day Survivor (5 × $200) · Best AI-Native Build ($500, [`AI_USAGE.md`](AI_USAGE.md)) · People's Choice · Regional: Middle East & Africa ($200) · Top-Quality ($250) |
-| Live contract | [`Patch3QRegistry` v3 on Diana](https://dashboard.qorechain.io/explorer/address/0x9ec24151dc741f0c65d708c9410fbae2458f7863) |
-| Every current transaction | [`evidence/testnet-v3.json`](evidence/testnet-v3.json) · independent check [`evidence/verification-v3.json`](evidence/verification-v3.json) |
+| Current live contract | [Patch3QRegistryV5 on Diana](https://dashboard.qorechain.io/explorer/address/0xba42c59f3982202dbe2358a0d238de098eaf1ddb) |
+| Every current transaction | [V5 lifecycle](evidence/v5-lifecycle.json) · [independent verification](evidence/v5-verification.json) |
 | Measured numbers | [`evidence/measurements.json`](evidence/measurements.json) |
-| Demo video (≤ 3 min) | [84-second narrated demo](https://patch3-q.vercel.app/demo.mp4) · [transcript](docs/demo-video-transcript.md) |
+| Demo video (≤ 3 min) | [V5 walkthrough](https://patch3-q.vercel.app/demo-v5.mp4) · [transcript](docs/demo-video-transcript.md) |
 | Hosted demo | [`https://patch3-q.vercel.app`](https://patch3-q.vercel.app) · locally `pnpm dev` runs in demo mode with no wallet |
 | QoreChain docs | [Developer guide](https://docs.qorechain.io/developer-guide/) · [EVM precompiles](https://docs.qorechain.io/developer-guide/evm-precompiles/) · [Chain dev kit](https://docs.qorechain.io/developer-tools/chain-dev-sdk/) |
 
@@ -145,7 +54,13 @@ window. The preserved rehearsal is `pnpm testnet:e2e`; the isolated v3 run is `p
 
 ### The thesis, enforced (not asserted)
 
-**An attacker holding every ECDSA key gets nothing: no plaintext, no payout, no identity.**
+**ECDSA-only signatures cannot authorize an escrow payout or decrypt a sealed report.**
+
+This guarantee covers the report and escrow authorization. After release, funds rely on the recipient wallet's own
+security. The fresh wallet generator creates an ordinary ECDSA wallet; it does not register a PQ key. Use an
+appropriately protected recipient account before treating received funds as protected against Q-Day. All three paid
+V5 recipients were PQ-registered and tested with closed EVM windows; actual classical transfers were rejected.
+Future wallet permissions remain owner-controlled. See [recipient security evidence](evidence/v5-recipient-security.json).
 
 | The system lets... | The system structurally prevents... | Enforced by | Proven by |
 | --- | --- | --- | --- |
@@ -207,15 +122,15 @@ Account mode is still available for researchers who want public credit.
 
 ### Live on Diana
 
-Patch3Q v3 is deployed on QoreChain Diana (`qorechain-diana`, EVM chain 9800). It carries the current contract source
+Patch3Q v3 is deployed on QoreChain Diana (`qorechain-diana`, EVM chain 9800). Its deployed bytecode matches the preserved contract source
 and completed both the normal and ghosted anonymous lifecycles on 18 Nov 2026. `pnpm verify:evidence` independently
 re-reads the current deployment, receipts, events, case state, balances, bundle commitments and bytecode; **50/50 v3
 checks pass** ([`evidence/verification-v3.json`](evidence/verification-v3.json)), alongside 64/64 preserved v1/v2 checks
-and 49/49 V4 checks.
+49/49 V4 checks, and the current [V5 verification](evidence/v5-verification.json).
 
 | Contract | Address |
 | --- | --- |
-| `Patch3QRegistry` v3 (current app target) | [`0x9ec24151dc741f0c65d708c9410fbae2458f7863`](https://dashboard.qorechain.io/explorer/address/0x9ec24151dc741f0c65d708c9410fbae2458f7863). Runtime bytecode matches the current compiled artifact after immutable masking |
+| `Patch3QRegistry` v3 (legacy workspace) | [`0x9ec24151dc741f0c65d708c9410fbae2458f7863`](https://dashboard.qorechain.io/explorer/address/0x9ec24151dc741f0c65d708c9410fbae2458f7863). Runtime bytecode matches the current compiled artifact after immutable masking |
 | `MockTUSDT` v3 bounty token | [`0x2d42cbe73384b8c492da8e0d706aa56141902eb1`](https://dashboard.qorechain.io/explorer/address/0x2d42cbe73384b8c492da8e0d706aa56141902eb1). Runtime bytecode matches the current compiled artifact |
 | Preserved v2 registry | [`0xa7c6ff9db34aadb4301b183864d75d9a36c95b27`](https://dashboard.qorechain.io/explorer/address/0xa7c6ff9db34aadb4301b183864d75d9a36c95b27). Hashes and source commit are preserved in `evidence/deployment-v2.json` |
 | Preserved v1 lifecycle registry | [`0xb6b92510cd9ca5a1e7eac761243b51d73f619962`](https://dashboard.qorechain.io/explorer/address/0xb6b92510cd9ca5a1e7eac761243b51d73f619962). Exact artifact/source are preserved under `artifacts/deployed/` and `evidence/deployed/` |
@@ -287,7 +202,7 @@ Every number below comes from a Diana receipt. Reproduce it with `pnpm measure:e
 | Size of two different reports after padding | 54,971 B each (16 KiB bucket) | `ls -l evidence/cases-v3/*.bundle.json` |
 | Registry runtime bytecode, matched against the committed artifact | 9,985 B | `pnpm verify:evidence` |
 | Independent on-chain checks passing | 64 / 64 v1/v2 + 50 / 50 v3 + 49 / 49 v4 | `pnpm verify:evidence` |
-| Local tests | 42 client/crypto/proxy + 42 contract | `pnpm check` |
+| Local tests | 54 client/crypto/proxy + 78 contract | `pnpm check` |
 | Browser journey | Seal → independent decrypt → payout opening → 2 × ML-DSA-87 approval, with both ECDSA-only forgeries rejected | `pnpm smoke:browser` (self-starting) |
 
 ### What's used, and what's deliberately not
@@ -297,7 +212,7 @@ Every number below comes from a Diana receipt. Reproduce it with `pnpm measure:e
 | QoreSeal ML-KEM-1024 envelopes | Yes | Both live bundles |
 | PQC key registry (ML-DSA-87 with proof of possession, ML-KEM-1024) | Yes | `native.pqc_*`, `native.kem_*` |
 | QoreSign hybrid ML-DSA-87 + secp256k1 messages | Yes | Every severity approval |
-| `pqcVerify` precompile `0x…0A01` | Yes, twice per payout | Release transactions |
+| `pqcVerify` precompile `0x…0A01` | Yes. V5 checks the participant and each approving auditor | Release transactions |
 | Scoped EVM authorization windows | Yes | `native.window_*`, live out-of-scope refusal |
 | Hybrid-signed native transactions | Yes | Every native transaction except bootstrap key registration reports `pqc_hybrid_verify: verified` |
 | QoreX wallet connector | Yes, via direct EIP-6963 discovery with no WalletConnect runtime | `@qorechain/qorex-types` + `src/wallet.tsx` |
@@ -350,7 +265,7 @@ checks-effects-interactions, uses a reentrancy guard and exact balance accountin
 - A compromised browser before sealing, stolen vaults, malicious recipients, unsafe redaction and IP-level network
   metadata are out of scope.
 - QoreSeal is pre-1.0. The cryptography and the contract are unaudited hackathon code.
-- V3 has complete, independently verified normal and ghosted lifecycles. I also completed the separate V4 funded-pool
+- V3 has complete, independently verified normal and ghosted lifecycles. V5 completes all five deadline/refund paths; I also completed the separate V4 funded-pool
   lifecycle on Diana: reserve, acknowledgement, triage, 2-of-3 quorum payout, pool accounting and capacity release.
 - `pnpm audit --prod` reports no known vulnerabilities. The unused wagmi/RainbowKit/WalletConnect stack was removed;
   QoreX and injected wallets now use a small direct EIP-1193 adapter, eliminating the vulnerable `picomatch` path.

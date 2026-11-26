@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "status": "lifecycle-verified",
+  "network": "qorechain-diana",
+  "chainId": 9800,
+  "deployer": "0x688604db30CcfF6C3BB16fb34D897209475d6bcb",
+  "deployerQor": "qor1dzrqfkesenlkcwa3d7e5mztjp9r4667tc9y5qt",
+  "bountyTokenAddress": "0x2D42CBe73384b8C492da8E0d706AA56141902eB1",
+  "deploymentHash": "0xbf8efeb6971bc075ebdb850323c87db121bd05cf9c8bb22bdbb0774b77177750",
+  "nativeDeploymentWindow": {
+    "hash": "F1A0B4CD8257C5360E5469EA6643D69B180334A3406DCAA88CB10AF0F1FDA484",
+    "explorer": "https://dashboard.qorechain.io/explorer/tx/F1A0B4CD8257C5360E5469EA6643D69B180334A3406DCAA88CB10AF0F1FDA484"
+  },
+  "artifact": "artifacts/Patch3QRegistryV5.json",
+  "creationHash": "0xa08e9d8f5dec69999b948bde8db876ca7e7ca35f453eaa60ac44622cf24d7394",
+  "deployedAt": "2026-11-25T17:31:18.116Z",
+  "registryAddress": "0xba42c59f3982202dbe2358a0d238de098eaf1ddb",
+  "deploymentBlock": "10740476",
+  "runtimeHash": "0xbfd687f2c83dc307408eccaf5e216c7fa33addd6b80171848bc22461d5a7f5c4",
+  "addressMatch": {
+    "v2": true,
+    "v4": true
+  },
+  "explorer": "https://dashboard.qorechain.io/explorer/address/0xba42c59f3982202dbe2358a0d238de098eaf1ddb",
+  "lifecycleEvidence": "evidence/v5-lifecycle.json"
+}

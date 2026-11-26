@@ -4,7 +4,8 @@ import { afterEach, beforeEach, describe, it } from "node:test";
 import { network } from "hardhat";
 import { keccak256, sha256, toBytes, toHex } from "viem";
 
-describe("Patch3QRegistryV4 funded policy and quorum", () => {
+for (const version of ["V4", "V5"] as const) {
+describe(`Patch3QRegistry${version} funded policy and quorum`, () => {
   let connection: Awaited<ReturnType<typeof network.create>>;
   let viem: Awaited<ReturnType<typeof network.create>>["viem"];
   let publicClient: Awaited<ReturnType<Awaited<ReturnType<typeof network.create>>["viem"]["getPublicClient"]>>;
@@ -38,7 +39,7 @@ describe("Patch3QRegistryV4 funded policy and quorum", () => {
     [program, auditorOne, auditorTwo, auditorThree, relayerOne, relayerTwo, outsider, payoutRecipient] =
       await viem.getWalletClients();
     token = await viem.deployContract("MockTUSDT");
-    registry = await viem.deployContract("Patch3QRegistryV4Harness", [token.address]);
+    registry = await viem.deployContract(`Patch3QRegistry${version}Harness`, [token.address]);
 
     const authorities = [
       [program, "0x11111111"],
@@ -301,7 +302,7 @@ describe("Patch3QRegistryV4 funded policy and quorum", () => {
 
   it("rejects fee-on-transfer deposits instead of creating an underfunded pool", async () => {
     const feeToken = await viem.deployContract("FeeOnTransferToken");
-    const feeRegistry = await viem.deployContract("Patch3QRegistryV4Harness", [feeToken.address]);
+    const feeRegistry = await viem.deployContract(`Patch3QRegistry${version}Harness`, [feeToken.address]);
     for (const [wallet, key] of [
       [program, "0x11111111"], [auditorOne, "0x22222222"], [auditorTwo, "0x33333333"],
       [relayerOne, "0x55555555"],
@@ -320,3 +321,4 @@ describe("Patch3QRegistryV4 funded policy and quorum", () => {
     );
   });
 });
+}

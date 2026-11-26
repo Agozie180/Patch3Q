@@ -1,14 +1,13 @@
-# Patch3Q demo video transcript
+# Patch3Q V5 demo transcript
 
-Patch3Q is an anonymous, post-quantum bug-bounty escrow built for QoreChain Diana.
+[Watch the V5 demo](https://patch3-q.vercel.app/demo-v5.mp4)
 
-A researcher writes vulnerability details locally; no wallet or identity is required. The browser seals the report with ML-KEM-1024 for the program and independent auditor, pads the encrypted envelope, and anchors only hashes, deadlines, a reporter-key commitment, and a sealed payout commitment.
+A bug bounty program reviewed a private report, then missed its final decision deadline. Patch3Q let the researcher and two auditors release the reserved bounty without the program's signature.
 
-The generated receipt proves the envelope and content commitments without exposing plaintext. The auditor independently decrypts the bundle, checks its authenticated metadata, and opens the payout commitment only after receiving the secret salt.
+The researcher sealed a synthetic report in the browser. Patch3Q uses ML-KEM-1024 and registered QoreChain keys, so only the program and its configured auditors can decrypt the report. When the funded program accepted the case, the contract reserved 2,500 testnet tUSDT.
 
-Bounty release requires two independent ML-DSA-87 signatures. Normal cases use the program and auditor. If the vendor misses the SLA, anyone can escalate and the reporter replaces the vendor as co-signer.
+The program acknowledged the case and reviewed it on time. Then it missed the final decision deadline. Anyone could submit the escalation transaction. The contract replaced the program as a required payout signer with the researcher's per-case key. The same two-of-three auditor quorum still applied.
 
-The final approval verifies case, evidence, authority, key, registry, rationale, payout, and both hybrid signatures. ECDSA-only forgeries are rejected.
+The researcher and two auditors signed. The contract checked their ML-DSA-87 signatures and paid the committed address. Open the hosted case to check the four receipts against Diana.
 
-Diana testnet transactions and 112 independent on-chain checks reproduce the current and preserved deployments plus adversarial evidence. Patch3Q keeps the disclosure private while making accountability and payment publicly verifiable.
-
+Programs opt in and fund the pool. Auditors still decide the claim. This was a synthetic case with test tokens. You can try signing in the browser without a wallet.

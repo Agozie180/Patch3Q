@@ -1,0 +1,806 @@
+{
+  "generatedAt": "2026-11-25T18:30:09.430Z",
+  "network": "qorechain-diana",
+  "registryAddress": "0xBa42c59f3982202dbe2358A0D238dE098Eaf1DDb",
+  "passed": 196,
+  "total": 196,
+  "checks": [
+    {
+      "check": "Diana chain is 9800",
+      "passed": true
+    },
+    {
+      "check": "V5 deployment succeeded at the manifest address",
+      "passed": true
+    },
+    {
+      "check": "Seed deployer matches V2, V4 and the actual deployment sender",
+      "passed": true
+    },
+    {
+      "check": "V5 uses the preserved V4 bounty token",
+      "passed": true
+    },
+    {
+      "check": "Creation bytecode and constructor match the compiled artifact",
+      "passed": true
+    },
+    {
+      "check": "Runtime bytecode matches the compiled V5 artifact",
+      "passed": true
+    },
+    {
+      "check": "Runtime hash matches deployment evidence",
+      "passed": true
+    },
+    {
+      "check": "program: operator identity and closed EVM window",
+      "passed": true
+    },
+    {
+      "check": "relayer: operator identity and closed EVM window",
+      "passed": true
+    },
+    {
+      "check": "programWindow: native transaction succeeded",
+      "passed": true
+    },
+    {
+      "check": "programWindow: native hybrid signature verified on chain",
+      "passed": true
+    },
+    {
+      "check": "relayerWindow: native transaction succeeded",
+      "passed": true
+    },
+    {
+      "check": "relayerWindow: native hybrid signature verified on chain",
+      "passed": true
+    },
+    {
+      "check": "fund-normal: native transaction succeeded",
+      "passed": true
+    },
+    {
+      "check": "fund-normal: native hybrid signature verified on chain",
+      "passed": true
+    },
+    {
+      "check": "pqc-normal: native transaction succeeded",
+      "passed": true
+    },
+    {
+      "check": "fund-ack-ghost: native transaction succeeded",
+      "passed": true
+    },
+    {
+      "check": "fund-ack-ghost: native hybrid signature verified on chain",
+      "passed": true
+    },
+    {
+      "check": "pqc-ack-ghost: native transaction succeeded",
+      "passed": true
+    },
+    {
+      "check": "fund-decision-ghost: native transaction succeeded",
+      "passed": true
+    },
+    {
+      "check": "fund-decision-ghost: native hybrid signature verified on chain",
+      "passed": true
+    },
+    {
+      "check": "pqc-decision-ghost: native transaction succeeded",
+      "passed": true
+    },
+    {
+      "check": "programWindowClosed: native transaction succeeded",
+      "passed": true
+    },
+    {
+      "check": "programWindowClosed: native hybrid signature verified on chain",
+      "passed": true
+    },
+    {
+      "check": "relayerWindowClosed: native transaction succeeded",
+      "passed": true
+    },
+    {
+      "check": "relayerWindowClosed: native hybrid signature verified on chain",
+      "passed": true
+    },
+    {
+      "check": "deploymentWindow: native transaction succeeded",
+      "passed": true
+    },
+    {
+      "check": "deploymentWindow: native hybrid signature verified on chain",
+      "passed": true
+    },
+    {
+      "check": "configureSyntheticPolicy: confirmed receipt",
+      "passed": true
+    },
+    {
+      "check": "configureSyntheticPolicy: correct target",
+      "passed": true
+    },
+    {
+      "check": "configureSyntheticPolicy: correct program or relayer sender",
+      "passed": true
+    },
+    {
+      "check": "mintPoolTokens: confirmed receipt",
+      "passed": true
+    },
+    {
+      "check": "mintPoolTokens: correct target",
+      "passed": true
+    },
+    {
+      "check": "mintPoolTokens: correct program or relayer sender",
+      "passed": true
+    },
+    {
+      "check": "approvePool: confirmed receipt",
+      "passed": true
+    },
+    {
+      "check": "approvePool: correct target",
+      "passed": true
+    },
+    {
+      "check": "approvePool: correct program or relayer sender",
+      "passed": true
+    },
+    {
+      "check": "depositPool: confirmed receipt",
+      "passed": true
+    },
+    {
+      "check": "depositPool: correct target",
+      "passed": true
+    },
+    {
+      "check": "depositPool: correct program or relayer sender",
+      "passed": true
+    },
+    {
+      "check": "configureNormalCasePolicy: confirmed receipt",
+      "passed": true
+    },
+    {
+      "check": "configureNormalCasePolicy: correct target",
+      "passed": true
+    },
+    {
+      "check": "configureNormalCasePolicy: correct program or relayer sender",
+      "passed": true
+    },
+    {
+      "check": "normal.submit: confirmed receipt",
+      "passed": true
+    },
+    {
+      "check": "normal.submit: correct target",
+      "passed": true
+    },
+    {
+      "check": "normal.submit: correct program or relayer sender",
+      "passed": true
+    },
+    {
+      "check": "normal.acknowledge: confirmed receipt",
+      "passed": true
+    },
+    {
+      "check": "normal.acknowledge: correct target",
+      "passed": true
+    },
+    {
+      "check": "normal.acknowledge: correct program or relayer sender",
+      "passed": true
+    },
+    {
+      "check": "normal.triage: confirmed receipt",
+      "passed": true
+    },
+    {
+      "check": "normal.triage: correct target",
+      "passed": true
+    },
+    {
+      "check": "normal.triage: correct program or relayer sender",
+      "passed": true
+    },
+    {
+      "check": "normal.release: confirmed receipt",
+      "passed": true
+    },
+    {
+      "check": "normal.release: correct target",
+      "passed": true
+    },
+    {
+      "check": "normal.release: correct program or relayer sender",
+      "passed": true
+    },
+    {
+      "check": "configureDeadlinePolicy: confirmed receipt",
+      "passed": true
+    },
+    {
+      "check": "configureDeadlinePolicy: correct target",
+      "passed": true
+    },
+    {
+      "check": "configureDeadlinePolicy: correct program or relayer sender",
+      "passed": true
+    },
+    {
+      "check": "rejected.submit: confirmed receipt",
+      "passed": true
+    },
+    {
+      "check": "rejected.submit: correct target",
+      "passed": true
+    },
+    {
+      "check": "rejected.submit: correct program or relayer sender",
+      "passed": true
+    },
+    {
+      "check": "rejected.reject: confirmed receipt",
+      "passed": true
+    },
+    {
+      "check": "rejected.reject: correct target",
+      "passed": true
+    },
+    {
+      "check": "rejected.reject: correct program or relayer sender",
+      "passed": true
+    },
+    {
+      "check": "ack-ghost.submit: confirmed receipt",
+      "passed": true
+    },
+    {
+      "check": "ack-ghost.submit: correct target",
+      "passed": true
+    },
+    {
+      "check": "ack-ghost.submit: correct program or relayer sender",
+      "passed": true
+    },
+    {
+      "check": "decision-ghost.submit: confirmed receipt",
+      "passed": true
+    },
+    {
+      "check": "decision-ghost.submit: correct target",
+      "passed": true
+    },
+    {
+      "check": "decision-ghost.submit: correct program or relayer sender",
+      "passed": true
+    },
+    {
+      "check": "decision-ghost.acknowledge: confirmed receipt",
+      "passed": true
+    },
+    {
+      "check": "decision-ghost.acknowledge: correct target",
+      "passed": true
+    },
+    {
+      "check": "decision-ghost.acknowledge: correct program or relayer sender",
+      "passed": true
+    },
+    {
+      "check": "decision-ghost.triage: confirmed receipt",
+      "passed": true
+    },
+    {
+      "check": "decision-ghost.triage: correct target",
+      "passed": true
+    },
+    {
+      "check": "decision-ghost.triage: correct program or relayer sender",
+      "passed": true
+    },
+    {
+      "check": "resolved-ghost.submit: confirmed receipt",
+      "passed": true
+    },
+    {
+      "check": "resolved-ghost.submit: correct target",
+      "passed": true
+    },
+    {
+      "check": "resolved-ghost.submit: correct program or relayer sender",
+      "passed": true
+    },
+    {
+      "check": "resolved-ghost.acknowledge: confirmed receipt",
+      "passed": true
+    },
+    {
+      "check": "resolved-ghost.acknowledge: correct target",
+      "passed": true
+    },
+    {
+      "check": "resolved-ghost.acknowledge: correct program or relayer sender",
+      "passed": true
+    },
+    {
+      "check": "resolved-ghost.triage: confirmed receipt",
+      "passed": true
+    },
+    {
+      "check": "resolved-ghost.triage: correct target",
+      "passed": true
+    },
+    {
+      "check": "resolved-ghost.triage: correct program or relayer sender",
+      "passed": true
+    },
+    {
+      "check": "resolved-ghost.resolve: confirmed receipt",
+      "passed": true
+    },
+    {
+      "check": "resolved-ghost.resolve: correct target",
+      "passed": true
+    },
+    {
+      "check": "resolved-ghost.resolve: correct program or relayer sender",
+      "passed": true
+    },
+    {
+      "check": "restoreProductionPolicy: confirmed receipt",
+      "passed": true
+    },
+    {
+      "check": "restoreProductionPolicy: correct target",
+      "passed": true
+    },
+    {
+      "check": "restoreProductionPolicy: correct program or relayer sender",
+      "passed": true
+    },
+    {
+      "check": "ack-ghost.escalate: confirmed receipt",
+      "passed": true
+    },
+    {
+      "check": "ack-ghost.escalate: correct target",
+      "passed": true
+    },
+    {
+      "check": "ack-ghost.escalate: correct program or relayer sender",
+      "passed": true
+    },
+    {
+      "check": "ack-ghost.release: confirmed receipt",
+      "passed": true
+    },
+    {
+      "check": "ack-ghost.release: correct target",
+      "passed": true
+    },
+    {
+      "check": "ack-ghost.release: correct program or relayer sender",
+      "passed": true
+    },
+    {
+      "check": "decision-ghost.escalate: confirmed receipt",
+      "passed": true
+    },
+    {
+      "check": "decision-ghost.escalate: correct target",
+      "passed": true
+    },
+    {
+      "check": "decision-ghost.escalate: correct program or relayer sender",
+      "passed": true
+    },
+    {
+      "check": "decision-ghost.release: confirmed receipt",
+      "passed": true
+    },
+    {
+      "check": "decision-ghost.release: correct target",
+      "passed": true
+    },
+    {
+      "check": "decision-ghost.release: correct program or relayer sender",
+      "passed": true
+    },
+    {
+      "check": "resolved-ghost.escalate: confirmed receipt",
+      "passed": true
+    },
+    {
+      "check": "resolved-ghost.escalate: correct target",
+      "passed": true
+    },
+    {
+      "check": "resolved-ghost.escalate: correct program or relayer sender",
+      "passed": true
+    },
+    {
+      "check": "resolved-ghost.reject: confirmed receipt",
+      "passed": true
+    },
+    {
+      "check": "resolved-ghost.reject: correct target",
+      "passed": true
+    },
+    {
+      "check": "resolved-ghost.reject: correct program or relayer sender",
+      "passed": true
+    },
+    {
+      "check": "normal.disclose: confirmed receipt",
+      "passed": true
+    },
+    {
+      "check": "normal.disclose: correct target",
+      "passed": true
+    },
+    {
+      "check": "normal.disclose: correct program or relayer sender",
+      "passed": true
+    },
+    {
+      "check": "normal: case ID commitment",
+      "passed": true
+    },
+    {
+      "check": "normal: ciphertext SHA-256 matches chain",
+      "passed": true
+    },
+    {
+      "check": "normal: exact encrypted bundle recovered from its submission receipt",
+      "passed": true
+    },
+    {
+      "check": "normal: funded reserve is correct",
+      "passed": true
+    },
+    {
+      "check": "normal: immutable accepted decision deadline",
+      "passed": true
+    },
+    {
+      "check": "normal: final status, breach flags and cleared reserve",
+      "passed": true
+    },
+    {
+      "check": "normal: three recorded independent recipient opens",
+      "passed": true
+    },
+    {
+      "check": "normal: exactly four registered-address recipients and 2-of-3 bound quorum",
+      "passed": true
+    },
+    {
+      "check": "normal: real hybrid quorum independently verifies",
+      "passed": true
+    },
+    {
+      "check": "normal: exact payout reached its sealed recipient",
+      "passed": true
+    },
+    {
+      "check": "normal: paid recipient has registered ML-DSA-87 key",
+      "passed": true
+    },
+    {
+      "check": "normal: recipient identity and registered PQ fingerprint match security evidence",
+      "passed": true
+    },
+    {
+      "check": "normal: recipient EVM window remains closed",
+      "passed": true
+    },
+    {
+      "check": "normal: recorded classical transfer rejection explicitly identifies the authorization guard",
+      "passed": true
+    },
+    {
+      "check": "rejected: case ID commitment",
+      "passed": true
+    },
+    {
+      "check": "rejected: ciphertext SHA-256 matches chain",
+      "passed": true
+    },
+    {
+      "check": "rejected: exact encrypted bundle recovered from its submission receipt",
+      "passed": true
+    },
+    {
+      "check": "rejected: funded reserve is correct",
+      "passed": true
+    },
+    {
+      "check": "rejected: immutable accepted decision deadline",
+      "passed": true
+    },
+    {
+      "check": "rejected: final status, breach flags and cleared reserve",
+      "passed": true
+    },
+    {
+      "check": "rejected: three recorded independent recipient opens",
+      "passed": true
+    },
+    {
+      "check": "rejected: exactly four registered-address recipients and 2-of-3 bound quorum",
+      "passed": true
+    },
+    {
+      "check": "rejected: real rejection quorum independently verifies",
+      "passed": true
+    },
+    {
+      "check": "rejected: rejection returned the entire reserve",
+      "passed": true
+    },
+    {
+      "check": "rejected: rejection emitted no bounty transfer",
+      "passed": true
+    },
+    {
+      "check": "ack-ghost: case ID commitment",
+      "passed": true
+    },
+    {
+      "check": "ack-ghost: ciphertext SHA-256 matches chain",
+      "passed": true
+    },
+    {
+      "check": "ack-ghost: exact encrypted bundle recovered from its submission receipt",
+      "passed": true
+    },
+    {
+      "check": "ack-ghost: funded reserve is correct",
+      "passed": true
+    },
+    {
+      "check": "ack-ghost: immutable accepted decision deadline",
+      "passed": true
+    },
+    {
+      "check": "ack-ghost: final status, breach flags and cleared reserve",
+      "passed": true
+    },
+    {
+      "check": "ack-ghost: three recorded independent recipient opens",
+      "passed": true
+    },
+    {
+      "check": "ack-ghost: exactly four registered-address recipients and 2-of-3 bound quorum",
+      "passed": true
+    },
+    {
+      "check": "ack-ghost: real hybrid quorum independently verifies",
+      "passed": true
+    },
+    {
+      "check": "ack-ghost: exact payout reached its sealed recipient",
+      "passed": true
+    },
+    {
+      "check": "ack-ghost: paid recipient has registered ML-DSA-87 key",
+      "passed": true
+    },
+    {
+      "check": "ack-ghost: recipient identity and registered PQ fingerprint match security evidence",
+      "passed": true
+    },
+    {
+      "check": "ack-ghost: recipient EVM window remains closed",
+      "passed": true
+    },
+    {
+      "check": "ack-ghost: recorded classical transfer rejection explicitly identifies the authorization guard",
+      "passed": true
+    },
+    {
+      "check": "ack-ghost: permissionless escalation recorded the expected breach",
+      "passed": true
+    },
+    {
+      "check": "decision-ghost: case ID commitment",
+      "passed": true
+    },
+    {
+      "check": "decision-ghost: ciphertext SHA-256 matches chain",
+      "passed": true
+    },
+    {
+      "check": "decision-ghost: exact encrypted bundle recovered from its submission receipt",
+      "passed": true
+    },
+    {
+      "check": "decision-ghost: funded reserve is correct",
+      "passed": true
+    },
+    {
+      "check": "decision-ghost: immutable accepted decision deadline",
+      "passed": true
+    },
+    {
+      "check": "decision-ghost: final status, breach flags and cleared reserve",
+      "passed": true
+    },
+    {
+      "check": "decision-ghost: three recorded independent recipient opens",
+      "passed": true
+    },
+    {
+      "check": "decision-ghost: exactly four registered-address recipients and 2-of-3 bound quorum",
+      "passed": true
+    },
+    {
+      "check": "decision-ghost: real hybrid quorum independently verifies",
+      "passed": true
+    },
+    {
+      "check": "decision-ghost: exact payout reached its sealed recipient",
+      "passed": true
+    },
+    {
+      "check": "decision-ghost: paid recipient has registered ML-DSA-87 key",
+      "passed": true
+    },
+    {
+      "check": "decision-ghost: recipient identity and registered PQ fingerprint match security evidence",
+      "passed": true
+    },
+    {
+      "check": "decision-ghost: recipient EVM window remains closed",
+      "passed": true
+    },
+    {
+      "check": "decision-ghost: recorded classical transfer rejection explicitly identifies the authorization guard",
+      "passed": true
+    },
+    {
+      "check": "decision-ghost: permissionless escalation recorded the expected breach",
+      "passed": true
+    },
+    {
+      "check": "resolved-ghost: case ID commitment",
+      "passed": true
+    },
+    {
+      "check": "resolved-ghost: ciphertext SHA-256 matches chain",
+      "passed": true
+    },
+    {
+      "check": "resolved-ghost: exact encrypted bundle recovered from its submission receipt",
+      "passed": true
+    },
+    {
+      "check": "resolved-ghost: funded reserve is correct",
+      "passed": true
+    },
+    {
+      "check": "resolved-ghost: immutable accepted decision deadline",
+      "passed": true
+    },
+    {
+      "check": "resolved-ghost: final status, breach flags and cleared reserve",
+      "passed": true
+    },
+    {
+      "check": "resolved-ghost: three recorded independent recipient opens",
+      "passed": true
+    },
+    {
+      "check": "resolved-ghost: exactly four registered-address recipients and 2-of-3 bound quorum",
+      "passed": true
+    },
+    {
+      "check": "resolved-ghost: real rejection quorum independently verifies",
+      "passed": true
+    },
+    {
+      "check": "resolved-ghost: rejection returned the entire reserve",
+      "passed": true
+    },
+    {
+      "check": "resolved-ghost: rejection emitted no bounty transfer",
+      "passed": true
+    },
+    {
+      "check": "resolved-ghost: permissionless escalation recorded the expected breach",
+      "passed": true
+    },
+    {
+      "check": "normal.ecdsaOnly: independently replayed historical rejection",
+      "passed": true,
+      "detail": "InvalidPqSignature"
+    },
+    {
+      "check": "normal.singleAuditor: independently replayed historical rejection",
+      "passed": true,
+      "detail": "AuditorQuorumNotMet"
+    },
+    {
+      "check": "normal.duplicateAuditor: independently replayed historical rejection",
+      "passed": true,
+      "detail": "DuplicateAuthority"
+    },
+    {
+      "check": "normal.redirectedPayout: independently replayed historical rejection",
+      "passed": true,
+      "detail": "PayoutCommitmentMismatch"
+    },
+    {
+      "check": "rejected.singleAuditor: independently replayed historical rejection",
+      "passed": true,
+      "detail": "AuditorQuorumNotMet"
+    },
+    {
+      "check": "rejected.duplicateAuditor: independently replayed historical rejection",
+      "passed": true,
+      "detail": "DuplicateAuthority"
+    },
+    {
+      "check": "rejected.replayRejection: independently replayed historical rejection",
+      "passed": true,
+      "detail": "ApprovalAlreadyRecorded"
+    },
+    {
+      "check": "decision-ghost.earlyEscalation: independently replayed historical rejection",
+      "passed": true,
+      "detail": "DeadlineNotMissed"
+    },
+    {
+      "check": "decision-ghost.lateProgramPayout: independently replayed historical rejection",
+      "passed": true,
+      "detail": "DeadlineExpired"
+    },
+    {
+      "check": "decision-ghost.lateResolve: independently replayed historical rejection",
+      "passed": true,
+      "detail": "DeadlineExpired"
+    },
+    {
+      "check": "resolved-ghost.singleAuditor: independently replayed historical rejection",
+      "passed": true,
+      "detail": "AuditorQuorumNotMet"
+    },
+    {
+      "check": "resolved-ghost.duplicateAuditor: independently replayed historical rejection",
+      "passed": true,
+      "detail": "DuplicateAuthority"
+    },
+    {
+      "check": "resolved-ghost.replayRejection: independently replayed historical rejection",
+      "passed": true,
+      "detail": "ApprovalAlreadyRecorded"
+    },
+    {
+      "check": "Production policy restored: 24h acknowledgement, 7d triage, 30d embargo, 7d decision grace",
+      "passed": true
+    },
+    {
+      "check": "Production 2-of-3 quorum and ten-case capacity",
+      "passed": true
+    },
+    {
+      "check": "Pool is backed by exactly 19,000 tUSDT with zero open cases",
+      "passed": true
+    },
+    {
+      "check": "Completed redacted disclosure commitment",
+      "passed": true
+    }
+  ]
+}

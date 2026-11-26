@@ -1,0 +1,42 @@
+{
+  "checkedAt": "2026-11-25T18:23:24.433Z",
+  "operators": {
+    "program": {
+      "address": "0x688604db30CcfF6C3BB16fb34D897209475d6bcb",
+      "qor": "qor1dzrqfkesenlkcwa3d7e5mztjp9r4667tc9y5qt",
+      "evmWindowClosed": true
+    },
+    "relayer": {
+      "address": "0x4CaAd15999f650741547859092f8e89E8A9C93ED",
+      "qor": "qor1fj4dzkve7eg8g928skgf978gn69feyldvw4ync",
+      "evmWindowClosed": true
+    }
+  },
+  "recipients": {
+    "normal": {
+      "address": "0xf49D344710B0747F5bE54199750F7FB6133251Ca",
+      "qor": "qor17jwng3cskp687kl9gxvh2rmlkcfny5w2p0cr9j",
+      "registeredPqKeyHash": "0x2bdc8afc0f8eb7f5fdf53248b8d411d6b1912ab8e081f29a24ee5d6e40af28f5",
+      "evmWindowClosed": true,
+      "classicalOnlyTransferRejected": true,
+      "rejection": "Details: failed to broadcast transaction: account qor17jwng3cskp687kl9gxvh2rmlkcfny5w2p0cr9j has no open EVM authorisation window; open one with MsgOpenEVMWindow, signed on the Cosmos lane with the account's post-quantum key: no open EVM authorisation window: no open EVM authorisation window [cosmossdk.io/errors@v1.0.2/errors.go:77]"
+    },
+    "ack-ghost": {
+      "address": "0xa8ecEDDDDF1883481E24bAa5311C6f4f140D78C9",
+      "qor": "qor14rkwmhwlrzp5s83yh2jnz8r0fu2q67xfq0wszw",
+      "registeredPqKeyHash": "0x72cfc0ca4020121ee238bda9580f93fd0650019a8a6d341f653eb199bb21d9ea",
+      "evmWindowClosed": true,
+      "classicalOnlyTransferRejected": true,
+      "rejection": "Details: failed to broadcast transaction: account qor14rkwmhwlrzp5s83yh2jnz8r0fu2q67xfq0wszw has no open EVM authorisation window; open one with MsgOpenEVMWindow, signed on the Cosmos lane with the account's post-quantum key: no open EVM authorisation window: no open EVM authorisation window [cosmossdk.io/errors@v1.0.2/errors.go:77]"
+    },
+    "decision-ghost": {
+      "address": "0x6e036BD09511066fEB61A9CAdc23E9B24331C8Cc",
+      "qor": "qor1dcpkh5y4zyrxl6mp489dcglfkfpnrjxvw0jfwe",
+      "registeredPqKeyHash": "0xa439656f6cc92a513713fe4380187d1df7b74b96da1d98b100b2416741369cc9",
+      "evmWindowClosed": true,
+      "classicalOnlyTransferRejected": true,
+      "rejection": "Details: failed to broadcast transaction: account qor1dcpkh5y4zyrxl6mp489dcglfkfpnrjxvw0jfwe has no open EVM authorisation window; open one with MsgOpenEVMWindow, signed on the Cosmos lane with the account's post-quantum key: no open EVM authorisation window: no open EVM authorisation window [cosmossdk.io/errors@v1.0.2/errors.go:77]"
+    }
+  },
+  "blockNumber": "10742673"
+}

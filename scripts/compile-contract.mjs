@@ -3,7 +3,7 @@ import path from "node:path";
 import solc from "solc";
 
 const root = process.cwd();
-const sourceFiles = ["Patch3QRegistry.sol", "Patch3QRegistryV4.sol"];
+const sourceFiles = ["Patch3QRegistry.sol", "Patch3QRegistryV4.sol", "Patch3QRegistryV5.sol"];
 const sources = Object.fromEntries(sourceFiles.map((filename) => [
   filename,
   { content: fs.readFileSync(path.join(root, "contracts", filename), "utf8") },
@@ -29,6 +29,7 @@ for (const { contractName, sourceName } of [
   { contractName: "Patch3QRegistry", sourceName: "Patch3QRegistry.sol" },
   { contractName: "MockTUSDT", sourceName: "Patch3QRegistry.sol" },
   { contractName: "Patch3QRegistryV4", sourceName: "Patch3QRegistryV4.sol" },
+  { contractName: "Patch3QRegistryV5", sourceName: "Patch3QRegistryV5.sol" },
 ]) {
   const contract = output.contracts[sourceName][contractName];
   fs.writeFileSync(
@@ -47,4 +48,4 @@ for (const { contractName, sourceName } of [
     ),
   );
 }
-process.stdout.write("Compiled Patch3QRegistry, Patch3QRegistryV4 and MockTUSDT with " + solc.version() + "\n");
+process.stdout.write("Compiled Patch3QRegistry, Patch3QRegistryV4, Patch3QRegistryV5 and MockTUSDT with " + solc.version() + "\n");

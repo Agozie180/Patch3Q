@@ -8,6 +8,8 @@ import {
   createV4QuorumApproval,
   v4AuditorSetHash,
   v4BundleHash,
+  v4CaseStatus,
+  v4ParticipantRole,
   verifyV4QuorumApproval,
 } from "../src/lib/v4-approval.js";
 import type { Patch3QApprovalVault, ReportDraft } from "../src/types.js";
@@ -46,6 +48,14 @@ async function fixture() {
 }
 
 describe("Patch3Q V4 client quorum", () => {
+  it("uses V4's actual Escalated status 5 for reporter authority", () => {
+    expect(v4ParticipantRole(5, "program")).toBe("reporter");
+    expect(v4CaseStatus(5)).toBe("Escalated");
+    expect(v4CaseStatus(6)).toBe("Status 6");
+    expect(v4ParticipantRole(2, "reporter")).toBe("program");
+    expect(v4ParticipantRole(3, "reporter")).toBe("program");
+    expect(v4ParticipantRole(undefined, "reporter")).toBe("reporter");
+  });
   it("compresses bundles deterministically and recovers the exact bundle", async () => {
     const { sealed } = await fixture();
     const first = await v4BundleBytes(sealed.bundle);

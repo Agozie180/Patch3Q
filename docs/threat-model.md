@@ -45,6 +45,17 @@ public at release. Use a fresh address, which is the default.
   pool cannot reserve the promised amount.
 - **Auditor trust remains.** V4 removes a single signer as the liveness bottleneck, but a threshold can still collude,
   refuse a valid report or disappear. There is no appeal court or timeout-based automatic payout.
+- **Post-triage scope.** Deployed V3/V4 enforce acknowledgement and triage only. A program that completes those steps
+  can still withhold payout approval. Live V5 adds a configurable decision deadline after `triageBy` (seven days by default), including cases
+  marked resolved without a payout. Late program payouts and resolution cannot race escalation.
+- **Rejected reports.** Live V5 adds a separate auditor-quorum rejection verdict that returns the complete reserve
+  and frees capacity. Neither program nor reporter must co-sign a rejection. A colluding auditor threshold can
+  therefore reject a valid claim; an external appeal process is still needed.
+- **After payout.** Generated payout wallets use ordinary ECDSA. Escrow authorization does not protect received funds
+  unless the recipient separately uses a PQ-protected account or wallet. The live V4 rehearsal's recipient has no
+  registered PQ key. All three paid V5 recipients were separately PQ-registered; their closed EVM windows
+  rejected actual classical transfers. Owners can grant future permissions, so these checks do not guarantee
+  every future recipient-wallet configuration.
 - A relayer can refuse to relay or delay relaying. It cannot read, redirect or approve anything, and the researcher can
   use another relayer.
 - Deadline enforcement is permissionless but not autonomous. Someone has to send the transaction. If the program never

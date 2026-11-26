@@ -17,7 +17,7 @@ const proxy = {
 
 export default defineConfig({
   plugins: [react()],
-  test: { exclude: ["contract-tests/**", "node_modules/**"] },
+  test: { include: ["tests/**/*.test.ts"] },
   server: { port: 5173, proxy },
   preview: { proxy },
   build: {

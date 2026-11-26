@@ -47,7 +47,7 @@ const SEVERITY_CODES: Record<Severity, number> = {
 
 type SignerInput = Patch3QApprovalVault | ApprovalSignerKeys;
 
-function keysFrom(input: SignerInput) {
+export function keysFrom(input: SignerInput) {
   const classicalPrivateKey = "pqSeed" in input ? fromBase64Url(input.classicalPrivateKey) : input.classicalPrivateKey;
   const pqKey = "pqSeed" in input ? pqKeyFromSeed(fromBase64Url(input.pqSeed)) : input.pqKey;
   const classicalKey = classicalKeyFromPrivate(classicalPrivateKey, "eth_secp256k1");
@@ -64,6 +64,14 @@ export function bundleAuditors(bundle: Patch3QBundle): ApprovalAuthority[] {
 
 export function bundleAuditorThreshold(bundle: Patch3QBundle): number {
   return bundle.approvalAuthorities?.auditorThreshold ?? 1;
+}
+
+export function v4ParticipantRole(status: number | undefined, localRole: "reporter" | "program"): "reporter" | "program" {
+  return status === undefined ? localRole : status === 5 ? "reporter" : "program";
+}
+
+export function v4CaseStatus(status: number): string {
+  return ["Submitted", "Acknowledged", "Triaged", "Resolved", "Disclosed", "Escalated"][status] ?? `Status ${status}`;
 }
 
 export function v4AuditorSetHash(bundle: Patch3QBundle): `0x${string}` {
@@ -196,7 +204,7 @@ export async function createV4QuorumApproval(options: {
   };
 }
 
-async function verifyAuthority(
+export async function verifyAuthority(
   bundle: Patch3QBundle,
   authority: ApprovalAuthority | undefined,
   signer: string,

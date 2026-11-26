@@ -1,0 +1,13 @@
+.git/
+.env*
+.patch3q-testnet/
+.local/
+.tmp/
+.vercel/
+node_modules/
+hardhat-artifacts/
+hardhat-cache/
+coverage/
+*.log
+**/*.vault.json
+**/*.approval-key.json

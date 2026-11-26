@@ -2,15 +2,17 @@ import { useEffect, useMemo, useState } from "react";
 import { isAddress, sha256 as viemSha256, toBytes, zeroAddress, zeroHash } from "viem";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import {
-  currentDeployment,
   currentV4Deployment,
+  currentV5Deployment,
   escrowTokenAbi,
   patch3qRegistryAbi,
   patch3qRegistryAddress,
-  patch3qRegistryV4Abi,
-  patch3qRegistryV4Address,
-  testnetEvidence,
+  patch3qRegistryV4Abi as legacyV4Abi,
+  patch3qRegistryV4Address as legacyV4Address,
+  patch3qRegistryV5Abi,
+  patch3qRegistryV5Address,
 } from "./contract.js";
+import { DeadlineCase } from "./DeadlineCase.js";
 import { bytesToHex, fileToAttachment, fromBase64, fromBase64Url } from "./lib/encoding.js";
 import {
   approvalToJson,
@@ -35,9 +37,12 @@ import {
   bundleAuditorThreshold,
   createV4QuorumApproval,
   v4ApprovalToJson,
+  v4CaseStatus,
+  v4ParticipantRole,
   verifyV4QuorumApproval,
 } from "./lib/v4-approval.js";
 import { fetchV4Bundle, v4BundleHex } from "./lib/v4-bundle.js";
+import { createV5Rejection, verifyV5Rejection, type V5Rejection } from "./lib/v5-rejection.js";
 import type {
   OpenResult,
   ApprovalVerificationResult,
@@ -419,10 +424,10 @@ function SealWorkspace({
         </div>
         <div className="anchor-note">
           <strong>{result.bundle.approvalAuthorities?.auditors?.length && result.bundle.approvalAuthorities.auditors.length > 1
-            ? "V4 can publish these encrypted bytes durably."
+            ? "The funded registry can publish these encrypted bytes durably."
             : "Encrypted delivery is a separate V3 step."}</strong>{" "}
           {result.bundle.approvalAuthorities?.auditors?.length && result.bundle.approvalAuthorities.auditors.length > 1
-            ? "Open V4 pool & quorum to atomically reserve the bounty and emit the full encrypted bundle in QoreChain logs. Never publish a recipient vault."
+            ? "Open Pool & quorum to reserve the bounty and publish the encrypted bundle in QoreChain logs. Never publish a recipient vault."
             : "Send the .patch3q.json file to both recipients through a monitored channel, then anchor its matching envelope hash. Never send a recipient vault with the bundle."}
         </div>
         {result.vaults.length > 0 && (
@@ -537,7 +542,7 @@ function SealWorkspace({
               label="Fresh payout address"
               hint={mode === "demo"
                 ? "Leave blank in demo mode to use a throwaway address. It is sealed inside the ciphertext."
-                : "Encrypted for the recipients only; the chain sees a commitment until the bounty is paid."}
+                : "Sealed until payout. Generated wallets use ECDSA; recipient PQ protection requires separate setup."}
               wide
             >
               <div className="wallet-field">
@@ -563,7 +568,7 @@ function SealWorkspace({
             <span>Existing verified Diana deployment</span>
           </button>
           <button type="button" className={quorumMode ? "selected" : ""} onClick={() => setQuorumMode(true)}>
-            <strong>V4 2-of-3 quorum</strong>
+            <strong>2-of-3 auditor quorum</strong>
             <span>Pre-funded pool · no single-auditor lockout</span>
           </button>
         </div>
@@ -1005,7 +1010,7 @@ function ApprovalWorkspace({
 
       <div className="warning-callout">
         <strong>This workspace targets the verified V3 deployment.</strong>
-        <span>V3 requires its single bound auditor. Use V4 pool &amp; quorum for a snapshotted 2-of-3 auditor set and automatic reserve.</span>
+        <span>V3 requires its single bound auditor. Use Pool &amp; quorum for a snapshotted 2-of-3 auditor set and automatic reserve.</span>
       </div>
 
       {!bundle ? (
@@ -1623,14 +1628,21 @@ function V4Workspace({
   payout,
   initialRecoveryNotice,
   onRecovered,
+  protocolVersion,
+  onProtocolVersionChange,
 }: {
   bundle?: Patch3QBundle;
   initialVaults?: Patch3QApprovalVault[];
   payout?: SealedPayout;
   initialRecoveryNotice?: string;
   onRecovered: (bundle: Patch3QBundle, notice: string) => void;
+  protocolVersion: 4 | 5;
+  onProtocolVersionChange: (version: 4 | 5) => void;
 }) {
   const { address, isConnected } = useAccount();
+  const protocolName = `V${protocolVersion}`;
+  const patch3qRegistryV4Address = protocolVersion === 5 ? patch3qRegistryV5Address : legacyV4Address;
+  const patch3qRegistryV4Abi = protocolVersion === 5 ? patch3qRegistryV5Abi : legacyV4Abi;
   const [auditorsText, setAuditorsText] = useState("");
   const [relayersText, setRelayersText] = useState("");
   const [threshold, setThreshold] = useState("2");
@@ -1639,28 +1651,35 @@ function V4Workspace({
   const [acknowledgeHours, setAcknowledgeHours] = useState("24");
   const [triageHours, setTriageHours] = useState("168");
   const [embargoHours, setEmbargoHours] = useState("720");
+  const [decisionGraceSeconds, setDecisionGraceSeconds] = useState("604800");
   const [depositAtomic, setDepositAtomic] = useState("25000000000");
   const [recoverCaseId, setRecoverCaseId] = useState("");
   const [participantRole, setParticipantRole] = useState<"reporter" | "program">("program");
   const [severity, setSeverity] = useState<Severity>("high");
   const [payoutAtomic, setPayoutAtomic] = useState("2500000000");
-  const [rationale, setRationale] = useState("");
+  const [rationale, setRationale] = useState(bundle?.mode === "demo" ? "Independent auditors verified the synthetic finding and agreed its payout." : "");
   const [participantVaultText, setParticipantVaultText] = useState(() => {
     const vault = initialVaults?.find((entry) => entry.role === "program");
     return vault ? approvalVaultToJson(vault) : "";
   });
   const [auditorVaultsText, setAuditorVaultsText] = useState(() => JSON.stringify(
-    initialVaults?.filter((entry) => entry.role === "auditor") ?? [], null, 2,
+    initialVaults?.filter((entry) => entry.role === "auditor").slice(0, bundle ? bundleAuditorThreshold(bundle) : 2) ?? [], null, 2,
   ));
   const [approval, setApproval] = useState<V4SeverityApproval>();
   const [verification, setVerification] = useState<V4ApprovalVerificationResult>();
+  const [rejection, setRejection] = useState<V5Rejection>();
+  const [rejectionVerification, setRejectionVerification] = useState<Awaited<ReturnType<typeof verifyV5Rejection>>>();
   const [error, setError] = useState("");
   const [notice, setNotice] = useState(initialRecoveryNotice ?? "");
+  const [signing, setSigning] = useState(false);
+  const localDemo = bundle?.mode === "demo";
   const policyWrite = useWriteContract();
   const tokenWrite = useWriteContract();
   const poolWrite = useWriteContract();
   const caseWrite = useWriteContract();
   const payoutWrite = useWriteContract();
+  const escalationWrite = useWriteContract();
+  const rejectionWrite = useWriteContract();
   const registryReady = Boolean(
     patch3qRegistryV4Address && isAddress(patch3qRegistryV4Address) && patch3qRegistryV4Address !== zeroAddress,
   );
@@ -1672,37 +1691,43 @@ function V4Workspace({
     abi: patch3qRegistryV4Abi,
     functionName: "programPolicyState",
     args: [policyOwner ?? zeroAddress],
-    query: { enabled: registryReady && Boolean(policyOwner), retry: false },
+    query: { enabled: registryReady && !localDemo && Boolean(policyOwner), retry: false },
   });
   const bundlePolicyRead = useReadContract({
     address: patch3qRegistryV4Address ?? zeroAddress,
     abi: patch3qRegistryV4Abi,
     functionName: "programPolicyState",
     args: [programAddress ?? zeroAddress],
-    query: { enabled: registryReady && Boolean(programAddress), retry: false },
+    query: { enabled: registryReady && !localDemo && Boolean(programAddress), retry: false },
   });
   const bundleAuditorsRead = useReadContract({
     address: patch3qRegistryV4Address ?? zeroAddress,
     abi: patch3qRegistryV4Abi,
     functionName: "programAuditors",
     args: [programAddress ?? zeroAddress],
-    query: { enabled: registryReady && Boolean(programAddress), retry: false },
+    query: { enabled: registryReady && !localDemo && Boolean(programAddress), retry: false },
   });
   const tokenRead = useReadContract({
     address: patch3qRegistryV4Address ?? zeroAddress,
     abi: patch3qRegistryV4Abi,
     functionName: "bountyToken",
-    query: { enabled: registryReady, retry: false },
+    query: { enabled: registryReady && !localDemo, retry: false },
   });
   const caseRead = useReadContract({
     address: patch3qRegistryV4Address ?? zeroAddress,
     abi: patch3qRegistryV4Abi,
     functionName: "caseState",
     args: [caseIdHash ?? zeroHash],
-    query: { enabled: registryReady && Boolean(caseIdHash), retry: false },
+    query: { enabled: registryReady && !localDemo && Boolean(caseIdHash), retry: false },
   });
   const policy = policyRead.data as readonly [boolean, boolean, bigint, bigint, number, number, number, bigint, bigint, bigint, bigint, bigint] | undefined;
   const caseState = caseRead.data as readonly [number, number, number, bigint, bigint, bigint, bigint, `0x${string}`, `0x${string}`, `0x${string}`, `0x${string}`, `0x${string}`, number] | undefined;
+  const decisionRead = useReadContract({ address: patch3qRegistryV4Address ?? zeroAddress, abi: patch3qRegistryV5Abi,
+    functionName: "decisionState", args: [caseIdHash ?? zeroHash], query: { enabled: protocolVersion === 5 && registryReady && !localDemo && Boolean(caseIdHash), retry: false } });
+  const decision = protocolVersion === 5 ? decisionRead.data as readonly [bigint, boolean] | undefined : undefined;
+  const graceRead = useReadContract({ address: patch3qRegistryV4Address ?? zeroAddress, abi: patch3qRegistryV5Abi,
+    functionName: "programDecisionGracePeriod", args: [policyOwner ?? zeroAddress], query: { enabled: protocolVersion === 5 && registryReady && !localDemo, retry: false } });
+  const settled = caseState?.[0] === 4 || caseState?.[0] === 6 || Boolean(caseState?.[9] && caseState[9] !== zeroHash);
 
   function parseAddresses(value: string): `0x${string}`[] {
     const entries = value.split(/[\s,]+/u).map((entry) => entry.trim()).filter(Boolean);
@@ -1713,14 +1738,14 @@ function V4Workspace({
 
   async function configurePolicy() {
     setError(""); setNotice("");
-    if (!patch3qRegistryV4Address) return setError("Deploy V4 and set VITE_PATCH3Q_V4_REGISTRY_ADDRESS first.");
+    if (!patch3qRegistryV4Address) return setError("Configure the selected registry address first.");
     try {
       const auditors = parseAddresses(auditorsText);
       const relayers = parseAddresses(relayersText);
       await policyWrite.writeContractAsync({
         address: patch3qRegistryV4Address,
         abi: patch3qRegistryV4Abi,
-        functionName: "configureProgramPolicy",
+        functionName: protocolVersion === 5 ? "configureProgramPolicyWithDecisionGrace" : "configureProgramPolicy",
         args: [
           auditors,
           Number(threshold),
@@ -1730,15 +1755,16 @@ function V4Workspace({
           BigInt(acknowledgeHours) * 3600n,
           BigInt(triageHours) * 3600n,
           BigInt(embargoHours) * 3600n,
+          ...(protocolVersion === 5 ? [BigInt(decisionGraceSeconds)] : []),
         ],
       });
       setNotice("Program policy submitted. Refresh after confirmation to read the funded capacity.");
-    } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not configure the V4 policy."); }
+    } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not configure the program policy."); }
   }
 
   async function approvePoolToken() {
     setError("");
-    if (!patch3qRegistryV4Address || !tokenRead.data) return setError("The V4 registry or its token is unavailable.");
+    if (!patch3qRegistryV4Address || !tokenRead.data) return setError("The selected registry or its token is unavailable.");
     try {
       await tokenWrite.writeContractAsync({ address: tokenRead.data, abi: escrowTokenAbi, functionName: "approve", args: [patch3qRegistryV4Address, BigInt(depositAtomic)] });
     } catch (caught) { setError(caught instanceof Error ? caught.message : "Token approval failed."); }
@@ -1746,7 +1772,7 @@ function V4Workspace({
 
   async function depositPool() {
     setError("");
-    if (!patch3qRegistryV4Address) return setError("The V4 registry is not configured.");
+    if (!patch3qRegistryV4Address) return setError("The selected registry is not configured.");
     try {
       await poolWrite.writeContractAsync({ address: patch3qRegistryV4Address, abi: patch3qRegistryV4Abi, functionName: "depositProgramPool", args: [BigInt(depositAtomic)] });
     } catch (caught) { setError(caught instanceof Error ? caught.message : "Pool deposit failed."); }
@@ -1755,19 +1781,19 @@ function V4Workspace({
   async function publishBundle() {
     setError(""); setNotice("");
     if (!bundle || !patch3qRegistryV4Address || !programAddress) return setError("Load a bundle with a bound program first.");
-    if (bundle.mode !== "testnet" || bundle.privacy.reporterMode !== "anonymous") return setError("V4 publication requires an anonymous testnet bundle.");
-    if ((bundle.approvalAuthorities?.auditors?.length ?? 0) < 2) return setError("Seal this case in V4 quorum mode first.");
+    if (bundle.mode !== "testnet" || bundle.privacy.reporterMode !== "anonymous") return setError("Funded publication requires an anonymous testnet bundle.");
+    if ((bundle.approvalAuthorities?.auditors?.length ?? 0) < 2) return setError("Seal this case in quorum mode first.");
     try {
       const onchainPolicy = bundlePolicyRead.data as readonly [boolean, boolean, bigint, bigint, number, number, number, bigint, bigint, bigint, bigint, bigint] | undefined;
       const onchainAuditors = bundleAuditorsRead.data as readonly `0x${string}`[] | undefined;
       const boundAuditors = bundle.approvalAuthorities?.auditors?.map((entry) => entry.evmAddress.toLowerCase()) ?? [];
-      if (!onchainPolicy?.[0] || !onchainPolicy[1]) throw new Error("The program's V4 policy is missing or disabled.");
+      if (!onchainPolicy?.[0] || !onchainPolicy[1]) throw new Error("The program policy is missing or disabled.");
       if (Number(onchainPolicy[6]) !== bundleAuditorThreshold(bundle)) throw new Error("The bundle threshold does not match the live program policy.");
       if (!onchainAuditors || onchainAuditors.length !== boundAuditors.length || onchainAuditors.some((entry, index) => entry.toLowerCase() !== boundAuditors[index])) {
         throw new Error("The bundle auditor order does not match the live program policy. Reseal against the current policy.");
       }
       const encryptedBundle = await v4BundleHex(bundle);
-      if ((encryptedBundle.length - 2) / 2 > 131_072) throw new Error("The full encrypted bundle exceeds the V4 128 KiB event limit.");
+      if ((encryptedBundle.length - 2) / 2 > 131_072) throw new Error("The full encrypted bundle exceeds the 128 KiB event limit.");
       await caseWrite.writeContractAsync({
         address: patch3qRegistryV4Address,
         abi: patch3qRegistryV4Abi,
@@ -1784,18 +1810,19 @@ function V4Workspace({
         ],
       });
       setNotice("The relayer transaction publishes the encrypted bundle and atomically reserves the program bounty.");
-    } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not publish the funded V4 case."); }
+    } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not publish the funded case."); }
   }
 
   async function recoverBundle() {
     setError(""); setNotice("");
-    if (!patch3qRegistryV4Address || !recoverCaseId.trim()) return setError("Enter a case ID and configure the V4 registry.");
+    if (!patch3qRegistryV4Address || !recoverCaseId.trim()) return setError("Enter a case ID and configure the selected registry.");
     try {
-      const fromBlock = patch3qRegistryV4Address.toLowerCase() === currentV4Deployment.registryAddress.toLowerCase()
-        ? BigInt(currentV4Deployment.deploymentBlock)
+      const deployment = protocolVersion === 5 ? currentV5Deployment : currentV4Deployment;
+      const fromBlock = patch3qRegistryV4Address.toLowerCase() === deployment.registryAddress.toLowerCase()
+        ? BigInt(deployment.deploymentBlock)
         : undefined;
       const recovered = await fetchV4Bundle({ registryAddress: patch3qRegistryV4Address, caseId: recoverCaseId.trim(), fromBlock });
-      const recoveryNotice = `Recovered and SHA-256 verified bundle from ${recovered.transactionHash ?? "the V4 event log"}.`;
+      const recoveryNotice = `Recovered and SHA-256 verified bundle from ${recovered.transactionHash ?? "the registry event log"}.`;
       onRecovered(recovered.bundle, recoveryNotice);
       setNotice(recoveryNotice);
     } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not recover the encrypted bundle."); }
@@ -1805,11 +1832,17 @@ function V4Workspace({
     setParticipantRole(role);
     const vault = initialVaults?.find((entry) => entry.role === role);
     setParticipantVaultText(vault ? approvalVaultToJson(vault) : "");
+    if (localDemo) {
+      setAuditorVaultsText(JSON.stringify(initialVaults?.filter((entry) => entry.role === "auditor").slice(0, bundleAuditorThreshold(bundle!)) ?? [], null, 2));
+      setApproval(undefined); setVerification(undefined);
+    }
   }
 
   async function signQuorumApproval() {
     setError(""); setNotice("");
-    if (!bundle || !patch3qRegistryV4Address || !payout) return setError("Load the bundle, its decrypted payout, and the V4 registry first.");
+    setRejection(undefined); setRejectionVerification(undefined);
+    if (!bundle || !patch3qRegistryV4Address || !payout) return setError("Load the bundle, its decrypted payout, and the selected registry first.");
+    setSigning(true); setApproval(undefined); setVerification(undefined);
     try {
       const participant = parseApprovalVault(participantVaultText);
       const parsed = JSON.parse(auditorVaultsText) as unknown;
@@ -1826,16 +1859,62 @@ function V4Workspace({
         rationale,
         payout,
       });
-      const expectedRole = caseState?.[0] === 6 ? "reporter" : caseState ? "program" : participantRole;
+      const expectedRole = v4ParticipantRole(localDemo ? undefined : caseState?.[0], participantRole);
       const checked = await verifyV4QuorumApproval(bundle, next, patch3qRegistryV4Address, expectedRole);
       setApproval(next); setVerification(checked);
       setParticipantVaultText(""); setAuditorVaultsText("[]");
     } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not create the quorum approval."); }
+    finally { setSigning(false); }
+  }
+
+  async function prepareRejection() {
+    setError(""); setRejection(undefined); setRejectionVerification(undefined);
+    setApproval(undefined); setVerification(undefined);
+    if (!bundle || !patch3qRegistryV4Address || protocolVersion !== 5) return setError("Load a V5 case before preparing a rejection.");
+    setSigning(true);
+    try {
+      const parsed = JSON.parse(auditorVaultsText) as unknown;
+      if (!Array.isArray(parsed)) throw new Error("Auditor vault input must be an array.");
+      const amount = localDemo ? reserveAtomic : caseState?.[3].toString();
+      if (!amount) throw new Error("Refresh the V5 case to read its reserved amount.");
+      const packet = await createV5Rejection({ bundle, registryAddress: patch3qRegistryV4Address, reservedAmount: amount,
+        rationale, auditors: parsed.map((entry) => parseApprovalVault(JSON.stringify(entry))) });
+      const checked = await verifyV5Rejection(bundle, packet, patch3qRegistryV4Address, amount);
+      setRejection(packet); setRejectionVerification(checked); setAuditorVaultsText("[]");
+    } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not verify rejection quorum."); }
+    finally { setSigning(false); }
+  }
+
+  async function rejectOnChain() {
+    setError("");
+    if (localDemo || !rejection || !rejectionVerification?.verified || !caseState || !bundle || !patch3qRegistryV4Address) return setError("Verify a live V5 rejection first.");
+    try {
+      const checked = await verifyV5Rejection(bundle, rejection, patch3qRegistryV4Address, caseState[3].toString());
+      if (!checked.verified) throw new Error("The rejection no longer matches the loaded case or reserve.");
+      await rejectionWrite.writeContractAsync({ address: patch3qRegistryV4Address, abi: patch3qRegistryV5Abi,
+        functionName: "rejectAnonymousCase", args: [caseIdHash, rejection.statement.rationaleHash,
+          rejection.auditors.map((entry) => entry.evmAddress), rejection.auditors.map((entry) => bytesToHex(fromBase64(entry.signature.pq!.signature)))] });
+      setNotice("Quorum rejection submitted. Confirm its receipt, then refresh to see the returned reserve and released capacity.");
+    } catch (caught) { setError(caught instanceof Error ? caught.message : "Rejection failed."); }
+  }
+
+  async function escalateCase() {
+    setError("");
+    if (localDemo || !caseIdHash || !patch3qRegistryV4Address) return setError("Load a live case first.");
+    try {
+      await escalationWrite.writeContractAsync({ address: patch3qRegistryV4Address, abi: patch3qRegistryV4Abi,
+        functionName: "escalateMissedDeadline", args: [caseIdHash] });
+      setNotice("Escalation submitted. Confirm the receipt and refresh; the reporter replaces the program after escalation.");
+    } catch (caught) { setError(caught instanceof Error ? caught.message : "Escalation failed."); }
+  }
+
+  async function refreshQuorumState() {
+    await Promise.all([policyRead.refetch(), caseRead.refetch(), decisionRead.refetch(), graceRead.refetch(), tokenRead.refetch()]);
   }
 
   async function releaseV4Payout() {
     setError("");
-    if (!bundle || !approval || !verification?.verified || !patch3qRegistryV4Address) return setError("Verify a complete V4 quorum approval first.");
+    if (!bundle || !approval || !verification?.verified || !patch3qRegistryV4Address) return setError("Verify a complete quorum approval first.");
     const participantPq = approval.participant.signature.pq?.signature;
     const auditorPq = approval.auditors.map((entry) => entry.signature.pq?.signature);
     const reporterKey = bundle.approvalAuthorities?.reporter.pqPublicKey;
@@ -1860,21 +1939,26 @@ function V4Workspace({
           auditorPq.map((entry) => bytesToHex(fromBase64(entry!))),
         ],
       });
-    } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not release the V4 payout."); }
+    } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not release the payout."); }
   }
 
   return (
     <section className="workspace" aria-labelledby="v4-title">
       <div className="workspace-heading">
         <div>
-          <p className="eyebrow">V4 resilience workspace</p>
+          <p className="eyebrow">{protocolName} funded bounty workspace</p>
           <h2 id="v4-title">Pre-funded pools, durable delivery, and auditor quorum</h2>
           <p>Configure capacity before reports arrive; each accepted case atomically reserves funds and snapshots a 2-of-3 auditor set.</p>
         </div>
         <WalletButton />
       </div>
-      {!registryReady && <div className="warning-callout"><strong>V4 client is ready; Diana deployment is not configured.</strong><span>Set <code>VITE_PATCH3Q_V4_REGISTRY_ADDRESS</code> after deploying the audited V4 artifact. Local 2-of-3 signing remains testable in demo mode.</span></div>}
 
+      <div className="form-grid"><Field label="Registry version"><select value={protocolVersion} onChange={(event) => { onProtocolVersionChange(Number(event.target.value) as 4 | 5); setApproval(undefined); setVerification(undefined); setRejection(undefined); setRejectionVerification(undefined); setError(""); setNotice(""); }}><option value="5">V5 — decision deadlines and rejection</option><option value="4">V4 — preserved deployment</option></select></Field><div className="config-row"><span>Registry</span><code>{patch3qRegistryV4Address ?? "Not configured"}</code></div></div>
+
+      {localDemo && <div className="warning-callout" role="note"><strong>Local quorum demo</strong><span>This synthetic report uses real browser encryption and signatures. Verify a program-led approval, then select Reporter after escalation to verify the alternative authority. This demo sends no transaction.</span></div>}
+      {!registryReady && <div className="warning-callout"><strong>{protocolName} deployment is not configured.</strong><span>Set <code>{`VITE_PATCH3Q_${protocolName}_REGISTRY_ADDRESS`}</code> to the selected deployment. Local 2-of-3 signing remains testable in demo mode.</span></div>}
+
+      <div hidden={localDemo}>
       <div className="section-heading divided"><StepMark number="01" active /><div><h3>Program policy and pool</h3><p>Only registered PQ accounts can become program, auditor, or relayer authorities.</p></div></div>
       <div className="anchor-panel">
         <div className="form-grid">
@@ -1886,47 +1970,56 @@ function V4Workspace({
           <Field label="Acknowledgement hours"><input inputMode="numeric" value={acknowledgeHours} onChange={(event) => setAcknowledgeHours(event.target.value)} /></Field>
           <Field label="Triage hours"><input inputMode="numeric" value={triageHours} onChange={(event) => setTriageHours(event.target.value)} /></Field>
           <Field label="Embargo hours"><input inputMode="numeric" value={embargoHours} onChange={(event) => setEmbargoHours(event.target.value)} /></Field>
+          {protocolVersion === 5 && <Field label="Decision grace (seconds)" hint="Applies only to new cases; seven days is 604800 seconds."><input inputMode="numeric" value={decisionGraceSeconds} onChange={(event) => setDecisionGraceSeconds(event.target.value)} /></Field>}
         </div>
-        <button className="primary-button verify-button" type="button" disabled={!registryReady || !isConnected || policyWrite.isPending} onClick={() => void configurePolicy()}>{policyWrite.isPending ? "Confirm policy…" : "Configure V4 program policy"}</button>
+        <button className="primary-button verify-button" type="button" disabled={localDemo || !registryReady || !isConnected || policyWrite.isPending} onClick={() => void configurePolicy()}>{policyWrite.isPending ? "Confirm policy…" : `Configure ${protocolName} program policy`}</button>
         {policy && <div className="receipt-grid v4-state-grid">
           <div><span>Policy</span><strong>{policy[0] ? policy[1] ? "Enabled" : "Paused" : "Not configured"}</strong></div>
           <div><span>Pool available</span><strong>{policy[2].toString()} atomic</strong></div>
           <div><span>Reserved capacity</span><strong>{policy[5]}/{policy[4]} open cases</strong></div>
           <div><span>Quorum</span><strong>{policy[6]} of {policy[7].toString()} auditors</strong></div>
         </div>}
+        {protocolVersion === 5 && graceRead.data !== undefined && <p className="field-hint">Configured decision grace: {String(graceRead.data)} seconds after the triage deadline.</p>}
         <div className="form-grid recipient-addresses"><Field label="Pool deposit (atomic)" wide><input inputMode="numeric" value={depositAtomic} onChange={(event) => setDepositAtomic(event.target.value)} /></Field></div>
         <div className="action-stack">
-          <button className="secondary-button" type="button" disabled={!registryReady || !isConnected || tokenWrite.isPending} onClick={() => void approvePoolToken()}>1. Approve pool token</button>
-          <button className="primary-button" type="button" disabled={!registryReady || !isConnected || poolWrite.isPending} onClick={() => void depositPool()}>2. Deposit program pool</button>
+          <button className="secondary-button" type="button" disabled={localDemo || !registryReady || !isConnected || tokenWrite.isPending} onClick={() => void approvePoolToken()}>1. Approve pool token</button>
+          <button className="primary-button" type="button" disabled={localDemo || !registryReady || !isConnected || poolWrite.isPending} onClick={() => void depositPool()}>2. Deposit program pool</button>
         </div>
       </div>
 
       <div className="section-heading divided"><StepMark number="02" active /><div><h3>Publish or recover encrypted delivery</h3><p>The exact bundle bytes live in QoreChain event logs; their SHA-256 is part of the case receipt.</p></div></div>
       <div className="anchor-panel">
-        <div className="config-row"><span>Loaded case</span><code>{bundle?.caseId ?? "No bundle loaded"}</code><span className={bundle?.approvalAuthorities?.auditors?.length ? "pill positive" : "pill amber"}>{bundle?.approvalAuthorities?.auditors?.length ? `${bundleAuditorThreshold(bundle)}-of-${bundle.approvalAuthorities.auditors.length}` : "V4 quorum missing"}</span></div>
-        <button className="primary-button" type="button" disabled={!registryReady || !isConnected || !bundle || caseWrite.isPending} onClick={() => void publishBundle()}>{caseWrite.isPending ? "Publishing encrypted bundle…" : "Relay, reserve, and publish case"}</button>
+        <div className="config-row"><span>Loaded case</span><code>{bundle?.caseId ?? "No bundle loaded"}</code><span className={bundle?.approvalAuthorities?.auditors?.length ? "pill positive" : "pill amber"}>{bundle?.approvalAuthorities?.auditors?.length ? `${bundleAuditorThreshold(bundle)}-of-${bundle.approvalAuthorities.auditors.length}` : "Auditor quorum missing"}</span></div>
+        <button className="primary-button" type="button" disabled={localDemo || !registryReady || !isConnected || !bundle || caseWrite.isPending} onClick={() => void publishBundle()}>{caseWrite.isPending ? "Publishing encrypted bundle…" : "Relay, reserve, and publish case"}</button>
         <div className="form-grid recipient-addresses"><Field label="Recover by case ID" wide><div className="wallet-field"><input value={recoverCaseId} onChange={(event) => setRecoverCaseId(event.target.value)} placeholder="P3Q-…" /><button className="secondary-button" type="button" onClick={() => void recoverBundle()}>Recover &amp; verify</button></div></Field></div>
-        {caseState && <div className="receipt-grid v4-state-grid"><div><span>On-chain status</span><strong>{CASE_STATUSES[caseState[0]] ?? `Status ${caseState[0]}`}</strong></div><div><span>Reserved bounty</span><strong>{caseState[3].toString()} atomic</strong></div><div><span>Auditor threshold</span><strong>{caseState[12]}</strong></div><div><span>Bundle hash</span><strong>{shortHash(caseState[11])}</strong></div></div>}
+        {caseState && <div className="receipt-grid v4-state-grid"><div><span>On-chain status</span><strong>{protocolVersion === 5 && caseState[0] === 6 ? "Rejected" : v4CaseStatus(caseState[0])}</strong></div><div><span>Reserved bounty</span><strong>{caseState[3].toString()} atomic</strong></div><div><span>Auditor threshold</span><strong>{caseState[12]}</strong></div><div><span>Bundle hash</span><strong>{shortHash(caseState[11])}</strong></div></div>}
+        {decision && <div className="config-row"><span>Decision deadline</span><strong>{formatDate(new Date(Number(decision[0]) * 1000).toISOString())}</strong><span className={decision[1] ? "pill amber" : "pill positive"}>{decision[1] ? "Missed — escalate" : "Recorded"}</span></div>}
+        <div className="action-stack"><button className="secondary-button" type="button" disabled={localDemo || !registryReady} onClick={() => void refreshQuorumState()}>Refresh chain state</button><button className="primary-button" type="button" disabled={localDemo || !isConnected || !caseState || settled || caseState[0] === 5 || escalationWrite.isPending} onClick={() => void escalateCase()}>Escalate missed deadline</button></div>
       </div>
 
-      <div className="section-heading divided"><StepMark number="03" active /><div><h3>Collect quorum and release</h3><p>Program + quorum approves normal payout; reporter + quorum replaces the program after escalation.</p></div></div>
+      </div>
+      <div id="quorum-review" className="section-heading divided"><StepMark number="03" active /><div><h3>Collect quorum and release</h3><p>Program + quorum approves normal payout; reporter + quorum replaces the program after escalation.</p></div></div>
       <div className="anchor-panel">
         <div className="form-grid">
           <Field label="Participant"><select value={participantRole} onChange={(event) => selectParticipant(event.target.value as "reporter" | "program")}><option value="program">Program</option><option value="reporter">Reporter after escalation</option></select></Field>
           <Field label="Final severity"><select value={severity} onChange={(event) => setSeverity(event.target.value as Severity)}><option value="critical">Critical</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option><option value="informational">Informational</option></select></Field>
           <Field label="Payout atomic units"><input value={payoutAtomic} onChange={(event) => setPayoutAtomic(event.target.value)} /></Field>
           <Field label="Rationale" wide><textarea rows={3} value={rationale} onChange={(event) => setRationale(event.target.value)} /></Field>
-          <Field label="Participant approval vault" wide><textarea rows={5} value={participantVaultText} onChange={(event) => setParticipantVaultText(event.target.value)} placeholder="Patch3Q participant approval vault JSON" /></Field>
-          <Field label="Auditor approval vault array" hint="Only threshold-many unique auditors are required." wide><textarea rows={8} value={auditorVaultsText} onChange={(event) => setAuditorVaultsText(event.target.value)} placeholder="[auditorVault1, auditorVault2]" /></Field>
+          <details className="field wide" open={!localDemo}><summary>{localDemo ? "Demo signing keys — generated locally" : "Approval signing vaults"}</summary><Field label="Participant approval vault" wide><textarea rows={5} value={participantVaultText} onChange={(event) => setParticipantVaultText(event.target.value)} placeholder="Patch3Q participant approval vault JSON" /></Field><Field label="Auditor approval vault array" hint="Only threshold-many unique auditors are required." wide><textarea rows={8} value={auditorVaultsText} onChange={(event) => setAuditorVaultsText(event.target.value)} placeholder="[auditorVault1, auditorVault2]" /></Field></details>
         </div>
-        <button className="primary-button verify-button" type="button" disabled={!bundle || !payout || !participantVaultText || !auditorVaultsText || !registryReady} onClick={() => void signQuorumApproval()}>Create &amp; verify quorum approval</button>
+        <button className="primary-button verify-button" type="button" disabled={!bundle || !payout || !participantVaultText || !auditorVaultsText || !registryReady || signing || settled} onClick={() => void signQuorumApproval()}>{signing ? "Verifying quorum…" : "Create & verify quorum approval"}</button>
         {approval && verification && <div className={verification.verified ? "verification-result verified" : "verification-result failed"}>
-          <div className="verification-head"><div className="verified-mark">{verification.verified ? "✓" : "!"}</div><div><p className="eyebrow">{approval.participantRole} + {approval.auditors.length} unique auditors</p><h3>{verification.verified ? "V4 payout quorum verified" : "Quorum rejected"}</h3></div></div>
+          <div className="verification-head"><div className="verified-mark">{verification.verified ? "✓" : "!"}</div><div><p className="eyebrow">{approval.participantRole} + {approval.auditors.length} unique auditors</p><h3>{verification.verified ? `${protocolName} payout quorum verified` : "Quorum rejected"}</h3></div></div>
           <div className="check-grid">{Object.entries(verification.checks).map(([name, passed]) => <div key={name}><StatusDot good={passed} /><span>{name.replace(/([A-Z])/g, " $1")}</span><strong>{passed ? "Pass" : "Fail"}</strong></div>)}</div>
-          <HashRow label="V4 approval commitment" value={approval.approvalHash} />
-          <div className="action-stack"><button className="secondary-button" type="button" onClick={() => downloadText(`${bundle!.caseId}.v4-approval.json`, v4ApprovalToJson(approval))}>↓ Download quorum approval</button><button className="primary-button" type="button" disabled={bundle?.mode !== "testnet" || !verification.verified || !isConnected || payoutWrite.isPending} onClick={() => void releaseV4Payout()}>Release reserved bounty</button></div>
+          <HashRow label={`${protocolName} approval commitment`} value={approval.approvalHash} />
+          <div className="action-stack"><button className="secondary-button" type="button" onClick={() => downloadText(`${bundle!.caseId}.quorum-approval.json`, v4ApprovalToJson(approval))}>↓ Download quorum approval</button><button className="primary-button" type="button" disabled={bundle?.mode !== "testnet" || !verification.verified || !isConnected || payoutWrite.isPending || settled} onClick={() => void releaseV4Payout()}>Release reserved bounty</button></div>
         </div>}
       </div>
+      {protocolVersion === 5 && <div className="anchor-panel">
+        <div className="section-heading divided"><StepMark number="04" active /><div><h3>Reject an invalid report</h3><p>The auditor quorum can return the full reserve without a program or reporter veto. Use the rationale and auditor vaults above; rejection transfers no bounty.</p></div></div>
+        <button className="secondary-button" type="button" disabled={!bundle || signing || settled || !auditorVaultsText || auditorVaultsText === "[]"} onClick={() => void prepareRejection()}>Create &amp; verify rejection quorum</button>
+        {rejection && rejectionVerification && <div className={rejectionVerification.verified ? "verification-result verified" : "verification-result failed"}><div className="verification-head"><div className="verified-mark">{rejectionVerification.verified ? "✓" : "!"}</div><div><p className="eyebrow">Auditor quorum only</p><h3>{rejectionVerification.verified ? "V5 rejection quorum verified" : "Rejection quorum failed"}</h3></div></div><div className="check-grid">{Object.entries(rejectionVerification.checks).map(([name, passed]) => <div key={name}><StatusDot good={passed} /><span>{name.replace(/([A-Z])/g, " $1")}</span><strong>{passed ? "Pass" : "Fail"}</strong></div>)}</div><HashRow label="Rejection commitment" value={rejection.rejectionHash} /><div className="action-stack"><button className="secondary-button" type="button" onClick={() => downloadText(`${bundle!.caseId}.v5-rejection.json`, JSON.stringify(rejection, null, 2))}>↓ Download rejection verdict</button><button className="primary-button" type="button" disabled={localDemo || !isConnected || !rejectionVerification.verified || rejectionWrite.isPending || settled} onClick={() => void rejectOnChain()}>Reject case &amp; return reserve</button></div></div>}
+      </div>}
       {error && <div className="error-callout" role="alert">{error}</div>}
       {notice && <div className="transaction-status"><StatusDot good /><div><strong>{notice}</strong></div></div>}
     </section>
@@ -1934,39 +2027,36 @@ function V4Workspace({
 }
 
 function LiveEvidence() {
-  if (currentDeployment.status !== "verified" || !currentDeployment.registryAddress) {
-    return <div className="live-evidence pending"><i /> Diana evidence unavailable — run <code>pnpm verify:evidence</code></div>;
-  }
-  const transactions = Object.values(testnetEvidence.cases ?? {}).reduce(
-    (total, entry) => total + Object.keys(entry.transactions ?? {}).length,
-    0,
-  );
   return (
     <a
       className="live-evidence"
-      href={"https://dashboard.qorechain.io/explorer/address/" + currentDeployment.registryAddress}
+      href={"https://dashboard.qorechain.io/explorer/address/" + currentV5Deployment.registryAddress}
       target="_blank"
       rel="noreferrer"
     >
-      <i /> V4 + v3 live on Diana · V4 {shortHash(currentV4Deployment.registryAddress)} · {transactions} verified v3 lifecycle transactions ↗
+      <i /> V5 live on Diana · View the registry ↗
     </a>
   );
 }
 
 export function App() {
+  const [showDeadlineCase, setShowDeadlineCase] = useState(window.location.hash === "#missed-deadline");
   const [workspace, setWorkspace] = useState<Workspace>("seal");
+  const [quorumVersion, setQuorumVersion] = useState<4 | 5>(5);
   const [latestResult, setLatestResult] = useState<SealResult>();
   const [verifyBundle, setVerifyBundle] = useState<Patch3QBundle>();
   const [verifyVault, setVerifyVault] = useState<Patch3QKeyVault>();
   const [latestApproval, setLatestApproval] = useState<SeverityApproval>();
   const [latestPayout, setLatestPayout] = useState<SealedPayout>();
-  const [lastV4Recovery, setLastV4Recovery] = useState<{ caseId: string; notice: string }>();
+  const [lastRecovery, setLastRecovery] = useState<{ caseId: string; version: 4 | 5; notice: string }>();
+  const [demoBusy, setDemoBusy] = useState(false);
+  const [demoError, setDemoError] = useState("");
   const anchorBundle = latestResult?.bundle ?? verifyBundle;
   const workspaceLabel = useMemo(() => {
     if (workspace === "seal") return "Create";
     if (workspace === "verify") return "Verify";
     if (workspace === "approve") return "Approve";
-    if (workspace === "v4") return "V4";
+    if (workspace === "v4") return "Pool & quorum";
     return "Anchor";
   }, [workspace]);
 
@@ -1976,6 +2066,29 @@ export function App() {
     setWorkspace("verify");
     window.scrollTo({ top: 420, behavior: "smooth" });
   }
+
+  async function startQuorumDemo() {
+    setDemoBusy(true); setDemoError("");
+    try {
+      const result = await sealReport({ report: { ...QORECHAIN_DEMO_REPORT, embargoUntil: localDateAfter(30) },
+        mode: "demo", reporterMode: "anonymous", demoAuditorCount: 3, auditorThreshold: 2,
+        payoutAddress: privateKeyToAccount(generatePrivateKey()).address });
+      const opened = await openBundle(result.bundle, result.vaults[0]);
+      if (!opened.verified || !opened.payload.payout) throw new Error("The independent recipient check failed.");
+      setLatestResult(result); setLatestPayout(opened.payload.payout); setLatestApproval(undefined);
+      setWorkspace("v4");
+      setQuorumVersion(5);
+      window.requestAnimationFrame(() => document.getElementById("quorum-review")?.scrollIntoView({ block: "start", behavior: "smooth" }));
+    } catch (caught) { setDemoError(caught instanceof Error ? caught.message : "Could not start the quorum demo."); }
+    finally { setDemoBusy(false); }
+  }
+
+  useEffect(() => {
+    if (!showDeadlineCase) return;
+    const proof = document.getElementById("missed-deadline");
+    proof?.focus({ preventScroll: true });
+    proof?.scrollIntoView({ block: "start" });
+  }, [showDeadlineCase]);
 
   return (
     <div className="app-shell">
@@ -1997,23 +2110,26 @@ export function App() {
       <main>
         <section className="hero">
           <div className="hero-copy">
-            <div className="hero-kicker"><span>Q</span> Built for the post-quantum disclosure era</div>
-            <h1>Report the flaw.<br /><em>Not the secret.</em></h1>
+            <div className="hero-kicker">Post-quantum bug bounties</div>
+            <h1>Private bug reports.<br /><em>Funded bounties.</em></h1>
             <p>
-              Post-quantum disclosure escrow for participating programs. Seal a vulnerability for the vendor and an
-              independent auditor quorum, then prove when you reported it. If a pre-funded program misses its SLA, the
-              vendor loses its vote and reporter + quorum can adjudicate the reserved payout. No reporter wallet, no identity, no plaintext.
+              Report a bug anonymously. Participating programs reserve the bounty upfront. If a program misses its
+              deadline, the researcher takes over its payout vote. Auditors still judge the claim.
             </p>
+            <div className="hero-actions">
+              <a id="open-deadline-case" href="#missed-deadline" className="primary-button" onClick={() => setShowDeadlineCase(true)}>See a missed-deadline payout</a>
+              <a href="#workspace" className="secondary-button" onClick={() => setWorkspace("seal")}>Write a report</a>
+            </div>
             <div className="hero-proof">
               <div><strong>ML-KEM-1024</strong><span>Sealed in your browser</span></div>
               <div><strong>2-of-3 ML-DSA</strong><span>No single-auditor lockout</span></div>
-              <div><strong>0 identity</strong><span>Anonymous reporter mode</span></div>
+              <div><strong>No reporter wallet</strong><span>In anonymous mode</span></div>
             </div>
             <LiveEvidence />
             <div className="guarantee-card" role="note" aria-label="Scope of Patch3Q's payment guarantee">
               <strong>What the chain guarantees</strong>
               <span>Pre-funded case + missed SLA → the program permanently loses its approval vote.</span>
-              <small>V4 atomically reserves the bounty at submission; any configured auditor quorum can co-sign.</small>
+              <small>V5 reserves the bounty at submission and records a final decision deadline; the auditor quorum co-signs.</small>
             </div>
           </div>
           <div className="hero-visual" aria-hidden="true">
@@ -2027,14 +2143,22 @@ export function App() {
           </div>
         </section>
 
-        <section className="workspace-shell">
+        {showDeadlineCase && (
+          <DeadlineCase
+            demoBusy={demoBusy}
+            demoError={demoError}
+            onTrySigning={() => void startQuorumDemo()}
+          />
+        )}
+
+        <section id="workspace" className="workspace-shell">
           <div className="workspace-tabs" role="tablist" aria-label="Patch3Q workspace">
             {([
               ["seal", "01", "Seal report"],
               ["verify", "02", "Verify & open"],
               ["anchor", "03", "Anchor & escrow"],
               ["approve", "04", "Approve bounty"],
-              ["v4", "05", "V4 pool & quorum"],
+              ["v4", "05", "Pool & quorum"],
             ] as const).map(([id, number, label]) => (
               <button key={id} type="button" role="tab" aria-selected={workspace === id} className={workspace === id ? "active" : ""} onClick={() => setWorkspace(id)}>
                 <span>{number}</span>{label}
@@ -2057,18 +2181,19 @@ export function App() {
           {workspace === "anchor" && <AnchorWorkspace bundle={anchorBundle} />}
           {workspace === "v4" && (
             <V4Workspace
+              protocolVersion={quorumVersion}
+              onProtocolVersionChange={setQuorumVersion}
               key={(anchorBundle?.caseId ?? "empty") + (latestResult?.approvalVaults?.map((vault) => vault.signer).join("") ?? "")}
               bundle={anchorBundle}
               initialVaults={latestResult?.approvalVaults}
               payout={latestPayout}
-              initialRecoveryNotice={lastV4Recovery?.caseId === anchorBundle?.caseId ? lastV4Recovery?.notice : undefined}
+              initialRecoveryNotice={lastRecovery?.caseId === anchorBundle?.caseId && lastRecovery?.version === quorumVersion ? lastRecovery.notice : undefined}
               onRecovered={(bundle, notice) => {
                 setLatestResult(undefined);
                 setLatestPayout(undefined);
-                setVerifyVault(undefined);
                 setVerifyBundle(bundle);
                 setLatestApproval(undefined);
-                setLastV4Recovery({ caseId: bundle.caseId, notice });
+                setLastRecovery({ caseId: bundle.caseId, version: quorumVersion, notice });
               }}
             />
           )}
@@ -2092,7 +2217,7 @@ export function App() {
             <span><StatusDot good /> The case enters Escalated on-chain</span>
             <span><StatusDot good /> Any configured auditor quorum can adjudicate</span>
           </div>
-          <p>QoreChain cannot wake itself up on a timer: a researcher, auditor, or keeper submits enforcement. Patch3Q cannot force a non-participating program to fund a pool, but V4 snapshots multiple auditors so one unavailable signer cannot freeze payout.</p>
+          <p>A researcher, auditor, or keeper submits deadline enforcement. Participating programs fund a pool before accepting reports; V5 snapshots multiple auditors so one unavailable signer cannot freeze payout.</p>
         </section>
 
         <section className="threat-strip" id="threat-model">
