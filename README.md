@@ -260,6 +260,8 @@ Gas, timing, bundle size, and runtime size below describe V3. `pnpm measure:evid
 
 ### Try it locally
 
+Needs Node.js 20+ and pnpm 10.33.4, the version pinned in `package.json`. Run `corepack enable` once and pnpm switches to the pinned version automatically; an older pnpm stops with `ERR_PNPM_BAD_PM_VERSION`.
+
 ```sh
 pnpm install
 pnpm dev                # http://localhost:5173: demo mode, no wallet, no network
