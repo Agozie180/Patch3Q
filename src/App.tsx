@@ -1789,7 +1789,10 @@ function V4Workspace({
     setError(""); setNotice("");
     if (!patch3qRegistryV4Address || !recoverCaseId.trim()) return setError("Enter a case ID and configure the V4 registry.");
     try {
-      const recovered = await fetchV4Bundle({ registryAddress: patch3qRegistryV4Address, caseId: recoverCaseId.trim() });
+      const fromBlock = patch3qRegistryV4Address.toLowerCase() === currentV4Deployment.registryAddress.toLowerCase()
+        ? BigInt(currentV4Deployment.deploymentBlock)
+        : undefined;
+      const recovered = await fetchV4Bundle({ registryAddress: patch3qRegistryV4Address, caseId: recoverCaseId.trim(), fromBlock });
       onRecovered(recovered.bundle);
       setNotice(`Recovered and SHA-256 verified bundle from ${recovered.transactionHash ?? "the V4 event log"}.`);
     } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not recover the encrypted bundle."); }
