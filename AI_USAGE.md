@@ -9,10 +9,10 @@ as a feature claim pasted onto the product.
 | --- | --- | --- | --- |
 | Product framing | Challenge the original “encrypted disclosure” pitch against a crowded hackathon field | Chose the ghosted-researcher problem and accepted the narrower product scope | README thesis and comparison table |
 | Threat modelling | Act as an attacker holding every classical ECDSA key and look for privacy, escrow and deadline failures | Decided which threats were in scope and rejected claims that could not be demonstrated | [`docs/threat-model.md`](docs/threat-model.md), [`docs/competition-audit.md`](docs/competition-audit.md) |
-| Protocol design | Propose invariants and failure cases before implementation | Approved the dual-party authority model and lifecycle semantics | `Patch3QRegistry.sol` and 29 contract tests |
+| Protocol design | Propose invariants and failure cases before implementation | Approved the dual-party authority model and lifecycle semantics | The V5 contract and its 23 dedicated tests in `contract-tests/registry-v5.test.ts` |
 | Pair programming | Draft TypeScript, Solidity, tests, scripts and documentation under review | Reviewed diffs, ran the code and retained responsibility for every merge | `pnpm check`, browser evidence and Diana evidence |
-| Adversarial QA | Judge the finished entry end to end, compare it with the live event field and find claims unsupported by evidence | Chose and implemented the fixes; kept unresolved items explicit | Findings 1–19 in the competition audit |
-| Evidence verification | Build independent scripts that re-read receipts, bytecode, balances and event logs instead of trusting prose | Supplied the testnet accounts and approved broadcasts | `pnpm verify:evidence`: 64/64 v1/v2 + 50/50 v3 + 49/49 v4 checks |
+| Adversarial QA | Judge the finished entry end to end, compare it with the live event field and find claims unsupported by evidence | Chose and implemented the fixes; kept unresolved items explicit | Findings 1–24 in the competition audit |
+| Evidence verification | Build independent scripts that re-read receipts, bytecode, balances and event logs instead of trusting prose | Supplied the testnet accounts and approved broadcasts | `pnpm verify:evidence`: 359 checks, re-run against Diana by CI on every push |
 
 The agents used during development included Cursor and OpenAI Codex. The latest Codex audit led directly to:
 
