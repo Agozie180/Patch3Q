@@ -89,6 +89,19 @@ The review did not merely generate code. It found and pinned protocol failures:
 Each accepted finding has a code change and a named regression test or recorded evidence in
 [`docs/competition-audit.md`](docs/competition-audit.md).
 
+## What the human decided
+
+Humans own the product decisions, scope, threat-model acceptance, private-key custody, faucet claims, transaction
+broadcasts, public statements and submission. In practice that meant:
+
+- choosing the ghosted-researcher problem over a generic encrypted-disclosure pitch;
+- accepting the 2-of-3 auditor quorum and the sealed payout commitment as the authority model;
+- refusing to claim a QCAI risk score when the public RPC returned empty data;
+- keeping the single-operator rehearsal and the unaudited status in the README instead of hiding them;
+- declining the two suggestions listed above.
+
+AI did not authorize a transaction or decide that a security claim was true. Reproducible tests and chain receipts did.
+
 ## Validation discipline
 
 AI output is not treated as evidence. Changes must pass:
@@ -111,6 +124,12 @@ V5 deployment; scripts read ignored environment and recovery files in memory wit
 pass listed environment variable names only, never their values. Private vaults, recipient keys and recovery material
 remain ignored and are excluded from hosted uploads. Agent instruction files (`CLAUDE.md`, `AGENTS.md`, `.claude/`) are
 git-ignored. Reports are encrypted locally in the browser. All repository examples and live cases use synthetic content.
+
+## Limits of this disclosure
+
+- Only Cursor's commits carry a distinct git author. Codex work and the single Claude Code session cannot be separated by `git log`.
+- Counts are as of 26 Nov 2026 and are reproduced by the commands above.
+- Reproducing a check proves the result, not which assistant first proposed it.
 
 ## QCAI disclosure
 
