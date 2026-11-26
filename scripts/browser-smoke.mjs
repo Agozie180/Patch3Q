@@ -361,6 +361,9 @@ try {
     liveCaseId = JSON.parse(readFileSync("evidence/v4-lifecycle.json", "utf8")).caseId;
     await evaluate(`[...document.querySelectorAll('[role="tab"]')].find((tab) => tab.textContent.includes('V4 pool & quorum')).click(); true`);
     const readRecovery = () => evaluate(`({
+      loadedCaseId: [...document.querySelectorAll('.config-row')].find((element) => element.firstElementChild?.textContent === 'Loaded case')?.querySelector('code')?.textContent ?? '',
+      status: [...document.querySelectorAll('.v4-state-grid div')].find((element) => element.textContent.includes('On-chain status'))?.querySelector('strong')?.textContent ?? '',
+      pool: [...document.querySelectorAll('.v4-state-grid div')].find((element) => element.textContent.includes('Pool available'))?.querySelector('strong')?.textContent ?? '',
       notice: document.querySelector('.transaction-status')?.textContent ?? '',
       error: document.querySelector('.error-callout')?.textContent ?? ''
     })`);
@@ -376,7 +379,7 @@ try {
     await clickRecover();
     for (let i = 0; i < 250; i += 1) {
       liveRecovery = await readRecovery();
-      if (liveRecovery.error || liveRecovery.notice) break;
+      if (liveRecovery.error || (liveRecovery.loadedCaseId === liveCaseId && liveRecovery.status === 'Resolved' && liveRecovery.pool === '22500000000 atomic' && liveRecovery.notice)) break;
       await pause(200);
     }
     await capture("browser-live-recovery.png");
@@ -419,7 +422,12 @@ try {
       approvalStarted,
       dualPqApprovalVerified: approved.heading === "Payout instruction verified",
       classicalOnlyForgeriesRejected: approved.classicalForgeriesRejected,
-      ...(checkLiveRecovery && { liveBundleRecovered: liveRecovery.notice.includes("SHA-256 verified bundle") }),
+      ...(checkLiveRecovery && {
+        liveBundleRecovered: liveRecovery.notice.includes("SHA-256 verified bundle"),
+        liveCaseSelected: liveRecovery.loadedCaseId === liveCaseId,
+        liveCaseResolved: liveRecovery.status === "Resolved",
+        livePoolRecovered: liveRecovery.pool === "22500000000 atomic",
+      }),
       noPageErrors: pageErrors.length === 0,
     },
     home,
