@@ -295,6 +295,8 @@ checks-effects-interactions, uses a reentrancy guard and exact balance accountin
 ### Limitations, stated plainly
 
 - Deadlines are enforced permissionlessly but not autonomously. Someone has to send the escalation transaction.
+- The program appoints its own auditors. After escalation the researcher replaces the program’s vote, but two of the
+  program’s auditors must still co-sign, so unresponsive auditors can stall a payout.
 - The relayer, the timing, the amounts and the program/auditor accounts are public. A relayer can refuse to relay,
   but it cannot read the report, redirect the payout or change the vote.
 - The contract cannot decrypt the AAD. Recipients must check that the on-chain roles match the verified bundle.
