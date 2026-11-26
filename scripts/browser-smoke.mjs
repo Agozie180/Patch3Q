@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -7,6 +7,7 @@ import path from "node:path";
 const defaultTargetUrl = "http://127.0.0.1:4173/";
 const targetUrl = process.env.PATCH3Q_BROWSER_URL ?? defaultTargetUrl;
 const outputDirectory = path.resolve(process.env.PATCH3Q_BROWSER_OUTPUT ?? "evidence");
+const checkLiveRecovery = process.env.PATCH3Q_BROWSER_LIVE_RECOVERY === "1";
 const viewportWidth = Number(process.env.PATCH3Q_BROWSER_WIDTH ?? 1440);
 const viewportHeight = Number(process.env.PATCH3Q_BROWSER_HEIGHT ?? 1400);
 const chromeCandidates = [
@@ -354,6 +355,33 @@ try {
   await pause(100);
   await capture("browser-journey.png");
 
+  let liveCaseId;
+  let liveRecovery;
+  if (checkLiveRecovery) {
+    liveCaseId = JSON.parse(readFileSync("evidence/v4-lifecycle.json", "utf8")).caseId;
+    await evaluate(`[...document.querySelectorAll('[role="tab"]')].find((tab) => tab.textContent.includes('V4 pool & quorum')).click(); true`);
+    const readRecovery = () => evaluate(`({
+      notice: document.querySelector('.transaction-status')?.textContent ?? '',
+      error: document.querySelector('.error-callout')?.textContent ?? ''
+    })`);
+    await waitFor(`Boolean(document.querySelector('input[placeholder="P3Q-…"]'))`, "the V4 recovery form");
+    const clickRecover = () => evaluate(`[...document.querySelectorAll('button')].find((button) => button.textContent.includes('Recover & verify')).click(); true`);
+    await clickRecover();
+    await waitFor(`document.querySelector('.error-callout')?.textContent.includes('Enter a case ID')`, "the empty case validation");
+    await evaluate(`(() => {
+      const field = document.querySelector('input[placeholder="P3Q-…"]');
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(field, ${JSON.stringify(liveCaseId)});
+      field.dispatchEvent(new Event('input', { bubbles: true }));
+    })()`);
+    await clickRecover();
+    for (let i = 0; i < 250; i += 1) {
+      liveRecovery = await readRecovery();
+      if (liveRecovery.error || liveRecovery.notice) break;
+      await pause(200);
+    }
+    await capture("browser-live-recovery.png");
+  }
+
   const report = {
     generatedAt: new Date().toISOString(),
     targetUrl,
@@ -391,12 +419,14 @@ try {
       approvalStarted,
       dualPqApprovalVerified: approved.heading === "Payout instruction verified",
       classicalOnlyForgeriesRejected: approved.classicalForgeriesRejected,
+      ...(checkLiveRecovery && { liveBundleRecovered: liveRecovery.notice.includes("SHA-256 verified bundle") }),
       noPageErrors: pageErrors.length === 0,
     },
     home,
     approval,
     v4,
     journey: { sealed, verified, approved },
+    ...(checkLiveRecovery && { liveRecovery }),
     pageErrors,
     screenshots: [
       outputPath("browser-home.png"),
@@ -404,6 +434,7 @@ try {
       outputPath("browser-v4.png"),
       outputPath("browser-sealed.png"),
       outputPath("browser-journey.png"),
+      ...(checkLiveRecovery ? [outputPath("browser-live-recovery.png")] : []),
     ],
   };
   await writeFile(path.join(outputDirectory, "browser-smoke.json"), `${JSON.stringify(report, null, 2)}\n`, "utf8");
