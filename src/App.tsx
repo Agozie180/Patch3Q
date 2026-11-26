@@ -1621,12 +1621,14 @@ function V4Workspace({
   bundle,
   initialVaults,
   payout,
+  initialRecoveryNotice,
   onRecovered,
 }: {
   bundle?: Patch3QBundle;
   initialVaults?: Patch3QApprovalVault[];
   payout?: SealedPayout;
-  onRecovered: (bundle: Patch3QBundle) => void;
+  initialRecoveryNotice?: string;
+  onRecovered: (bundle: Patch3QBundle, notice: string) => void;
 }) {
   const { address, isConnected } = useAccount();
   const [auditorsText, setAuditorsText] = useState("");
@@ -1653,7 +1655,7 @@ function V4Workspace({
   const [approval, setApproval] = useState<V4SeverityApproval>();
   const [verification, setVerification] = useState<V4ApprovalVerificationResult>();
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
+  const [notice, setNotice] = useState(initialRecoveryNotice ?? "");
   const policyWrite = useWriteContract();
   const tokenWrite = useWriteContract();
   const poolWrite = useWriteContract();
@@ -1793,8 +1795,9 @@ function V4Workspace({
         ? BigInt(currentV4Deployment.deploymentBlock)
         : undefined;
       const recovered = await fetchV4Bundle({ registryAddress: patch3qRegistryV4Address, caseId: recoverCaseId.trim(), fromBlock });
-      onRecovered(recovered.bundle);
-      setNotice(`Recovered and SHA-256 verified bundle from ${recovered.transactionHash ?? "the V4 event log"}.`);
+      const recoveryNotice = `Recovered and SHA-256 verified bundle from ${recovered.transactionHash ?? "the V4 event log"}.`;
+      onRecovered(recovered.bundle, recoveryNotice);
+      setNotice(recoveryNotice);
     } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not recover the encrypted bundle."); }
   }
 
@@ -1957,6 +1960,7 @@ export function App() {
   const [verifyVault, setVerifyVault] = useState<Patch3QKeyVault>();
   const [latestApproval, setLatestApproval] = useState<SeverityApproval>();
   const [latestPayout, setLatestPayout] = useState<SealedPayout>();
+  const [lastV4Recovery, setLastV4Recovery] = useState<{ caseId: string; notice: string }>();
   const anchorBundle = latestResult?.bundle ?? verifyBundle;
   const workspaceLabel = useMemo(() => {
     if (workspace === "seal") return "Create";
@@ -2057,12 +2061,14 @@ export function App() {
               bundle={anchorBundle}
               initialVaults={latestResult?.approvalVaults}
               payout={latestPayout}
-              onRecovered={(bundle) => {
+              initialRecoveryNotice={lastV4Recovery?.caseId === anchorBundle?.caseId ? lastV4Recovery?.notice : undefined}
+              onRecovered={(bundle, notice) => {
                 setLatestResult(undefined);
                 setLatestPayout(undefined);
                 setVerifyVault(undefined);
                 setVerifyBundle(bundle);
                 setLatestApproval(undefined);
+                setLastV4Recovery({ caseId: bundle.caseId, notice });
               }}
             />
           )}
