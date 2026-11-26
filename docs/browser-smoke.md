@@ -10,6 +10,24 @@ pnpm smoke:browser
 Set `PATCH3Q_BROWSER_WIDTH=390`, `PATCH3Q_BROWSER_HEIGHT=844` and a temporary `PATCH3Q_BROWSER_OUTPUT` to repeat the
 mobile assertion without overwriting the committed desktop captures.
 
+## Hosted V4 recovery
+
+From PowerShell, run the browser suite against the public Vercel URL with the live recovery check enabled:
+
+```powershell
+$env:PATCH3Q_BROWSER_URL = 'https://patch3-q.vercel.app/'
+$env:PATCH3Q_BROWSER_LIVE_RECOVERY = '1'
+$env:PATCH3Q_BROWSER_OUTPUT = '.tmp/hosted-v4-desktop'
+pnpm smoke:browser
+```
+
+Set `PATCH3Q_CHROME_PATH` to the installed Edge executable to run in headless Edge. For the mobile viewport,
+use `PATCH3Q_BROWSER_WIDTH=390`, `PATCH3Q_BROWSER_HEIGHT=844`, and a separate output directory.
+The suite seals a synthetic report first, then recovers the known paid Diana case and checks its bundle hash,
+selected case ID, resolved status and remaining pool. Live Diana calls in this suite are read-only.
+
+## Demo journey
+
 Verified through the real demo journey:
 
 - the hero and current v3 Diana testnet status rendered;
